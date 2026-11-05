@@ -1,7 +1,7 @@
 {
  "plugins": {
   "setmaker-prep": {
-   "version": "0.8.5",
+   "version": "0.8.6",
    "dir": "prepn",
    "files": [
     "prepn.html",
@@ -25,7 +25,7 @@
    ]
   },
   "setmaker-sort": {
-   "version": "0.2.7",
+   "version": "0.2.8",
    "dir": "sortn",
    "files": [
     "sortn.html",

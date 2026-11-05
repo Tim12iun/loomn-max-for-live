@@ -2,7 +2,11 @@
 // Liest manifest.json aus dem GitHub-Repo und lädt neuere Dateien in den Ordner des Devices.
 // ES5 (Max [js]). Benutzt XMLHttpRequest von Max (maxurl).
 var LU = (function () {
-  var BASE = "https://raw.githubusercontent.com/Tim12iun/loomn-max-for-live/main/";
+  var RAW = "https://raw.githubusercontent.com/Tim12iun/loomn-max-for-live/";
+  var API = "https://api.github.com/repos/Tim12iun/loomn-max-for-live/commits/main";
+  // raw.githubusercontent.com hält "main" bis zu 5 Minuten im Zwischenspeicher. Darum erst den neuesten
+  // Commit fragen und alles von genau diesem Stand laden. Klappt das nicht, wie früher über "main".
+  var BASE = RAW + "main/";
   function cmp(a, b) { // "0.4.1" vs "0.4.0"
     var x = String(a).split("."), y = String(b).split(".");
     for (var i = 0; i < Math.max(x.length, y.length); i++) {
@@ -23,6 +27,14 @@ var LU = (function () {
   }
   // check(pluginId, localVersion, cb(err, info)) – info = {latest, newer, entry}
   function check(pluginId, localVersion, cb) {
+    get(API, function (e0, meta) {
+      var sha = null;
+      if (!e0) { try { sha = JSON.parse(meta).sha; } catch (e) {} }
+      BASE = RAW + (sha && /^[0-9a-f]{40}$/.test(sha) ? sha : "main") + "/";
+      checkManifest(pluginId, localVersion, cb);
+    });
+  }
+  function checkManifest(pluginId, localVersion, cb) {
     get(BASE + "manifest.json", function (err, txt) {
       if (err) return cb("Update-Server nicht erreichbar (" + err + ")");
       var m; try { m = JSON.parse(txt); } catch (e) { return cb("manifest.json kaputt"); }
@@ -92,6 +104,6 @@ var LU = (function () {
     }
     next();
   }
-  return { BASE: BASE, cmp: cmp, check: check, install: install, leftovers: leftovers };
+  return { cmp: cmp, check: check, install: install, leftovers: leftovers };
 })();
 // ==== END loomn_update ====
