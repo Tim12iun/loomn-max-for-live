@@ -1,4 +1,4 @@
-sortn v0.2.9 (Test-Version)
+sortn v0.2.10 (Test-Version)
 Erkennt, was in jeder Spur steckt (Kick, Hi-Hat, Bass, Vocals ...), benennt die Spuren einheitlich um
 (Kick 1, Kick 2 ...) und faerbt sie pro Kategorie. Alles, was nicht erkannt wird, bekommt die Rest-Farbe.
 sortn arbeitet komplett eigenstaendig, unabhaengig von prepn.
@@ -37,6 +37,8 @@ Woran erkannt wird
 - Spurname (ausser "3-Audio" usw.), Clipnamen, Sample-Dateinamen, Instrument-Namen (z. B. Serum, Drum Rack).
 - Begriffe bis 3 Zeichen (bd, hh, fx, 808) zaehlen nur als ganzes Wort, laengere auch als Teil ("hihat" findet "Hi_Hat_02").
 - Begriffe, die in fast allen Spuren vorkommen (meist der Songtitel), werden ignoriert.
+- Unerkannte Spuren mit Standardnamen (1-MIDI, 4 Audio) heissen danach Rest 1, Rest 2 ... Eigene Namen bleiben.
+- Jede Gruppe bekommt einen Namen: eigener Name, gemeinsame Kategorie oder die haeufigste Kategorie darin.
 - Gruppen heissen "<Kategorie> Group" (z. B. Vocals Group, bei mehreren Drums Group 2 ...).
   Gemischte Gruppen (z. B. Snare + Clap) bekommen einen passenden Namen, bleiben aber grau (Rest-Farbe).
 - Stem-Spuren von prepn (z. B. TOPS_SONG 132) werden nie angefasst.
