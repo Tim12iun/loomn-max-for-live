@@ -44,7 +44,7 @@ var SM = (function () {
       ],
       rest: { label: "Rest", color: col(55) },
       sort: {
-        rename: true, colorize: true, colorClips: false, numberSingle: false,
+        rename: true, colorize: true, colorClips: false, matchClips: false, keepColor: 13, numberSingle: false,
         pattern: "{name} {n}", keepCustomNames: false, renameRest: false, groups: true,
         sources: { trackName: true, clipNames: true, fileNames: true, devices: true }
       }
@@ -246,6 +246,8 @@ var SM = (function () {
       var row = { id: tr.id, index: tr.index !== undefined ? tr.index : r, name: tr.name, color: tr.color, isGroup: !!tr.isGroup,
                   group: tr.group, depth: 0, cat: null, source: "", conf: "", why: [], alt: null };
       if (STEM_RE.test(tr.name)) { row.source = "stem"; }
+      // Spuren in der "Nicht ändern"-Farbe bleiben, wie sie sind
+      else if (o.keepColor !== undefined && o.keepColor !== null && o.keepColor >= 0 && tr.color === o.keepColor) { row.source = "keep"; row.why = ["Farbe „Nicht ändern“"]; }
       else {
         var sres = score(tr, tr.isGroup);
         if (sres) { row.cat = sres.cat; row.source = "auto"; row.conf = sres.conf; row.why = sres.why; row.alt = sres.alt; }
@@ -257,7 +259,7 @@ var SM = (function () {
     // Unbekannte Spur in einer erkannten Gruppe (z. B. Gruppe "Vocals") -> erbt die Kategorie
     for (var u = 0; u < rows.length; u++) {
       var ru = rows[u];
-      if (ru.cat || ru.isGroup || ru.source === "stem") continue;
+      if (ru.cat || ru.isGroup || ru.source === "stem" || ru.source === "keep") continue;
       var pg = ru.group ? byId[ru.group] : null;
       while (pg && !pg.cat) pg = pg.group ? byId[pg.group] : null;
       if (pg && pg.cat) { ru.cat = pg.cat; ru.source = "group"; ru.conf = "unsicher"; ru.why = ["Gruppe: " + pg.name]; }
@@ -275,10 +277,10 @@ var SM = (function () {
     if (o.groups) {
       for (var gi = rows.length - 1; gi >= 0; gi--) {
         var gr = rows[gi];
-        if (!gr.isGroup || gr.source === "stem" || overrides[gr.id] !== undefined) continue;
+        if (!gr.isGroup || gr.source === "stem" || gr.source === "keep" || overrides[gr.id] !== undefined) continue;
         var leafCats = {}, nLeaf = 0, nKnown = 0, inherited = 0;
         for (var li = 0; li < rows.length; li++) {
-          var lr = rows[li]; if (lr.isGroup || lr.source === "stem") continue;
+          var lr = rows[li]; if (lr.isGroup || lr.source === "stem" || lr.source === "keep") continue;
           var anc = lr.group ? byId[lr.group] : null, inside = false;
           while (anc) { if (anc === gr) { inside = true; break; } anc = anc.group ? byId[anc.group] : null; }
           if (!inside) continue;
@@ -297,14 +299,14 @@ var SM = (function () {
     // Neue Namen + Farben
     var count = {}, groupCount = {}, seen = {}, groupSeen = {};
     for (var e = 0; e < rows.length; e++) {
-      var rr = rows[e]; if (rr.source === "stem" || rr.source === "skip") continue;
+      var rr = rows[e]; if (rr.source === "stem" || rr.source === "skip" || rr.source === "keep") continue;
       var key = rr.cat || "_rest";
       if (rr.isGroup) groupCount[key] = (groupCount[key] || 0) + 1; else count[key] = (count[key] || 0) + 1;
     }
     for (var f = 0; f < rows.length; f++) {
       var row2 = rows[f];
       row2.newName = row2.name; row2.newColor = row2.color; row2.lane = "";
-      if (row2.source === "stem" || row2.source === "skip") continue;
+      if (row2.source === "stem" || row2.source === "skip" || row2.source === "keep") continue;
       var c2 = row2.cat ? byCat[row2.cat] : null, key2 = row2.cat || "_rest";
       row2.lane = c2 ? (c2.lane || "") : "";
       if (o.colorize) row2.newColor = c2 ? c2.color.index : s.rest.color.index;

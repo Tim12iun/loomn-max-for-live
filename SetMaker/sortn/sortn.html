@@ -66,6 +66,18 @@ input[type=checkbox]{margin:0;accent-color:var(--accent)}
   .row .sw.newsw{order:1}.row .new{order:2}.row select{order:4}.row .dot{order:5}
   .sw{width:10px;height:10px}
 }
+.keep{display:inline-flex;align-items:center;gap:3px;cursor:pointer;color:var(--muted);margin-left:auto}
+.keep i{width:12px;height:12px;border-radius:2px;border:1px solid #666;display:inline-block}
+.keep i.off{background:repeating-linear-gradient(45deg,#333 0 3px,#222 3px 6px)}
+.keep:hover i{border-color:#bbb}
+.clipsT{display:flex;align-items:center;gap:3px;color:var(--muted);white-space:nowrap;cursor:pointer}
+.clipsT:hover{color:var(--text)}
+#greys{position:fixed;display:none;gap:3px;padding:4px;background:#111;border:1px solid #555;border-radius:4px;z-index:9;align-items:center}
+#greys i{width:16px;height:16px;border-radius:2px;cursor:pointer;border:1px solid #444}
+#greys i:hover,#greys i.on{outline:1px solid var(--accent)}
+#greys span{color:var(--muted);cursor:pointer;padding:0 3px}#greys span:hover{color:var(--text)}
+@media (max-width:520px){ #gear{margin-left:0} .tabs+.keep{margin-left:auto} }
+@media (min-width:521px){ .tabs{margin-left:6px} }
 </style>
 </head>
 <body>
@@ -75,6 +87,8 @@ input[type=checkbox]{margin:0;accent-color:var(--accent)}
   <button class="go" id="run" title="Spuren umbenennen und färben wie in der Vorschau">▶ Ausführen</button>
   <button id="undo" title="Letztes Ausführen rückgängig machen">↶</button>
   <div class="tabs"><button id="tPrev" class="on">Spuren</button><button id="tSet">Einstellungen</button></div>
+  <span class="keep" id="keep" title="Spuren in dieser Farbe lässt sortn komplett in Ruhe (Name und Farbe). Klicken = Farbe wählen."><i id="keepSw"></i>Bleibt</span>
+  <label class="clipsT" title="Beim Ausführen bekommen die Clips denselben Namen und dieselbe Farbe wie ihre Spur"><input type="checkbox" id="matchClips">Clips</label>
   <button id="gear" title="Einstellungen (Farben, Begriffe …) im großen Fenster">⚙</button>
   <button id="upd" title="Prüft auf GitHub, ob es eine neue Version gibt">⟳</button>
   <button id="float" title="Als schwebendes Fenster öffnen (mehr Platz für Einstellungen)">⧉</button>
@@ -83,6 +97,7 @@ input[type=checkbox]{margin:0;accent-color:var(--accent)}
 <div class="bar"><i id="bar"></i></div>
 <div class="status" id="status"></div>
 <div id="pal"></div>
+<div id="greys"></div>
 
 <script>
 const $ = s => document.querySelector(s);
@@ -97,6 +112,9 @@ const catColor = c => c.color && c.color.rgb ? hex(c.color.rgb) : colorOf(c.colo
 function draw(){
   if(!S) return;
   $('#undo').disabled = !S.canUndo;
+  const kc = S.settings.sort.keepColor, ks = $('#keepSw');
+  ks.className = kc >= 0 ? '' : 'off'; ks.style.background = kc >= 0 ? colorOf(kc) : '';
+  $('#matchClips').checked = !!S.settings.sort.matchClips;
   $('#tPrev').classList.toggle('on', tab==='prev');
   $('#tSet').classList.toggle('on', tab==='set');
   if(tab==='prev') drawPreview(); else if(!document.activeElement || !$('#main').contains(document.activeElement)) drawSettings();
@@ -108,19 +126,19 @@ function drawPreview(){
   const opts = '<option value="_auto">Auto</option>' + cats.map(c => `<option value="${esc(c.id)}">${esc(c.label)}</option>`).join('')
     + `<option value="_rest">${esc(S.settings.rest.label)}</option><option value="_skip">Nicht ändern</option>`;
   m.innerHTML = rows.map(r => {
-    const stem = r.source === 'stem', skip = r.source === 'skip';
+    const stem = r.source === 'stem', skip = r.source === 'skip', keep = r.source === 'keep';
     const chg = r.newName !== r.name;
     const cur = S.overrides[r.id] !== undefined ? S.overrides[r.id] : '_auto';
     const label = r.cat ? (cats.find(c => c.id === r.cat) || {}).label : (stem ? 'Prep-Stem' : S.settings.rest.label);
     const dot = r.source === 'manual' || skip ? 'manual' : r.conf;
-    const tip = (stem ? 'Stem-Spur von SetMaker Prep, wird nicht angefasst' : (r.why.join(' · ') || 'Nichts erkannt')) + (r.cat || stem ? '' : ' → ' + label);
-    return `<div class="row ${stem||skip?'dim':''}" title="${esc(tip)}">
+    const tip = keep ? 'Farbe „Nicht ändern“: bleibt, wie sie ist' : (stem ? 'Stem-Spur von SetMaker Prep, wird nicht angefasst' : (r.why.join(' · ') || 'Nichts erkannt')) + (r.cat || stem ? '' : ' → ' + label);
+    return `<div class="row ${stem||skip||keep?'dim':''}" title="${esc(tip)}">
       <span class="sw oldsw" style="background:${colorOf(r.color)}"></span>
       <span class="nm old" style="padding-left:${r.depth*8}px">${r.isGroup?'▸ ':''}${esc(r.name)}</span>
       <span class="arr">→</span>
       <span class="sw newsw" style="background:${colorOf(r.newColor)}"></span>
       <span class="nm new ${chg?'chg':''}">${esc(r.newName)}</span>
-      ${stem ? '<span class="nm old">Prep-Stem</span>' : `<select data-id="${r.id}">${opts.replace(`value="${esc(cur)}"`, `value="${esc(cur)}" selected`)}</select>`}
+      ${keep ? '<span class="nm old">bleibt</span>' : stem ? '<span class="nm old">Prep-Stem</span>' : `<select data-id="${r.id}">${opts.replace(`value="${esc(cur)}"`, `value="${esc(cur)}" selected`)}</select>`}
       <span class="dot ${dot}" title="${dot==='sicher'?'Sicher erkannt':dot==='unsicher'?'Unsicher, bitte prüfen':dot==='manual'?'Von Hand':''}"></span>
     </div>`;
   }).join('');
@@ -133,7 +151,7 @@ function drawSettings(){
   const cb = (path, label, tip) => `<label title="${esc(tip||'')}"><input type="checkbox" data-o="${path}" ${get(path)?'checked':''}>${label}</label>`;
   const allCase = s.categories.length && s.categories.every(c => c.caseSensitive);
   m.innerHTML = `<div class="opts">
-      ${cb('sort.rename','Umbenennen')}${cb('sort.colorize','Färben')}${cb('sort.colorClips','Clips mitfärben','Clips bekommen die Spurfarbe')}
+      ${cb('sort.rename','Umbenennen')}${cb('sort.colorize','Färben')}
       <label title="Groß-/Kleinschreibung bei allen Begriffen beachten"><input type="checkbox" id="allCase" ${allCase?'checked':''}>Groß/klein beachten</label>
       ${cb('sort.numberSingle','Nummer auch bei einer Spur','Kick 1 statt Kick')}
       ${cb('sort.keepCustomNames','Eigene Namen behalten','Nur Spuren mit Standardnamen (1-Audio …) umbenennen')}
@@ -210,6 +228,20 @@ document.addEventListener('mousedown', e => { if(!$('#pal').contains(e.target) &
 $('#analyze').onclick = () => { flush(); toMax('analyze'); };
 $('#run').onclick = () => { flush(); toMax('run'); };
 $('#undo').onclick = () => toMax('undo');
+const GREYS = [13, 27, 41, 55, 69];
+function setSort(k, v){ if(!S) return; S.settings.sort[k] = v; dirty = true; flush(); draw(); }
+$('#matchClips').onchange = e => setSort('matchClips', e.target.checked);
+$('#keep').onclick = e => {
+  if(!S) return;
+  const g = $('#greys'), kc = S.settings.sort.keepColor;
+  g.innerHTML = GREYS.map(i => `<i data-i="${i}" class="${i===kc?'on':''}" style="background:${colorOf(i)}"></i>`).join('') + '<span data-i="-1" title="Keine Farbe ausklammern">aus</span>';
+  g.style.display = 'flex';
+  const r = $('#keep').getBoundingClientRect();
+  g.style.left = Math.max(2, Math.min(r.left, innerWidth - 140)) + 'px'; g.style.top = (r.bottom + 3) + 'px';
+  g.onclick = ev => { const i = ev.target.dataset.i; if(i === undefined) return; g.style.display = 'none'; setSort('keepColor', Number(i)); };
+  e.stopPropagation();
+};
+document.addEventListener('mousedown', e => { if(!$('#greys').contains(e.target) && !$('#keep').contains(e.target)) $('#greys').style.display = 'none'; });
 $('#float').onclick = () => toMax('popout');
 $('#upd').onclick = () => toMax('update');
 $('#tPrev').onclick = () => { flush(); tab = 'prev'; draw(); };
