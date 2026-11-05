@@ -108,7 +108,7 @@ var SM = (function () {
   }
   function isDefaultName(name) {
     var s = String(name || "").replace(/^\s+|\s+$/g, "");
-    return !s || /^\d+$/.test(s) || /^\d+[\s\-]*(audio|midi)(\s*\d+)?$/i.test(s) || /^(audio|midi)(\s*\d+)?$/i.test(s);
+    return !s || /^\d+$/.test(s) || /^\d+[\s\-]*(audio|midi|group|gruppe)(\s*\d+)?$/i.test(s) || /^(audio|midi|group|gruppe)(\s*\d+)?$/i.test(s);
   }
   function baseName(path) {
     var b = String(path || "").split(/[\/:\\]/).pop();
@@ -303,17 +303,31 @@ var SM = (function () {
         if (nLeaf && nKnown === nLeaf && keys.length === 1) {
           if (gr.cat !== keys[0]) { gr.cat = keys[0]; gr.source = "auto"; gr.conf = "sicher"; gr.why = ["Alle " + nLeaf + " Spuren in der Gruppe: " + byCat[keys[0]].label]; }
         } else if (nKnown > inherited) {
-          gr.cat = null; gr.source = "auto"; gr.conf = ""; gr.why = ["Gemischte Gruppe"];
+          // Gemischte Gruppe: Farbe = Rest (damit nichts doppelt gezählt wird), Name aber trotzdem sauber:
+          // 1. eigener Name passt zu einer Kategorie (z. B. "DRUMS"), 2. alle Spuren in derselben Spalte (z. B. Snare + Clap -> Drums)
+          var label3 = gr.cat ? byCat[gr.cat].label : "";
+          if (!label3) {
+            var lane3 = null, same = true;
+            for (var k3 in leafCats) { var l3 = byCat[k3].lane || ""; if (lane3 === null) lane3 = l3; else if (l3 !== lane3) same = false; }
+            if (same && lane3) {
+              var pickFb = null, pickAny = null;
+              for (var q3 = 0; q3 < cats.length; q3++) if (cats[q3].lane === lane3) { if (!pickAny) pickAny = cats[q3]; if (cats[q3].fallback && !pickFb) pickFb = cats[q3]; }
+              label3 = (pickFb || pickAny).label;
+            }
+          }
+          gr.cat = null; gr.source = "auto"; gr.conf = ""; gr.groupLabel = label3;
+          gr.why = ["Gemischte Gruppe" + (label3 ? ", heißt " + label3 + " Group" : "")];
         }
       }
     }
 
     // Neue Namen + Farben
     var count = {}, groupCount = {}, seen = {}, groupSeen = {};
+    function gLabel(r) { return r.cat ? byCat[r.cat].label : (r.groupLabel || ""); }
     for (var e = 0; e < rows.length; e++) {
       var rr = rows[e]; if (rr.source === "stem" || rr.source === "skip" || rr.source === "keep") continue;
-      var key = rr.cat || "_rest";
-      if (rr.isGroup) groupCount[key] = (groupCount[key] || 0) + 1; else count[key] = (count[key] || 0) + 1;
+      if (rr.isGroup) { var gl = gLabel(rr); if (gl) groupCount[gl] = (groupCount[gl] || 0) + 1; }
+      else { var key = rr.cat || "_rest"; count[key] = (count[key] || 0) + 1; }
     }
     for (var f = 0; f < rows.length; f++) {
       var row2 = rows[f];
@@ -323,12 +337,19 @@ var SM = (function () {
       row2.lane = c2 ? (c2.lane || "") : "";
       if (o.colorize) row2.newColor = c2 ? c2.color.index : s.rest.color.index;
       var label = c2 ? c2.label : s.rest.label;
+      if (row2.isGroup) {
+        // Gruppen heißen "<Kategorie> Group", bei mehreren gleichen "<Kategorie> Group 2" usw.
+        var gl2 = gLabel(row2);
+        if (o.rename && gl2 && !(o.keepCustomNames && !isDefaultName(row2.name))) {
+          var gn = groupSeen[gl2] = (groupSeen[gl2] || 0) + 1;
+          row2.newName = gl2 + " Group" + (gn > 1 ? " " + gn : "");
+        }
+        continue;
+      }
       var doRename = o.rename && (c2 || o.renameRest);
       if (doRename && o.keepCustomNames && !isDefaultName(row2.name) && !ownName(row2.name, s)) doRename = false;
       if (doRename) {
-        var nr, total2;
-        if (row2.isGroup) { nr = groupSeen[key2] = (groupSeen[key2] || 0) + 1; total2 = groupCount[key2]; }
-        else { nr = seen[key2] = (seen[key2] || 0) + 1; total2 = count[key2]; }
+        var nr = seen[key2] = (seen[key2] || 0) + 1, total2 = count[key2];
         row2.newName = (total2 > 1 || o.numberSingle) ? (o.pattern || "{name} {n}").replace("{name}", label).replace("{n}", nr) : label;
       }
     }
