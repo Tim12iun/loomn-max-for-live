@@ -4,123 +4,185 @@
 <meta charset="utf-8">
 <title>prepn</title>
 <style>
-:root{--bg:#1e1e1e;--panel:#2a2a2a;--line:#3c3c3c;--text:#e6e6e6;--muted:#8d8d8d;--accent:#ff7a2f}
+:root{--bg:#1b1b1b;--panel:#262626;--panel2:#303030;--line:#383838;--text:#e8e8e8;--muted:#8f8f8f;--accent:#ff7a2f}
 *{box-sizing:border-box;margin:0}
 html,body{height:100%;overflow:hidden}
-body{background:var(--bg);color:var(--text);font:10.5px/1.25 -apple-system,"Helvetica Neue",sans-serif;padding:5px 6px;display:flex;flex-direction:column;gap:4px;user-select:none}
-.row{display:flex;gap:4px;align-items:center}
-input{font:inherit;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:3px;padding:2px 5px;flex:1;min-width:0}
-button{font:inherit;font-weight:600;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:3px;padding:3px 6px;cursor:pointer;white-space:nowrap}
-button:hover{border-color:#777}
-button:disabled{opacity:.4;cursor:default}
-.ico{padding:2px 5px;color:var(--muted)}
-.steps button{flex:1}
-.steps .n{display:inline-block;width:13px;height:13px;line-height:13px;border-radius:50%;background:#444;color:#fff;font-size:9px;text-align:center;margin-right:4px}
-.steps .go{background:var(--accent);border-color:var(--accent);color:#111}
-.steps .go .n{background:#111;color:var(--accent)}
-.meta{color:var(--muted);font-size:9.5px}
-.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:3px}
-.chip{display:flex;align-items:center;gap:4px;background:var(--panel);border:1px solid transparent;border-radius:3px;padding:2px 4px;cursor:pointer;min-width:0;height:18px}
-.chip:hover{border-color:#666}
-.sw{flex:none;width:10px;height:10px;border-radius:2px}
-.lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cnt{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums}
-.chip.has .lbl{font-weight:600}.chip.has .cnt{color:var(--text)}
-.chip.stem{box-shadow:inset 0 -2px 0 var(--accent)}
-.chip.more{justify-content:center;color:var(--muted)}
-.status{position:relative;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:1px 3px;border-radius:2px;margin-top:auto}
-.status i{position:absolute;inset:0;width:0;background:rgba(255,122,47,.25);z-index:-1}
-#pal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center}
-#pal.on{display:flex}
-#pal .box{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:5px}
-#pal .t{color:var(--muted);margin-bottom:3px}
-#pal .g{display:grid;grid-template-columns:repeat(14,15px);gap:2px}
-#pal .g i{width:15px;height:15px;border-radius:2px;cursor:pointer;display:block}
-#pal .g i:hover{outline:2px solid #fff}
-#ov{position:fixed;inset:0;background:rgba(20,20,20,.94);display:none;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px;text-align:center}
-#ov.on{display:flex}
-#ov .t{font-size:15px;font-weight:800;color:var(--accent);letter-spacing:.03em}
-#ov .s{color:var(--text);font-size:11px}
-#ov .b{width:90%;height:8px;background:#333;border-radius:4px;overflow:hidden}
-#ov .b i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
-#ov .p{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
-#ov.rec .t::first-letter{animation:blink 1s steps(2) infinite}
-@keyframes blink{50%{opacity:0}}
+body{background:var(--bg);color:var(--text);font:11px/1.35 -apple-system,"Helvetica Neue",sans-serif;user-select:none;position:relative}
+svg{width:14px;height:14px;fill:currentColor;display:block}
+button{font:inherit;font-weight:600;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:4px;height:28px;padding:0 9px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap}
+button:hover{border-color:#5a5a5a;background:var(--panel2)}
+button:disabled{opacity:.35;cursor:default}
+button.icon{width:24px;height:24px;padding:0}
+button.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+button.ghost:hover{color:var(--text);background:var(--panel)}
+button.go{background:var(--accent);border-color:var(--accent);color:#111}
+button.go:hover{background:#ff8c4a}
+button.sm{height:22px;padding:0 8px}
+.n{font-size:10px;opacity:.55;font-weight:700}
+.go .n{opacity:.6}
+.page{position:absolute;inset:0;display:flex;flex-direction:column;padding:6px 8px 4px}
+.page.front{justify-content:space-between}
+.hidden{display:none!important}
+.head{display:flex;align-items:center;gap:6px;height:22px;flex:none}
+.title{font-weight:700;letter-spacing:.03em;color:var(--accent);font-size:12px}
+.sp{flex:1}
+.muted{color:var(--muted)}
+#song{font:inherit;font-weight:600;background:transparent;color:var(--text);border:1px solid transparent;border-radius:3px;padding:1px 4px;flex:1;min-width:0;height:20px}
+#song:hover{border-color:var(--line)}#song:focus{outline:none;border-color:var(--accent);background:var(--panel)}
+.bpm{color:var(--muted);font-size:10px;font-variant-numeric:tabular-nums}
+.lanes{display:flex;flex-wrap:wrap;gap:3px 12px;flex:none;min-height:16px}
+.ln{display:flex;align-items:center;gap:5px;cursor:pointer;color:var(--muted);white-space:nowrap}
+.ln:hover{color:var(--text)}
+.ln.has{color:var(--text)}
+.ln b{font-weight:600;font-variant-numeric:tabular-nums}
+.ln.stem .sw{box-shadow:0 0 0 2px var(--bg),0 0 0 3px var(--accent)}
+.sw{flex:none;width:10px;height:10px;border-radius:2px;display:inline-block}
+.sw.none{border:1px dashed #666}
+.act{display:flex;gap:6px;flex:none}
+.act button{flex:1}
+.act button.go{flex:1.4}
+.status{flex:none;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px;padding-top:2px;border-top:1px solid var(--line)}
+main{flex:1;min-height:0;overflow:auto;margin-top:2px;display:flex;flex-direction:column;gap:6px;padding:2px}
+main::-webkit-scrollbar{width:6px}main::-webkit-scrollbar-thumb{background:#444;border-radius:3px}
+h4{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:2px 8px}
+.grid .ln{color:var(--text)}
+.dest{display:flex;align-items:center;gap:6px;min-width:0}
+.seg{display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;flex:none}
+.seg button{border:none;border-radius:0;height:20px;background:transparent;color:var(--muted);padding:0 8px}
+.seg button.on{background:var(--panel2);color:var(--text)}
+.dest .p{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:rtl;text-align:left;min-width:0;flex:1;cursor:pointer}
+.dest .p:hover{color:var(--text)}
+#pal{position:fixed;display:none;grid-template-columns:repeat(14,14px);gap:2px;padding:4px;background:#111;border:1px solid #555;border-radius:4px;z-index:9;left:50%;top:50%;transform:translate(-50%,-50%)}
+#pal.on{display:grid}
+#pal i{width:14px;height:14px;border-radius:2px;cursor:pointer}
+#pal i:hover{outline:1px solid #fff}
+#busy{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:7px;background:var(--bg);z-index:8;text-align:center;padding:0 14px}
+#busy.on{display:flex}
+#busy b{font-size:13px;color:var(--accent);letter-spacing:.03em}
+#busy .p{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+#busy small{color:var(--muted)}
+.bbar{width:85%;height:8px;background:var(--panel);border-radius:4px;overflow:hidden;border:1px solid var(--line)}
+.bbar i{display:block;height:100%;width:0;background:var(--accent);transition:width .15s}
 </style>
 </head>
 <body>
-<div class="row">
-  <input id="song" placeholder="Song-Name" title="Name für die Stem-Spuren, z. B. BASS_IMSOLOST 132">
-  <span class="meta" id="meta"></span>
-  <button class="ico" id="upd" title="Nach Updates suchen">⟳</button>
-  <button class="ico" id="float" title="Als schwebendes Fenster öffnen">⧉</button>
-</div>
-<div class="row steps">
-  <button id="auto" title="Erkennt die Spuren und färbt sie in der Farbe ihres Stems. Danach in Ableton prüfen und ggf. umfärben. Alt+Klick = rückgängig"><span class="n">1</span>Färben</button>
-  <button class="go" id="render" title="Nimmt pro Farbe einen Stem unten im Projekt auf (läuft in Echtzeit)"><span class="n">2</span>Stems rendern</button>
-  <button id="pkg" title="Passagen markieren: in den Stem-Spuren Bereich wählen und 0 drücken (deaktiviert). Paket speichert diese Stücke als einzelne Clips (wieder aktiv) + Serum-MIDI."><span class="n">3</span>Paket</button>
-</div>
-<div class="grid" id="grid"></div>
-<div class="status"><i id="bar"></i><span id="status">Farbe = Stem. Feld klicken = Farbe ändern.</span></div>
-<div id="ov"><div class="t" id="ovT"></div><div class="p" id="ovP">0 %</div><div class="b"><i id="ovB"></i></div><div class="s" id="ovS"></div></div>
-<div id="pal"><div class="box"><div class="t" id="palT"></div><div class="g" id="palG"></div></div></div>
+<svg style="display:none"><defs>
+  <symbol id="i-gear" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.49.49 0 0 0-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></symbol>
+  <symbol id="i-dl" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></symbol>
+  <symbol id="i-rec" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/></symbol>
+</defs></svg>
+
+<!-- Vorderseite -->
+<section class="page front" id="front">
+  <div class="head">
+    <span class="title">prepn</span>
+    <input id="song" placeholder="Song-Name" title="Name für Stems und Paket, z. B. IMSOLOST">
+    <span class="bpm" id="bpm"></span>
+    <button class="icon ghost" id="gear" title="Farben, Paket-Ordner, Update"><svg><use href="#i-gear"/></svg></button>
+  </div>
+  <div class="lanes" id="lanes"></div>
+  <div class="act">
+    <button id="auto" title="Spuren erkennen und in der Farbe ihres Stems färben. Danach in Ableton prüfen. Alt+Klick = rückgängig"><span class="n">1</span>Färben</button>
+    <button class="go" id="render" title="Nimmt pro Farbe einen Full-Stem unten im Projekt auf (Echtzeit, Main ist solange stumm)"><span class="n">2</span>Aufnehmen</button>
+    <button id="pkg" title="Passagen vorher markieren: Bereich in der Stem-Spur wählen, Taste 0. Paket = Full-Stems + Clip 1, 2, 3 … + Serum-MIDI"><span class="n">3</span>Paket</button>
+  </div>
+  <div class="status"></div>
+</section>
+
+<!-- Rückseite -->
+<section class="page hidden" id="back">
+  <div class="head">
+    <button class="icon ghost" id="backBtn" title="Zurück"><svg><use href="#i-back"/></svg></button>
+    <span class="title">Einstellungen</span>
+    <span class="sp"></span>
+    <span class="bpm" id="ver"></span>
+    <button class="icon ghost" id="upd" title="Auf GitHub nach Update suchen"><svg><use href="#i-dl"/></svg></button>
+  </div>
+  <main>
+    <div><h4>Farbe je Stem</h4><div class="grid" id="colors"></div></div>
+    <div><h4>Paket speichern in</h4>
+      <div class="dest">
+        <div class="seg"><button id="dProj" title="Im Projektordner wird der Ordner Live-Set angelegt">Projekt › Live-Set</button><button id="dOwn" title="Fester Ordner für alle Projekte, je Song ein Unterordner">Eigener Ordner</button></div>
+        <span class="p" id="dPath" title="Klick = anderen Ordner wählen"></span>
+      </div>
+    </div>
+  </main>
+  <div class="status"></div>
+</section>
+
+<div id="busy"><b id="busyT">prepn arbeitet …</b><span class="p" id="busyP">0 %</span><div class="bbar"><i id="bbar"></i></div><small id="busyS">Bitte kurz warten, nichts anfassen.</small></div>
+<div id="pal"></div>
+
 <script>
 const PALETTE = [16749734, 16753961, 13408551, 16249980, 12581632, 1769263, 2490280, 6094824, 9160191, 5538020, 9611263, 14183652, 15029152, 16777215, 16725558, 16149507, 10056267, 16773172, 8912743, 4047616, 49071, 1698303, 1090798, 32192, 8940772, 11958214, 16726484, 13684944, 14837594, 16753524, 13872497, 15597486, 13821080, 12243060, 10208397, 13958625, 13496824, 12173795, 13482980, 11442405, 15064289, 11119017, 13013643, 12026454, 10060650, 12565097, 10927616, 8237133, 8962746, 10204100, 8758722, 8623052, 10851765, 12558270, 12349846, 8092539, 11481907, 11096369, 7491393, 14402304, 8754719, 5480241, 695438, 2319236, 1716118, 3101346, 6441901, 10701741, 13381230, 3947580];
-const MAIN = [['bass','Bass'],['kick','Kick'],['top','Tops'],['vox','Vox'],['melo','Melody'],['serum','Serum'],['riser','Riser'],['rest','Rest']];
-const EXTRA = [['inst1','Inst 10'],['inst2','Inst 11'],['vocal','Vocal Chain'],['free1','Spur 14']];
+const LANES = [['bass','Bass'],['kick','Kick'],['top','Tops'],['vox','Vocals'],['melo','Melody'],['serum','Serum'],['riser','Riser'],['inst1','Inst 10'],['inst2','Inst 11'],['vocal','Vocal Chain'],['free1','Spur 14']];
 const SHORT = {bass:'BASS',kick:'KICK',top:'TOPS',vox:'VOCALS',melo:'MELODY',inst1:'INST10',inst2:'INST11',vocal:'VOCALCHAIN',riser:'RISER',free1:'SPUR14'};
-const TIP = {rest:'Rest: wird nicht gerendert', cut:'Schnitt'};
 const $ = s => document.querySelector(s);
 const toMax = (...a) => window.max ? window.max.outlet(...a) : console.log('max', a);
-const hex = rgb => '#' + (rgb >>> 0).toString(16).padStart(6, '0');
-let state = null, showExtra = false;
+const hex = rgb => '#' + ((rgb >>> 0) & 0xffffff).toString(16).padStart(6, '0');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let S = null, page = 'front', palLane = null;
 
-function chip(id, label){
-  const c = id==='cut' ? state.cfg.cut : id==='rest' ? state.cfg.rest : state.cfg.colors[id];
-  const cnt = (id==='cut'||id==='rest') ? '' : (state.counts[id] || 0);
-  const d = document.createElement('div');
-  d.className = 'chip' + (cnt ? ' has' : '') + (state.stems.includes(SHORT[id]) ? ' stem' : '');
-  d.title = TIP[id] || ((state.names[id]||[]).join(', ') || 'Keine Spur in dieser Farbe') + '\nKlick = Farbe ändern · Shift+Klick = Farbe der ausgewählten Spur';
-  d.innerHTML = `<span class="sw" style="background:${c?hex(c.rgb):'transparent'};${c?'':'border:1px dashed #666'}"></span><span class="lbl">${label}</span><span class="cnt">${cnt||''}</span>`;
-  d.onclick = e => e.shiftKey ? toMax('learn', id) : openPal(id, label);
-  return d;
+function colOf(id){ return id === 'rest' ? S.cfg.rest : S.cfg.colors[id]; }
+function lane(id, label, withCount){
+  const c = colOf(id), cnt = id === 'rest' ? 0 : (S.counts[id] || 0);
+  const stem = S.stems.includes(SHORT[id]);
+  const tip = id === 'rest' ? 'Rest: wird nicht aufgenommen' : ((S.names[id] || []).join(', ') || 'Keine Spur in dieser Farbe');
+  return `<span class="ln ${cnt ? 'has' : ''} ${stem ? 'stem' : ''}" data-id="${id}" data-l="${esc(label)}" title="${esc(tip)}${stem ? '\nStem ist aufgenommen' : ''}\nKlick = Farbe ändern · Shift+Klick = Farbe der ausgewählten Spur">`
+    + `<span class="sw ${c ? '' : 'none'}" style="${c ? 'background:' + hex(c.rgb) : ''}"></span>${esc(label)}${withCount && cnt ? ` <b>${cnt}</b>` : ''}</span>`;
 }
-function render(){
-  const g = $('#grid'); g.innerHTML = '';
-  const extraUsed = EXTRA.some(([id]) => state.counts[id]);
-  const list = (showExtra || extraUsed) ? MAIN.slice(0,7).concat(EXTRA, MAIN.slice(7)) : MAIN;
-  list.forEach(([id,l]) => g.appendChild(chip(id,l)));
-  if(!showExtra && !extraUsed){
-    const m = document.createElement('div'); m.className = 'chip more'; m.textContent = '+4 Spalten';
-    m.title = 'Inst 10, Inst 11, Vocal Chain, Spur 14'; m.onclick = () => { showExtra = true; render(); }; g.appendChild(m);
-  }
-  $('#meta').textContent = `${Math.round(state.tempo)} BPM · v${state.version||'?'}`;
-  if(!$('#song').value && state.setName) $('#song').value = state.setName.replace(/\.als$/i,'').replace(/[_ ]\d{6}.*$/,'').replace(/[_ ]v\d+$/i,'');
-  $('#render').disabled = state.recording;
+function draw(){
+  if(!S) return;
+  $('#front').classList.toggle('hidden', page !== 'front');
+  $('#back').classList.toggle('hidden', page !== 'back');
+  // Vorderseite: nur Spalten, die im Projekt vorkommen (sonst die fünf Hauptspalten)
+  const used = LANES.filter(([id]) => S.counts[id] || S.stems.includes(SHORT[id]));
+  $('#lanes').innerHTML = (used.length ? used : LANES.slice(0, 5)).map(([id, l]) => lane(id, l, true)).join('');
+  $('#bpm').textContent = Math.round(S.tempo) + ' BPM';
+  $('#ver').textContent = 'v' + (S.version || '?');
+  if(!$('#song').value && S.setName) $('#song').value = S.setName.replace(/\.als$/i,'').replace(/[_ ]\d{6}.*$/,'').replace(/[_ ]v\d+$/i,'');
+  $('#render').disabled = !!S.recording;
+  $('#colors').innerHTML = LANES.concat([['rest','Rest']]).map(([id, l]) => lane(id, l, false)).join('');
+  $('#dProj').classList.toggle('on', !S.pkgRoot); $('#dOwn').classList.toggle('on', !!S.pkgRoot);
+  $('#dPath').textContent = '\u200E' + (S.pkgRoot || S.pkgDefault || 'Live-Set erst speichern');
+  $('#dPath').title = (S.pkgRoot || S.pkgDefault || '') + (S.pkgRoot ? '\nKlick = anderen Ordner wählen' : '');
 }
-let palLane = null;
 function openPal(id, label){
-  palLane = id; $('#palT').textContent = `Farbe für ${label}`;
-  $('#palG').innerHTML = PALETTE.map((c,i)=>`<i data-i="${i}" style="background:${hex(c)}"></i>`).join('');
+  palLane = id;
+  $('#pal').innerHTML = PALETTE.map((c, i) => `<i data-i="${i}" style="background:${hex(c)}" title="Farbe für ${esc(label)}"></i>`).join('');
   $('#pal').classList.add('on');
 }
-$('#palG').onclick = e => { const i = e.target.dataset.i; if(i!==undefined) toMax('setcolor', palLane, Number(i)); $('#pal').classList.remove('on'); };
-$('#pal').onclick = e => { if(e.target.id==='pal') $('#pal').classList.remove('on'); };
-document.addEventListener('keydown', e => { if(e.key==='Escape') $('#pal').classList.remove('on'); });
+document.addEventListener('click', e => {
+  const ln = e.target.closest('.ln');
+  if(ln){ e.shiftKey ? toMax('learn', ln.dataset.id) : openPal(ln.dataset.id, ln.dataset.l); return; }
+  const sw = e.target.closest('#pal i');
+  if(sw){ toMax('setcolor', palLane, Number(sw.dataset.i)); $('#pal').classList.remove('on'); return; }
+  if(!e.target.closest('#pal')) $('#pal').classList.remove('on');
+});
+document.addEventListener('keydown', e => { if(e.key === 'Escape') $('#pal').classList.remove('on'); });
 const songName = () => encodeURIComponent($('#song').value.trim() || 'SONG');
 $('#auto').onclick = e => toMax(e.altKey ? 'autoundo' : 'auto');
 $('#render').onclick = () => toMax('render', songName());
 $('#pkg').onclick = () => toMax('pkg', songName());
+$('#gear').onclick = () => { page = 'back'; draw(); };
+$('#backBtn').onclick = () => { page = 'front'; draw(); };
 $('#upd').onclick = () => toMax('update');
-$('#float').onclick = () => toMax('popout');
+$('#dOwn').onclick = () => toMax('choosefolder');
+$('#dPath').onclick = () => { if(S.pkgRoot) toMax('choosefolder'); };
+$('#dProj').onclick = () => { if(S.pkgRoot) toMax('resetroot'); };
+function setStatus(t){ document.querySelectorAll('.status').forEach(s => { s.textContent = t; s.title = t; }); }
+function pct(p){ $('#bbar').style.width = p + '%'; $('#busyP').textContent = p + ' %'; }
+setStatus('Farbe = Stem. 1 Färben, prüfen, 2 Aufnehmen, Passagen mit 0 markieren, 3 Paket.');
 
 if(window.max){
-  window.max.bindInlet('state', enc => { state = JSON.parse(decodeURIComponent(enc)); render(); });
-  window.max.bindInlet('status', enc => { $('#status').textContent = JSON.parse(decodeURIComponent(enc)).text; });
-  window.max.bindInlet('progress', enc => { const p = JSON.parse(decodeURIComponent(enc)).pct; $('#bar').style.width = p + '%'; $('#ovB').style.width = p + '%'; $('#ovP').textContent = p + ' %'; });
+  window.max.bindInlet('state', enc => { S = JSON.parse(decodeURIComponent(enc)); draw(); });
+  window.max.bindInlet('status', enc => setStatus(JSON.parse(decodeURIComponent(enc)).text));
+  window.max.bindInlet('progress', enc => pct(JSON.parse(decodeURIComponent(enc)).pct));
   window.max.bindInlet('overlay', enc => { const o = JSON.parse(decodeURIComponent(enc));
-    $('#ov').classList.toggle('on', !!o.on); $('#ov').classList.toggle('rec', /AUFGENOMMEN/.test(o.title));
-    if(o.on){ $('#ovT').textContent = o.title; $('#ovS').textContent = o.sub; $('#ovB').style.width = '0%'; $('#ovP').textContent = '0 %'; } });
+    $('#busy').classList.toggle('on', !!o.on);
+    if(o.on){ $('#busyT').textContent = o.title; $('#busyS').textContent = o.sub || 'Bitte kurz warten, nichts anfassen.'; pct(0); } });
   // Kein Abfrage-Timer: das Device schickt neuen Stand selbst, sobald sich in Live etwas ändert.
   toMax('hello');
 }
