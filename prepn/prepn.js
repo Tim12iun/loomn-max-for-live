@@ -2,7 +2,7 @@
 // Farben -> Spalten. "Rendern" nimmt pro Spalte einen Full-Stem unten im Projekt auf (Echtzeit).
 // "Paket" schreibt einen Song-Ordner: Full-Stems, markierte Passagen als Clips, Serum-MIDI (JSON).
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.8.4";
+var VERSION = "0.8.5";
 var PLUGIN_ID = "setmaker-prep";
 inlets = 1;
 outlets = 2; // 0 -> jweb (über s ---toweb), 1 -> prepn_pkg.js (node.script)
@@ -631,7 +631,7 @@ function refresh(){
   }
   var stems = []; for (var k in s.stems) stems.push(k);
   var enc = encodeURIComponent(JSON.stringify({ version: VERSION, cfg: cfg, counts: counts, names: names, stems: stems,
-                 packed: isPacked(s.stems), pkgRoot: settings.pkgRoot || "", pkgDefault: pkgFolder(g(song, "file_path"), defaultSong(g(song, "name"))),
+                 packed: isPacked(s.stems), range: settings.range === "loop" ? "loop" : "all", pkgRoot: settings.pkgRoot || "", pkgDefault: pkgFolder(g(song, "file_path"), defaultSong(g(song, "name"))),
                  tempo: n(song, "tempo"), setName: g(song, "name"), recording: !!job }));
   if (enc === lastStateJson) return;               // nichts geändert -> UI nicht neu zeichnen
   lastStateJson = enc;
@@ -829,6 +829,13 @@ function render(songNameEnc){
     for (var i = 0; i < src.length; i++) srcs.push(src[i]);
   }
   if (!plan.length){ status("Keine eingefärbten Spuren gefunden. Erst Farben lernen."); return; }
+  // Bereich "Loop": nur die Loop-Klammer im Arrangement aufnehmen (z. B. eine von mehreren Versionen im Projekt)
+  if (settings.range === "loop"){
+    var sg = new LiveAPI("live_set"), ls = n(sg, "loop_start"), ll = n(sg, "loop_length");
+    if (!(ll > 0)){ status("Bereich „Loop“: keine Loop-Klammer gesetzt."); return; }
+    startRecording(plan, songName, ls + ll, ls, 1, null, { from: ls, to: ls + ll });
+    return;
+  }
   // Song-Ende suchen: Clips Spur für Spur in Häppchen lesen (Spuren mit Hunderten Clips frieren sonst Live ein)
   work(srcs, function (tr){
     var cl = ids(tr.api, "arrangement_clips");
@@ -839,7 +846,7 @@ function render(songNameEnc){
     }
   }, "Suche Song-Ende", function (){
     if (!endTime){ status("Keine Clips im Arrangement gefunden."); return; }
-    startRecording(plan, songName, endTime, Math.max(0, startTime), 1, null);
+    startRecording(plan, songName, endTime, Math.max(0, startTime), 1, null, { from: 0, to: endTime + 4 });
   });
 }
 // Aufnahme-Kette pro Stem:
@@ -891,7 +898,7 @@ function cleanupJob(j){
     setRoutingByName(st, "input_routing_type", "available_input_routing_types", NO_INPUT);
   }
 }
-function startRecording(plan, songName, endTime, startTime, attempt, mainBefore){
+function startRecording(plan, songName, endTime, startTime, attempt, mainBefore, range){
   var song = new LiveAPI("live_set");
   var tempo = Math.round(n(song, "tempo"));
   var fails = [];
@@ -900,7 +907,7 @@ function startRecording(plan, songName, endTime, startTime, attempt, mainBefore)
     nat(true, "● STEMS WERDEN AUFGENOMMEN", "Nichts anfassen, einfach laufen lassen. Main ist solange stumm. Stopp = abbrechen.");
     mainBefore = muteMain();
   }
-  job = { stems: [], buses: [], rerouted: [], endTime: endTime + 4, startTime: startTime, started: false, checked: false,
+  job = { stems: [], buses: [], rerouted: [], endTime: range.to, from: range.from, range: range, startTime: startTime, started: false, checked: false,
           plan: plan, songName: songName, attempt: attempt, mainBefore: mainBefore };
   for (var p = 0; p < plan.length; p++){
     var lane = plan[p].lane, src = plan[p].src;
@@ -937,15 +944,18 @@ function startRecording(plan, songName, endTime, startTime, attempt, mainBefore)
     refresh();
     return;
   }
+  job.loopWas = range.loopWas !== undefined ? range.loopWas : n(song, "loop");
+  range.loopWas = job.loopWas;
   song.set("loop", 0);
   song.set("arrangement_overdub", 0);
   song.set("record_mode", 0);
   song.call("stop_playing");
   // Live startet sonst ab dem Einfüge-Marker (z. B. Takt 19). Deshalb: Wiedergabe starten, im selben Moment
   // auf den Anfang springen und erst dann Aufnahme an. tick() prüft, ob es wirklich vorne losging.
-  if (attempt === 1){
+  if (job.loopWas === undefined) job.loopWas = n(song, "loop");
+  if (attempt === 1 || range.from > 0){
     song.call("start_playing");
-    song.set("current_song_time", 0);
+    song.set("current_song_time", range.from);
     song.set("record_mode", 1);
   } else {
     song.call("stop_playing"); // zweimal Stopp = zurück zum Anfang
@@ -966,9 +976,9 @@ function tick(){
   if (playing) job.started = true;
   if (playing && !job.checked){
     job.checked = true;
-    if (t > Math.min(job.startTime, 0) + 2){ wrongStart(t); return; } // nach 0,2 s darf es höchstens ~1 Schlag weit sein
+    if (t > job.from + 2 || t < job.from - 0.5){ wrongStart(t); return; } // nach 0,2 s darf es höchstens ~1 Schlag weit sein
   }
-  var pct = Math.min(100, Math.round(100 * t / job.endTime));
+  var pct = Math.max(0, Math.min(100, Math.round(100 * (t - job.from) / (job.endTime - job.from))));
   if (pct !== job.pct){ job.pct = pct; say("progress", { pct: pct }); natPct(pct); } // nur bei Änderung an die UI
   if (job.started && (!playing || t >= job.endTime)) finish(!playing && t < job.endTime);
 }
@@ -982,7 +992,8 @@ function wrongStart(t){
   var j = job; job = null;
   cleanupJob(j);
   for (var d = j.stems.length - 1; d >= 0; d--) deleteTrack(j.stems[d].id);
-  if (j.attempt < 2){ startRecording(j.plan, j.songName, j.endTime - 4, j.startTime, j.attempt + 1, j.mainBefore); return; }
+  if (j.attempt < 2){ startRecording(j.plan, j.songName, j.endTime, j.startTime, j.attempt + 1, j.mainBefore, j.range); return; }
+  new LiveAPI("live_set").set("loop", j.loopWas ? 1 : 0);
   nat(false); unmuteMain(j.mainBefore); showDevice();
   status("Aufnahme abgebrochen: Live startete nicht am Anfang (bei Schlag " + Math.round(t) + "). Bitte einmal Stopp doppelt drücken und neu rendern.");
   refresh();
@@ -996,6 +1007,7 @@ function finish(aborted){
   song.call("stop_playing");
   var j = job; job = null;
   cleanupJob(j);
+  song.set("loop", j.loopWas ? 1 : 0);
   nat(false); unmuteMain(j.mainBefore);
   // Nur melden, was wirklich aufgenommen wurde. Leere Stem-Spuren wieder löschen.
   var ok = [], empty = [], late = [];
@@ -1070,6 +1082,8 @@ function setroot(p){
   settings.pkgRoot = p; saveCfg(); lastStateJson = ""; refresh();
   status("Paket-Ordner: " + p);
 }
+function setrange(v){ settings.range = v === "loop" ? "loop" : "all"; saveCfg(); lastStateJson = ""; refresh();
+  status(settings.range === "loop" ? "Aufnahme nur innerhalb der Loop-Klammer." : "Aufnahme: ganzer Song."); }
 function resetroot(){ delete settings.pkgRoot; saveCfg(); lastStateJson = ""; refresh(); status("Paket landet im Projektordner unter „Live-Set“."); }
 
 

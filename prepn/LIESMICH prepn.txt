@@ -38,6 +38,8 @@ Ablauf
    ihre Aufnahmen wandern von Samples/Recorded nach Samples/Processed/prepn (nichts wird geloescht).
    Der jeweils naechste Schritt leuchtet orange. Faerben (1) ist optional.
 
+Oben "Alles | Loop": Alles = ganzer Song, Loop = nur der Bereich in der Loop-Klammer (z. B. eine von mehreren
+Versionen im Projekt). Die Wahl bleibt gespeichert.
 Zahnrad: Farbe je Stem, Paket-Ordner, Update.
 
 Bekannte Grenzen

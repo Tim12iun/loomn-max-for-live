@@ -54,6 +54,7 @@ h4{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;le
 .seg{display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;flex:none}
 .seg button{border:none;border-radius:0;height:20px;background:transparent;color:var(--muted);padding:0 8px}
 .seg button.on{background:var(--panel2);color:var(--text)}
+.seg.mini button{height:18px;padding:0 6px;font-size:10px}
 .dest .p{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:rtl;text-align:left;min-width:0;flex:1;cursor:pointer}
 .dest .p:hover{color:var(--text)}
 #pal{position:fixed;display:none;grid-template-columns:repeat(14,14px);gap:2px;padding:4px;background:#111;border:1px solid #555;border-radius:4px;z-index:9;left:50%;top:50%;transform:translate(-50%,-50%)}
@@ -82,6 +83,7 @@ h4{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;le
   <div class="head">
     <span class="title">prepn</span>
     <input id="song" placeholder="Song-Name" title="Song-Name für Stems und Paket. Standard: Projektname bis zum ersten _">
+    <div class="seg mini" id="range" title="Was wird aufgenommen: der ganze Song oder nur der Bereich in der Loop-Klammer"><button data-r="all">Alles</button><button data-r="loop">Loop</button></div>
     <span class="bpm" id="bpm"></span>
     <button class="icon ghost" id="gear" title="Farben, Paket-Ordner, Update"><svg><use href="#i-gear"/></svg></button>
   </div>
@@ -149,6 +151,7 @@ function draw(){
   if(!$('#song').value && S.setName) $('#song').value = S.setName.replace(/\.als$/i,'').split('_')[0];
   const folder = (S.pkgRoot ? S.pkgRoot + '/' : (S.pkgDefault || '').replace(/[^\/]*$/, '')) + ($('#song').value.trim() || 'Song') + '-Live-Set';
   $('#render').disabled = !!S.recording;
+  document.querySelectorAll('#range button').forEach(b => b.classList.toggle('on', b.dataset.r === (S.range || 'all')));
   // Schritt für Schritt: der nächste fällige Schritt leuchtet, Clear pulsiert zum Schluss
   const hasStems = S.stems.length > 0, next = !hasStems ? 'render' : !S.packed ? 'pkg' : 'clr';
   $('#render').className = next === 'render' ? 'go' : '';
@@ -177,6 +180,7 @@ const songName = () => encodeURIComponent($('#song').value.trim() || 'SONG');
 $('#auto').onclick = e => toMax(e.altKey ? 'autoundo' : 'auto');
 $('#render').onclick = () => toMax('render', songName());
 $('#pkg').onclick = () => toMax('pkg', songName());
+document.querySelectorAll('#range button').forEach(b => b.onclick = () => toMax('setrange', b.dataset.r));
 $('#clr').onclick = e => toMax('tidyup', e.altKey ? 1 : 0);
 $('#song').oninput = () => draw();
 $('#gear').onclick = () => { page = 'back'; draw(); };
