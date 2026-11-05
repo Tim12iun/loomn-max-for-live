@@ -101,10 +101,11 @@ async function run(job) {
     const ext = path.extname(st.file) || ".wav";
     fs.copyFileSync(st.file, path.join(job.dir, safe(st.name) + ext));
     st.out = safe(st.name) + ext; files++; tick();
-    if (!st.clips.length) continue;
-    const info = readAudio(st.file);
+    const cache = {};
     for (const c of st.clips) {
-      const out = safe(c.name) + ext;
+      const src = c.file || st.file; // eigener Clip (z. B. konsolidiert) -> aus seiner eigenen Datei schneiden
+      const info = cache[src] || (cache[src] = readAudio(src));
+      const out = safe(c.name) + (path.extname(src) || ext);
       fs.writeFileSync(path.join(job.dir, out), cut(info, c.start, c.end));
       c.out = out; files++; tick();
       await new Promise(r => setImmediate(r));

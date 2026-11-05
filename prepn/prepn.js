@@ -2,7 +2,7 @@
 // Farben -> Spalten. "Rendern" nimmt pro Spalte einen Full-Stem unten im Projekt auf (Echtzeit).
 // "Paket" schreibt einen Song-Ordner: Full-Stems, markierte Passagen als Clips, Serum-MIDI (JSON).
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.8.7";
+var VERSION = "0.8.8";
 var PLUGIN_ID = "setmaker-prep";
 inlets = 1;
 outlets = 2; // 0 -> jweb (über s ---toweb), 1 -> prepn_pkg.js (node.script)
@@ -1168,8 +1168,8 @@ function pkg(songNameEnc){
       var clips = [];
       for (var i = 0; i < e.clips.length; i++){
         var k = e.clips[i];
-        if (k.file !== best) continue; // Fremd-Clip in der Stem-Spur: nicht aus dieser Datei schneidbar
-        clips.push({ name: e.name + " Clip " + (clips.length + 1), start: k.start, end: k.end,
+        // Auch selbst gebaute Clips (dupliziert, konsolidiert, neu gerendert) zählen: geschnitten wird aus ihrer eigenen Datei
+        clips.push({ name: e.name + " Clip " + (clips.length + 1), file: k.file, start: k.start, end: k.end,
                      start_time: k.start_time, end_time: k.end_time });
       }
       nClips += clips.length;
