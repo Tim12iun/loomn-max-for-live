@@ -7,7 +7,7 @@ Die Plugins haben einen Update-Knopf (⟳), der hier nach neuen Versionen schaut
 |---|---|---|
 | sortn | `sortn/` | Spuren erkennen, umbenennen, einfärben |
 | prepn | `prepn/` | Stems pro Live-Set-Spalte rendern, Song-Paket schreiben |
-| buildn | `buildn/` | Eigenes Tool (Chrome, kein M4L): aus prepn-Paketen und einer Vorlage ein neues Live-Set (.als) bauen. Liegt bei LION in `~/Documents/LOOMN-TOOLS/buildn/` |
+| buildn | `buildn/Buildn App/` | Eigene Mac-App (kein M4L): aus prepn-Paketen und einer Vorlage ein neues Live-Set (.als) bauen. Releases in `Tim12iun/loomn-tools` (`buildn-latest`), Bau mit `scripts/release-local.sh` |
 
 Installation: den Ordner des Plugins (z. B. `prepn`) nach
 `~/Music/Ableton/User Library/Presets/Audio Effects/Max Audio Effect/MAX for LIVE 3rd Party/LOOMN-MAX4LIVE/` legen.
