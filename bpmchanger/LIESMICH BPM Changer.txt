@@ -15,18 +15,23 @@ Installation
 Tempo-Knopf
 - Drehen = das Tempo gleitet weich mit (keine Spruenge, auch bei groben MIDI-Schritten).
 - Nach dem Loslassen (2 s keine Bewegung) gleitet das Tempo auf die naechste ganze BPM, z. B. 127,73 -> 128.
-  Im Zahnrad: "Runden" an/aus und nach 1, 2 oder 4 Sekunden.
+  Im Zahnrad: "Ganze BPM" an/aus und "Nach Loslassen" 1, 2 oder 4 Sekunden.
 - MIDI-Controller: in Ableton oben rechts "MIDI" (Cmd+M), auf den Tempo-Knopf klicken, Controller-Knopf drehen, wieder Cmd+M.
   Tipp: Bei "Takeover-Modus" in den Live-Einstellungen "Pick-Up" oder "Value Scaling" waehlen, dann springt nichts.
 
 Rampe
-- "Takte" = wie lange, "Ziel BPM" = wohin. Dann "Start".
-- Der Kuchen zeigt die Schlaege im Takt (1 2 3 4): die verbleibenden Stuecke laufen ab. Grau = nichts geplant,
+- Rechts: "16 Takte" = wie lange, "140 BPM" = wohin (ziehen oder Zahl tippen). Dann "Start".
+- Vier Beat-Striche (wie am CDJ) zeigen die Schlaege im Takt: die verbleibenden Striche laufen ab. Grau = nichts geplant,
   orange = Start gedrueckt. So siehst du, wie viele Schlaege es noch bis zum Start sind.
-- Die Rampe beginnt immer auf der naechsten "1" und gleitet gleichmaessig ueber die Takte zum Ziel. Der Ring um den
-  Kuchen zeigt den Fortschritt. Am Ende steht das Tempo genau auf dem Ziel.
+- Die Rampe beginnt immer auf der naechsten "1" und gleitet gleichmaessig ueber die Takte zum Ziel. Die duenne Linie
+  darunter zeigt den Fortschritt. Am Ende steht das Tempo genau auf dem Ziel.
 - "Stopp" (gleiche Taste) oder Tempo-Knopf drehen bricht die Rampe ab, das Tempo bleibt wo es gerade ist.
 - Die Rampe laeuft nur bei laufendem Transport. Stoppen bricht sie ab.
 - Start, Takte und Ziel lassen sich ebenfalls per MIDI mappen.
+
+Schwebe-Fenster
+- Das Symbol oben (Quadrat mit Pfeil, links vom Zahnrad) klappt BPM Changer als eigenes Fenster aus. Es liegt immer
+  obenauf, egal welche Spur gerade ausgewaehlt ist. Alles laesst sich dort genauso bedienen (Knopf: nach oben/unten
+  ziehen, Shift = fein). MIDI-Mapping geht nur im Device selbst.
 
 Bei Problemen: Rechtsklick aufs Device -> Max-Fenster oeffnen und Screenshot schicken.
