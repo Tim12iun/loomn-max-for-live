@@ -163,6 +163,8 @@ input.rename{flex:1;min-width:0;height:20px;background:var(--bg);color:var(--tex
 .cwave .gl.b4{background:rgba(255,255,255,.2)}
 .cwave b.pre{position:absolute;top:0;bottom:0;background:rgba(10,10,10,.5)}
 .cwave i{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--accent);display:none}
+.cwave u.cur{position:absolute;top:0;bottom:0;width:0;border-left:1.5px solid rgba(255,255,255,.75);text-decoration:none;pointer-events:none}
+.cwave u.cur::before{content:"";position:absolute;top:0;left:-5.5px;border:5px solid transparent;border-top-color:#fff}
 .cwave.on i{display:block}
 .smk{position:relative;height:14px;flex:none}
 .smk em{top:0;bottom:auto;height:14px;margin-left:-6px;width:12px}
@@ -1064,9 +1066,9 @@ document.addEventListener('click', e => {
 });
 // ---------- Clip-Fenster (Doppelklick auf einen Clip im Raster) ----------
 // Startmarker und Loop-Klammer einstellen, auf dem Takt-Raster des Songs. Alt beim Ziehen = in Vierteln.
-let cvCell = null, cvRef = null, cvDrag = null;
+let cvCell = null, cvRef = null, cvDrag = null, cvCursor = 0;   // cvCursor: Abspielstart im Clip-Fenster (0…1), wie in Ableton
 const bigWaves = {};
-function openClip(id){ const v = cellVal(id); if (!refOf(v)) return; cvCell = id; cvRef = refOf(v); $('#cv').classList.remove('hidden'); drawClip(); drawGrid(); }
+function openClip(id){ const v = cellVal(id); if (!refOf(v)) return; if (id !== cvCell) cvCursor = 0; cvCell = id; cvRef = refOf(v); $('#cv').classList.remove('hidden'); drawClip(); drawGrid(); }
 function closeClip(){ if (!cvCell) return; cvCell = cvRef = null; $('#cv').classList.add('hidden'); drawGrid(); }
 async function bigWave(path){
   if (bigWaves[path] !== undefined) return;
@@ -1092,24 +1094,26 @@ function drawClip(){
   const on = playing === cvRef;
   $('#cv').innerHTML = `<div class="cvh"><b>${c.old ? esc(c.clip.name) + ' · im Set' : esc(c.stem.stem) + ' · ' + esc((c.clip.name.match(/Clip \d+$/) || ['Full'])[0])}</b><span>${fmtBars(bars)} Takte · ${Math.round(c.song.tempo)} BPM · Start ${L.s - L.v >= 0 ? fmtBars(L.s - L.v + 1) : '−' + fmtBars(L.v - L.s)} · Loop ${fmtBars(L.l)} Takte${L.fromSet ? ' (wie im Set)' : L.auto ? ' (automatisch)' : ''}</span><span class="sp"></span>`
     + (L.auto ? '' : `<button data-cv="auto" title="${c.old ? 'Startmarker und Loop wie im Set' : 'Startmarker und Loop wie von buildn erkannt'}">${c.old ? 'Wie im Set' : 'Automatisch'}</button>`)
-    + `<button class="icon" data-cv="play" title="${on ? 'Stopp' : 'Vorhören'} (dann in die Waveform klicken = spulen)"><svg><use href="#i-${on ? 'stop' : 'play'}"/></svg></button>`
+    + `<button class="icon" data-cv="play" title="${on ? 'Stopp' : 'Ab Cursor abspielen'} (Leertaste)"><svg><use href="#i-${on ? 'stop' : 'play'}"/></svg></button>`
     + `<button class="icon" data-cv="close" title="Clip-Fenster schließen (Esc)"><svg><use href="#i-x"/></svg></button></div>`
     + `<div class="cvb"><div class="ruler">${ruler}</div>`
     + `<div class="lbar" title="Loop-Klammer: Enden ziehen"><i class="brace" style="left:${pc(L.v)};width:${pc(L.l)}"><em data-h="ls"></em><em data-h="le"></em></i></div>`
-    + `<div class="cwave ${on ? 'on' : ''}" data-cvseek="1" title="Läuft der Clip: Klick = hierhin spulen">${grid}<svg viewBox="0 0 ${Math.max(1, w.length)} 100" preserveAspectRatio="none"><path d="${d}"/></svg>`
+    + `<div class="cwave ${on ? 'on' : ''}" data-cvseek="1" title="Klick = Cursor setzen und ab hier abspielen · Leertaste = Play/Stopp (startet am Cursor)">${grid}<svg viewBox="0 0 ${Math.max(1, w.length)} 100" preserveAspectRatio="none"><path d="${d}"/></svg>`
     + (L.v > 0 ? `<b class="pre" style="left:0;width:${pc(L.v)}"></b>` : '') + (L.v + L.l < bars - 0.01 ? `<b class="pre" style="left:${pc(L.v + L.l)};right:0"></b>` : '')
-    + `<i style="left:${on ? headPos * 100 : 0}%"></i></div>`
+    + `<u class="cur" style="left:${cvCursor * 100}%"></u><i style="left:${on ? headPos * 100 : 0}%"></i></div>`
     + `<div class="smk" title="Startmarker: hier beginnt der Clip beim Starten"><em data-h="s" style="left:${pc(L.s)}"></em></div></div>`;
 }
+// Play/Stopp im Clip-Fenster: Play startet immer am Cursor, nicht da, wo gestoppt wurde
+function cvPlay(){ if (playing === cvRef){ stopPlay(); drawClip(); } else togglePlay(cvRef, cvCursor).then(drawClip); }
 function cvAction(k){
-  if (k === 'play'){ togglePlay(cvRef).then(drawClip); return; }
+  if (k === 'play'){ cvPlay(); return; }
   if (k === 'close'){ closeClip(); return; }
   if (k === 'auto'){ const v = cellVal(cvCell); change(() => setCell(cvCell, withLp(v, null))); drawClip(); }
 }
 document.addEventListener('pointerdown', e => {
   const h = e.target.closest('#cv [data-h]');
   const wv = !h && e.target.closest('#cv [data-cvseek]');
-  if (wv){ if (playing !== cvRef) return; const r = wv.getBoundingClientRect(); togglePlay(cvRef, Math.min(0.999, Math.max(0, (e.clientX - r.left) / r.width))).then(drawClip); return; }
+  if (wv){ const r = wv.getBoundingClientRect(); cvCursor = Math.min(0.999, Math.max(0, (e.clientX - r.left) / r.width)); togglePlay(cvRef, cvCursor).then(drawClip); return; }
   if (!h) return;
   e.preventDefault();
   const v = cellVal(cvCell), c = clipOf(refOf(v)); if (!c) return;
@@ -1210,7 +1214,8 @@ document.addEventListener('keydown', e => {
     if (!from.length) return;
     to.push(JSON.stringify(blocks)); blocks = JSON.parse(from.pop()); dirty = true; save(); draw();
   }
-  if (e.key === ' ' && playing){ e.preventDefault(); stopPlay(); }
+  if (e.key === ' ' && cvCell){ e.preventDefault(); cvPlay(); }
+  else if (e.key === ' ' && playing){ e.preventDefault(); stopPlay(); }
   if (e.key === 'Escape'){ $('#back').classList.add('hidden'); closeClip(); }
 });
 const fail = err => status(String(err.message || err), null, true);
