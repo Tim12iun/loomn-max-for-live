@@ -45,16 +45,6 @@
     "LIESMICH Sort.txt",
     "setmaker_settings.json"
    ]
-  },
-  "buildn": {
-   "version": "0.1.0",
-   "dir": "buildn",
-   "files": [
-    "buildn.html",
-    "LIESMICH buildn.txt"
-   ],
-   "amxd": [],
-   "obsolete": []
   }
  }
 }

@@ -1,0 +1,31 @@
+buildn – Live-Sets aus prepn-Paketen bauen
+buildn ist eine eigene Mac-App (kein Max-for-Live-Geraet).
+
+Installation (einmalig)
+- Neueste Version: github.com/Tim12iun/loomn-tools/releases/tag/buildn-latest
+- Buildn.zip laden, entpacken, Buildn.app in "Programme" ziehen.
+- Beim ersten Start: Rechtsklick auf Buildn > Oeffnen > Oeffnen.
+- buildn fragt nach einem Datenordner (Line-up, Vorlage, geladene Songs werden dort gespeichert).
+- Updates: buildn sucht beim Start selbst. Oben rechts erscheint dann "Update". Ein Klick, fertig.
+  Die App wird an Ort und Stelle ersetzt, es entstehen keine Kopien.
+
+Ablauf
+1. Oben links "Vorlage waehlen": dein Live-Set als Vorlage (z. B. SELF_LIVESET_V3.als). Wird gemerkt.
+   Spalten = Spuren, die mit "A ", "B " oder "A/B " anfangen (A BASS, A/B KICK ...).
+2. "Songs laden": einen Paket-Ordner von prepn ("<Song>-Live-Set") waehlen oder einen Ordner, in dem viele liegen.
+3. Song von links in die Mitte ziehen. Jeder Song = Trenner-Zeile + 3 Zeilen:
+   Zeile 1 und 2 = deine Clips, Zeile 3 = Full-Stems (macht buildn automatisch).
+4. Song links aufklappen, Clips vorhoeren (Play) und in Zeile 1 oder 2 ziehen.
+   Clip im Raster verschieben = ziehen (auf belegten Platz = tauschen), Alt beim Loslassen = kopieren.
+   Clip raus: x am Clip oder nach links ziehen. Cmd+Z macht rueckgaengig.
+5. Ganzen Song verschieben: am Namen in der Trenner-Zeile ziehen. x = Song raus.
+   Bass/Tops/Melo A/B wechselt von Song zu Song automatisch, Klick = andere Spalte.
+6. "Set erstellen": Speicherort waehlen. buildn schreibt ein neues .als: Vorlage + deine Songs unter den
+   letzten Block. Der rechte Block (Serum, Instrumente, Vocal Chain, MIDI ...) bleibt wie er ist und rutscht
+   nach unten, mit demselben Abstand wie in der Vorlage. Die Vorlage selbst wird nie veraendert.
+
+Zahnrad: Szenen nach dem Song benennen, Song-Tempo in die Szenen schreiben, Datenordner, Version und Update.
+
+Bekannte Grenzen
+- Die Clips verweisen auf die Dateien in den Paket-Ordnern. Pakete nicht verschieben, sonst sucht Live sie.
+- Braucht macOS 14 oder neuer.
