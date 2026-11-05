@@ -146,6 +146,7 @@ input[type=checkbox]{margin:0;accent-color:var(--accent)}
     <button class="icon ghost" id="backBtn" title="Zurück"><svg><use href="#i-back"/></svg></button>
     <div class="tabs"><button data-t="tracks" class="on">Spuren</button><button data-t="cats">Kategorien</button><button data-t="opts">Optionen</button></div>
     <span class="sp"></span>
+    <span class="vtag" id="vtag2"></span>
     <button class="icon ghost" id="upd" title="Auf GitHub nach Update suchen"><svg><use href="#i-dl"/></svg></button>
   </div>
   <main id="main"></main>
@@ -326,7 +327,7 @@ function onState(enc){
   if(dirty) next.settings = S.settings; // ungespeicherte Eingaben nicht überschreiben
   S = next; setStatus(S.status || '');
   $('#title').title = 'sortn v' + (S.version || '?');
-  $('#vtag').textContent = 'v' + (S.version || '?');
+  $('#vtag').textContent = $('#vtag2').textContent = 'v' + (S.version || '?');
   draw();
   setBusy(S.busy);
 }
