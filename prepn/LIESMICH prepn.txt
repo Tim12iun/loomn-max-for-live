@@ -1,13 +1,14 @@
-prepn v0.7.2 (Test-Version) – Stems pro Farbe rendern und Song-Paket schreiben
+prepn v0.7.3 (Test-Version) – Stems pro Farbe rendern und Song-Paket schreiben
 prepn arbeitet komplett eigenstaendig, unabhaengig von sortn.
 
 Installation
 - Den Ordner "prepn" hierhin legen (Finder: Shift+Cmd+G, Pfad einfuegen):
   ~/Music/Ableton/User Library/Presets/Audio Effects/Max Audio Effect/MAX for LIVE 3rd Party/LOOMN-MAX4LIVE/
   Ergebnis: .../LOOMN-MAX4LIVE/prepn/
-- Alle Dateien im Ordner "prepn" zusammen lassen: prepn.amxd, setmaker_prep.js, setmaker_prep.html.
+- Alle Dateien im Ordner "prepn" zusammen lassen: prepn.amxd, prepn.js, prepn.html.
 - Song-Projekt oeffnen, "prepn.amxd" auf die Main-Spur ziehen. Alte Versionen ("SetMaker Prep") vorher aus dem Set loeschen.
-- Einstellungen: setmaker_prep_settings.json im Ordner prepn. Legt das Device selbst an, bleibt bei Updates erhalten.
+- Einstellungen: prepn_settings.json im Ordner prepn. Legt das Device selbst an, bleibt bei Updates erhalten.
+  (Bis v0.7.2 hiess sie setmaker_prep_settings.json. Das Device uebernimmt sie beim ersten Start, danach kann die alte weg.)
 - Update: ⟳ im Device laedt die neue Version direkt in diesen Ordner (gleiche Dateinamen, wird ueberschrieben).
   Danach Device loeschen und neu reinziehen. Meldet das Device alte Dateien, diese im Finder loeschen.
 

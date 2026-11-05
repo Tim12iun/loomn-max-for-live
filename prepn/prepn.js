@@ -2,7 +2,7 @@
 // Farben -> Spalten. "Rendern" nimmt pro Spalte einen Full-Stem unten im Projekt auf (Echtzeit).
 // "Paket" schreibt Full-Stems, graue Schnitte und Serum-MIDI als JSON neben das Live-Set.
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.7.2";
+var VERSION = "0.7.3";
 var PLUGIN_ID = "setmaker-prep";
 inlets = 1;
 outlets = 1; // -> jweb (über s ---toweb)
@@ -466,7 +466,8 @@ var task = null;
 
 // ---------- Hilfen ----------
 function say(kind, obj){ outlet(0, kind, encodeURIComponent(JSON.stringify(obj))); }
-function status(s){ post("SetMaker: " + s + "\n"); say("status", { text: s }); }
+var lastStatus = "";
+function status(s){ lastStatus = s; post("prepn: " + s + "\n"); say("status", { text: s }); }
 function g(api, prop){ var v = api.get(prop); return (v instanceof Array) ? v.join(" ") : String(v); }
 function n(api, prop){ return Number(g(api, prop)); }
 function ids(api, prop){
@@ -492,7 +493,8 @@ function deviceDir(){
 }
 var DIR = "";
 // Prep ist eigenständig: eigene Einstellungen im eigenen Ordner, nicht mit Sort geteilt
-function cfgPath(){ return DIR + "setmaker_prep_settings.json"; }
+var CFG_FILE = "prepn_settings.json", OLD_CFG_FILE = "setmaker_prep_settings.json", oldCfgNoted = false; // alter Name bis v0.7.2
+function cfgPath(){ return DIR + CFG_FILE; }
 function readText(path){
   var f = new File(path, "read", "TEXT"); if (!f.isopen) return null;
   var s = "", line; while ((line = f.readline(32767)) !== null && line !== undefined) { s += line + "\n"; if (f.position >= f.eof) break; }
@@ -505,8 +507,14 @@ function writeText(path, s){
   f.eof = f.position; f.close(); return true;
 }
 function loadCfg(){
-  var raw = readText(cfgPath()), parsed = null;
+  var raw = readText(cfgPath()), parsed = null, oldRaw = readText(DIR + OLD_CFG_FILE);
   if (raw){ try { parsed = JSON.parse(raw); } catch (e) {} }
+  // Umzug: alte Einstellungsdatei einmal in die neue übernehmen (die alte bleibt liegen, Max kann nicht löschen)
+  if (!parsed && oldRaw){
+    try { parsed = JSON.parse(oldRaw); } catch (e) {}
+    if (parsed) writeText(cfgPath(), JSON.stringify(SM.normalize(parsed), null, 1));
+  }
+  if (oldRaw && parsed && !oldCfgNoted){ oldCfgNoted = true; status("Einstellungen aus " + OLD_CFG_FILE + " übernommen. Die alte Datei kannst du im Finder löschen."); }
   settings = SM.normalize(parsed);
   if (!parsed){ // Defaults einmal anlegen: eine Farbe pro Spalte
     var first = {};
@@ -541,7 +549,7 @@ function init(){
   DIR = deviceDir.call(this);
   if (DIR){
     var posix = DIR.indexOf(":/") >= 0 ? DIR.substring(DIR.indexOf(":/") + 1) : DIR;
-    outlet(0, "url", "file://" + encodeURI(posix) + "setmaker_prep.html");
+    outlet(0, "url", "file://" + encodeURI(posix) + "prepn.html");
   }
   loadCfg();
   watch(); // liest gleich einmal ein, danach nur noch bei Änderungen
@@ -583,7 +591,10 @@ function laterRefresh(){
   refreshTask.schedule(Math.max(0, Math.min(250, refreshDue - t)));
 }
 // UI meldet sich (neu geladen / Fenster geöffnet): letzten Stand schicken, ohne Live neu einzulesen
-function hello(){ if (lastStateJson) outlet(0, "state", lastStateJson); else refresh(); }
+function hello(){
+  if (lastStateJson) outlet(0, "state", lastStateJson); else refresh();
+  if (lastStatus) say("status", { text: lastStatus }); // z. B. Hinweis aus dem Start, bevor die Seite geladen war
+}
 
 // ---------- Spuren nach Farbe einsortieren ----------
 function scan(){

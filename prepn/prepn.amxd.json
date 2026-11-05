@@ -138,9 +138,9 @@
      "outlettype": [
       ""
      ],
-     "text": "js setmaker_prep.js",
+     "text": "js prepn.js",
      "saved_object_attributes": {
-      "filename": "setmaker_prep.js",
+      "filename": "prepn.js",
       "parameter_enable": 0
      }
     }
@@ -308,7 +308,7 @@
          "outlettype": [
           ""
          ],
-         "text": "read setmaker_prep.html"
+         "text": "read prepn.html"
         }
        },
        {
@@ -670,7 +670,7 @@
      "outlettype": [
       ""
      ],
-     "text": "read setmaker_prep.html"
+     "text": "read prepn.html"
     }
    },
    {

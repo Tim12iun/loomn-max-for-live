@@ -1,18 +1,21 @@
 {
  "plugins": {
   "setmaker-prep": {
-   "version": "0.7.2",
+   "version": "0.7.3",
    "dir": "prepn",
    "files": [
-    "setmaker_prep.html",
-    "LIESMICH Prep.txt",
-    "setmaker_prep.js"
+    "prepn.html",
+    "LIESMICH prepn.txt",
+    "prepn.js"
    ],
    "amxd": [
     "prepn.amxd"
    ],
    "amxdType": "aaaa",
    "obsolete": [
+    "setmaker_prep.js",
+    "setmaker_prep.html",
+    "LIESMICH Prep.txt",
     "SetMaker Prep.amxd",
     "SetMaker Prep.amxd (1)",
     "SetMaker Prep.amxd.json",
