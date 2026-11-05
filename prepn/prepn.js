@@ -2,7 +2,7 @@
 // Farben -> Spalten. "Rendern" nimmt pro Spalte einen Full-Stem unten im Projekt auf (Echtzeit).
 // "Paket" schreibt einen Song-Ordner: Full-Stems, markierte Passagen als Clips, Serum-MIDI (JSON).
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.8.0";
+var VERSION = "0.8.1";
 var PLUGIN_ID = "setmaker-prep";
 inlets = 1;
 outlets = 2; // 0 -> jweb (über s ---toweb), 1 -> prepn_pkg.js (node.script)
@@ -1071,7 +1071,7 @@ function setroot(p){
 function resetroot(){ delete settings.pkgRoot; saveCfg(); lastStateJson = ""; refresh(); status("Paket landet im Projektordner unter „Live-Set“."); }
 
 
-var pkgWait = null;
+var pkgWait = null, pkgCleanup = null, pkgMsg = "";
 function markerSec(clip, m, tempo){ return n(clip, "warping") === 1 ? m * 60 / tempo : m; }
 function pkg(songNameEnc){
   if (isBusy()) return;
@@ -1096,7 +1096,7 @@ function pkg(songNameEnc){
     }
     var st = s.stems[lane.short];
     if (!st) continue;
-    var entry = { lane: lane.id, name: st.name, files: {}, file: null, clips: [] };
+    var entry = { lane: lane.id, name: st.name, trackId: st.id, files: {}, file: null, clips: [] };
     var ac = ids(st.api, "arrangement_clips");
     for (var a = 0; a < ac.length; a++) items.push({ midi: false, entry: entry, id: ac[a] });
     stems.push(entry);
@@ -1116,6 +1116,8 @@ function pkg(songNameEnc){
       start: markerSec(clip, n(clip, "start_marker"), tempo), end: markerSec(clip, n(clip, "end_marker"), tempo) });
   }, "Lese Clips", function (){
     var job = { dir: folder, stems: [], json: json };
+    var cleanup = { tracks: [], move: [] };
+    var projDir = setPath ? setPath.substring(0, setPath.lastIndexOf("/")) : "";
     var nClips = 0;
     for (var z = 0; z < stems.length; z++){
       var e = stems[z], best = null;
@@ -1130,6 +1132,13 @@ function pkg(songNameEnc){
                      start_time: k.start_time, end_time: k.end_time });
       }
       nClips += clips.length;
+      // Aufräumen nach dem Paket: nur, was prepn selbst angelegt hat (Stem-Spur + ihre Aufnahme-Dateien)
+      cleanup.tracks.push(e.trackId);
+      for (var rf in e.files){
+        var base = rf.substring(rf.lastIndexOf("/") + 1);
+        if (projDir && rf.indexOf(projDir + "/Samples/Recorded/") === 0 && base.indexOf(e.name) === 0)
+          cleanup.move.push({ from: rf, to: projDir + "/Samples/Processed/prepn/" + base });
+      }
       job.stems.push({ file: best, name: e.name, clips: clips });
       json.lanes.push({ lane: e.lane, stem: e.name, clips: clips.map(function (q) {
         return { name: q.name, start_time: q.start_time, end_time: q.end_time, active: true }; }) });
@@ -1138,10 +1147,11 @@ function pkg(songNameEnc){
     for (var y = 0; y < json.lanes.length; y++) if (!json.lanes[y].midi || json.lanes[y].midi.length) lanes.push(json.lanes[y]);
     json.lanes = lanes;
     if (!job.stems.length){ status("Nichts zu packen: erst Stems aufnehmen."); return; }
+    pkgCleanup = cleanup;
     busy = true;
     overlay(true, "PAKET WIRD GESCHRIEBEN", job.stems.length + " Stems, " + nClips + " Clips");
     say("progress", { pct: 0 });
-    pkgWait = new Task(function (){ pkgEnd("Paket-Schreiber antwortet nicht. Ist Node for Max blockiert? Gerät neu reinziehen."); });
+    pkgWait = new Task(function (){ pkgCleanup = null; pkgEnd("Paket-Schreiber antwortet nicht. Ist Node for Max blockiert? Gerät neu reinziehen."); });
     pkgWait.schedule(120000);
     outlet(1, "job", encodeURIComponent(JSON.stringify(job)));
     status("Schreibe Paket nach " + folder + " …");
@@ -1155,8 +1165,21 @@ function pkgEnd(msg){
 // Antworten von prepn_pkg.js
 function node(kind, val){
   if (kind === "progress"){ say("progress", { pct: Number(val) }); if (pkgWait){ pkgWait.cancel(); pkgWait.schedule(120000); } return; }
-  if (kind === "done"){ var r = JSON.parse(decodeURIComponent(val)); pkgEnd("Paket fertig: " + r.files + " Dateien in " + r.dir); return; }
-  if (kind === "error"){ pkgEnd("Paket fehlgeschlagen: " + decodeURIComponent(val)); return; }
+  if (kind === "done"){
+    var r = JSON.parse(decodeURIComponent(val));
+    pkgMsg = "Paket fertig: " + r.files + " Dateien in " + r.dir + ".";
+    var c = pkgCleanup; pkgCleanup = null;
+    if (!c){ pkgEnd(pkgMsg); return; }
+    // Erst die Stem-Spuren raus (dann hält Live die Dateien nicht mehr fest), dann die Aufnahmen wegräumen
+    for (var t = c.tracks.length - 1; t >= 0; t--) deleteTrack(c.tracks[t]);
+    pkgMsg += " Stem-Spuren entfernt.";
+    if (!c.move.length){ pkgEnd(pkgMsg); return; }
+    outlet(1, "tidy", encodeURIComponent(JSON.stringify(c.move)));
+    return;
+  }
+  if (kind === "tidied"){ pkgEnd(pkgMsg + " Aufnahmen liegen jetzt in Samples/Processed/prepn (" + val + " Dateien)."); return; }
+  if (kind === "tidyerror"){ pkgEnd(pkgMsg + " Aufnahmen konnten nicht verschoben werden: " + decodeURIComponent(val)); return; }
+  if (kind === "error"){ pkgCleanup = null; pkgEnd("Paket fehlgeschlagen, nichts aufgeräumt: " + decodeURIComponent(val)); return; }
 }
 
 // ---------- Update über GitHub ----------
