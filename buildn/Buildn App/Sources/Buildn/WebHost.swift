@@ -16,10 +16,11 @@ final class WebHost: NSObject, ObservableObject, WKScriptMessageHandlerWithReply
         let c = WKWebViewConfiguration()
         let ucc = WKUserContentController()
         c.userContentController = ucc
-        webView = WKWebView(frame: .zero, configuration: c)
+        webView = DropWebView(frame: .zero, configuration: c)
         super.init()
         ucc.addScriptMessageHandler(self, contentWorld: .page, name: "bridge")
         webView.navigationDelegate = self
+        (webView as? DropWebView)?.onFolders = { [weak self] paths in self?.sendJSON("folders", paths) }
         webView.setValue(false, forKey: "drawsBackground")
         if let dir = Bundle.main.resourceURL?.appendingPathComponent("Web") {
             webView.loadFileURL(dir.appendingPathComponent("index.html"), allowingReadAccessTo: dir)
@@ -34,6 +35,12 @@ final class WebHost: NSObject, ObservableObject, WKScriptMessageHandlerWithReply
         webView.evaluateJavaScript("window.onNative && window.onNative('\(kind)')", completionHandler: nil)
     }
 
+    /// Ereignis mit Daten an die Seite (z. B. „folders“ = Ordner ins Fenster gezogen)
+    func sendJSON(_ kind: String, _ value: Any) {
+        guard let d = try? JSONSerialization.data(withJSONObject: value), let j = String(data: d, encoding: .utf8) else { return }
+        webView.evaluateJavaScript("window.onNative && window.onNative('\(kind)', \(j))", completionHandler: nil)
+    }
+
     // Links nach außen im Browser öffnen, nie in der App
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                  decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
@@ -46,6 +53,22 @@ final class WebHost: NSObject, ObservableObject, WKScriptMessageHandlerWithReply
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage,
                                replyHandler: @escaping (Any?, String?) -> Void) {
         guard let body = message.body as? [String: Any], let cmd = body["cmd"] as? String else { replyHandler(nil, "Unbekannter Befehl"); return }
+        if cmd == "peaks" {
+            // Waveforms im Hintergrund lesen, damit die Oberfläche nicht hängt
+            let paths = body["paths"] as? [String] ?? [], n = max(8, min(400, body["n"] as? Int ?? 96))
+            DispatchQueue.global(qos: .userInitiated).async {
+                var out: [String: Any] = [:]
+                for p in paths {
+                    let u = URL(fileURLWithPath: p)
+                    let f = try? AVAudioFile(forReading: u)
+                    let secs = f.map { Double($0.length) / $0.fileFormat.sampleRate } ?? 0
+                    out[p] = ["p": Self.peaks(u, n: n), "d": secs]
+                }
+                let result = out
+                DispatchQueue.main.async { replyHandler(result, nil) }
+            }
+            return
+        }
         do { replyHandler(try handle(cmd, body) ?? NSNull(), nil) } catch { replyHandler(nil, error.localizedDescription) }
     }
 
@@ -98,10 +121,14 @@ final class WebHost: NSObject, ObservableObject, WKScriptMessageHandlerWithReply
             player?.stop()
             let p = try AVAudioPlayer(contentsOf: URL(fileURLWithPath: str("path")))
             p.delegate = self
+            if let at = b["at"] as? Double, at > 0 { p.currentTime = min(at, 0.999) * p.duration }
             p.play()
             player = p
             return true
         case "stop": player?.stop(); player = nil; return true
+        case "pos":
+            guard let p = player, p.isPlaying, p.duration > 0 else { return -1 }
+            return p.currentTime / p.duration
         case "pickSave":
             let p = NSSavePanel()
             p.allowedContentTypes = [UTType(filenameExtension: "als") ?? .data]
@@ -111,6 +138,7 @@ final class WebHost: NSObject, ObservableObject, WKScriptMessageHandlerWithReply
             return p.runModal() == .OK ? p.url?.path : nil
         case "writeB64":
             guard let d = Data(base64Encoded: str("data")) else { throw ToolUpdater.Failure("Daten kaputt") }
+            try FileManager.default.createDirectory(at: URL(fileURLWithPath: str("path")).deletingLastPathComponent(), withIntermediateDirectories: true)
             try d.write(to: URL(fileURLWithPath: str("path")), options: .atomic)
             return true
         case "openFile": NSWorkspace.shared.open(URL(fileURLWithPath: str("path"))); return true
@@ -122,6 +150,34 @@ final class WebHost: NSObject, ObservableObject, WKScriptMessageHandlerWithReply
         case "dataMove": DataStore.shared.moveInteractive(); return DataStore.shared.root?.path
         default: throw ToolUpdater.Failure("Unbekannter Befehl \(cmd)")
         }
+    }
+
+    /// Lautstärke-Spitzen einer Audiodatei in n Abschnitten (0…1), für die kleine Waveform im Clip
+    nonisolated static func peaks(_ url: URL, n: Int) -> [Double] {
+        guard let f = try? AVAudioFile(forReading: url), f.length > 0 else { return [] }
+        let total = f.length, per = max(1, total / AVAudioFramePosition(n))
+        let chunk: AVAudioFrameCount = 65536
+        guard let buf = AVAudioPCMBuffer(pcmFormat: f.processingFormat, frameCapacity: chunk) else { return [] }
+        var out = [Double](repeating: 0, count: n), pos: AVAudioFramePosition = 0
+        while pos < total {
+            buf.frameLength = 0
+            do { try f.read(into: buf, frameCount: chunk) } catch { break }
+            let len = Int(buf.frameLength); if len == 0 { break }
+            if let ch = buf.floatChannelData {
+                for c in 0..<Int(buf.format.channelCount) {
+                    let d = ch[c]
+                    var i = 0
+                    while i < len {
+                        let k = min(n - 1, Int((pos + AVAudioFramePosition(i)) / per))
+                        let v = Double(abs(d[i])); if v > out[k] { out[k] = v }
+                        i += 4   // jeder 4. Wert reicht für die Anzeige
+                    }
+                }
+            }
+            pos += AVAudioFramePosition(len)
+        }
+        let top = max(out.max() ?? 1, 0.0001)
+        return out.map { (min(1, $0 / top) * 100).rounded() / 100 }
     }
 
     /// Song-Pakete finden: Ordner mit SETMAKER.json (von prepn). Bis zu `depth` Ebenen tief.
@@ -169,4 +225,27 @@ struct TitleStrip: NSViewRepresentable {
     }
     func makeNSView(context: Context) -> NSView { V() }
     func updateNSView(_ nsView: NSView, context: Context) {}
+}
+
+/// WebView, die Ordner aus dem Finder annimmt (ins Fenster ziehen = Songs laden).
+/// Alles andere (Ziehen innerhalb der Seite) geht normal an die WebView.
+final class DropWebView: WKWebView {
+    var onFolders: (@MainActor ([String]) -> Void)?
+
+    private func folders(_ info: NSDraggingInfo) -> [String] {
+        let urls = info.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+        return urls.filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }.map(\.path)
+    }
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        folders(sender).isEmpty ? super.draggingEntered(sender) : .copy
+    }
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        folders(sender).isEmpty ? super.draggingUpdated(sender) : .copy
+    }
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        let f = folders(sender)
+        if f.isEmpty { return super.performDragOperation(sender) }
+        onFolders?(f)
+        return true
+    }
 }

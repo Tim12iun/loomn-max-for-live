@@ -7,7 +7,7 @@
 @font-face{font-family:"Barlow Condensed";font-weight:500;src:url(fonts/BarlowCondensed-Medium.ttf)}
 @font-face{font-family:"Barlow Condensed";font-weight:600;src:url(fonts/BarlowCondensed-SemiBold.ttf)}
 @font-face{font-family:"Barlow Condensed";font-weight:700;src:url(fonts/BarlowCondensed-Bold.ttf)}
-:root{--bg:#141414;--surface:#1C1B1A;--hi:#232221;--hi2:#2A2928;--line:#32312F;--text:#F0EEE9;--muted:#8F8C86;--accent:#FF5A1F;--accent2:#EC6636;--red:#B5483F;--cw:116px;--rh:24px;--lab:300px}
+:root{--bg:#141414;--surface:#1C1B1A;--hi:#232221;--hi2:#2A2928;--line:#32312F;--text:#F0EEE9;--muted:#8F8C86;--accent:#FF5A1F;--accent2:#EC6636;--red:#B5483F;--rh:24px;--lab:clamp(180px,16vw,260px)}
 *{box-sizing:border-box;margin:0}
 html,body{height:100%;overflow:hidden}
 body{background:var(--bg);color:var(--text);font:500 15px/1.3 "Barlow Condensed",-apple-system,sans-serif;user-select:none;-webkit-user-select:none;display:flex;flex-direction:column}
@@ -33,7 +33,6 @@ header{display:flex;align-items:center;gap:8px;padding:0 12px 10px;flex:none}
 .tpl .x{width:20px;height:20px;margin-right:-6px;display:flex;align-items:center;justify-content:center;border-radius:4px;color:var(--muted)}
 .tpl .x:hover{background:var(--line);color:var(--text)}
 .tpl .x svg{width:12px;height:12px}
-.old{display:flex;align-items:center;height:100%;padding:0 6px;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);border-left:3px solid}
 .block.ex .stop .lab{cursor:default;color:var(--muted)}
 .block.ex .cell{background:#1f1e1d}
 .sp{flex:1}
@@ -54,7 +53,13 @@ aside.drop{box-shadow:inset 0 0 0 2px var(--accent)}
 .stem{padding:6px 2px 0 26px}
 .stem .sn{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:3px;display:flex;justify-content:space-between}
 .chip{display:flex;align-items:center;gap:5px;height:22px;padding:0 6px 0 3px;border-radius:5px;margin-bottom:3px;cursor:grab;color:#141414;font-weight:600;font-size:14px;overflow:hidden;white-space:nowrap;filter:saturate(.72) brightness(.92)}
-.chip .t{overflow:hidden;text-overflow:ellipsis;flex:1}
+.chip{position:relative}
+.chip .t{overflow:hidden;text-overflow:ellipsis;flex:1;position:relative;z-index:1;pointer-events:none}
+.chip .pl,.chip .rm{position:relative;z-index:1}
+.wv{position:absolute;left:24px;right:4px;top:2px;bottom:2px;cursor:pointer}
+.wv svg{width:100%;height:100%;display:block;fill:rgba(0,0,0,.2);stroke:none}
+.wv i{position:absolute;top:-2px;bottom:-2px;width:2px;margin-left:-1px;background:#141414;display:none}
+.chip.on .wv i{display:block}
 .pl{flex:none;width:18px;height:18px;border-radius:4px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.2);cursor:pointer}
 .pl:hover{background:rgba(0,0,0,.4)}
 .pl svg{width:10px;height:10px;fill:currentColor;stroke:none}
@@ -65,14 +70,14 @@ aside.drop{box-shadow:inset 0 0 0 2px var(--accent)}
 .rm:hover{background:rgba(0,0,0,.3)}
 aside .foot{padding:10px 12px;font-size:12px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;cursor:pointer}
 aside .foot:hover{color:var(--text)}
-main{flex:1;min-width:0;overflow:auto;position:relative;background:var(--surface);border-radius:12px}
+main{flex:1;min-height:0;overflow:auto;position:relative;background:var(--surface);border-radius:12px}
 main::-webkit-scrollbar,aside .list::-webkit-scrollbar{width:8px;height:8px}
 main::-webkit-scrollbar-thumb,aside .list::-webkit-scrollbar-thumb{background:var(--hi2);border-radius:4px}
 main::-webkit-scrollbar-corner{background:transparent}
-.grid{display:inline-block;min-width:100%;padding:0 0 24px}
+.grid{display:block;padding:0 0 24px}
 .row{display:flex;height:var(--rh)}
-.row>div{width:var(--cw);flex:none;border-right:1px solid var(--bg);border-bottom:1px solid var(--bg);position:relative;overflow:hidden}
-.row .lab{width:var(--lab);padding:0 8px 0 12px;display:flex;align-items:center;gap:6px;color:var(--muted);font-size:13px;background:var(--surface);position:sticky;left:0;z-index:2}
+.row>div{flex:1 1 0;min-width:56px;border-right:1px solid var(--bg);border-bottom:1px solid var(--bg);position:relative;overflow:hidden}
+.row .lab{flex:none;width:var(--lab);padding:0 8px 0 12px;display:flex;align-items:center;gap:6px;color:var(--muted);font-size:13px;background:var(--surface);position:sticky;left:0;z-index:2}
 .hrow{position:sticky;top:0;z-index:3;height:30px}
 .hrow>div{display:block;line-height:30px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 8px;font-weight:700;font-size:14px;color:#141414;letter-spacing:.02em;filter:saturate(.72) brightness(.92)}
 .narrow .hrow>div:not(.lab){padding:0 5px;font-size:12px}
@@ -116,6 +121,45 @@ main::-webkit-scrollbar-corner{background:transparent}
 .bbar{width:320px;height:6px;background:var(--hi);border-radius:3px;overflow:hidden}
 .bbar i{display:block;height:100%;width:0;background:var(--accent)}
 #busyS{color:var(--muted);height:20px}
+.chip.old{background:var(--hi2);color:var(--text);border-left:3px solid;filter:none;padding-left:6px;font-weight:500;font-size:13px}
+.chip.lost{background:var(--hi2);color:var(--muted);filter:none;padding-left:6px}
+.unsong{width:18px;height:18px;display:none;align-items:center;justify-content:center;border-radius:4px;color:var(--muted);flex:none;cursor:pointer}
+.unsong svg{width:11px;height:11px}
+.song .sh:hover .unsong{display:flex}
+.song .sh:hover .bpm{display:none}
+.unsong:hover{background:var(--line);color:var(--text)}
+.fold{display:block;font-size:11px;font-weight:500;color:var(--muted);overflow:hidden;text-overflow:ellipsis;line-height:1}
+.sg{color:var(--muted);font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40%}
+input.rename{flex:1;min-width:0;height:20px;background:var(--bg);color:var(--text);border:1px solid var(--accent);border-radius:4px;font:700 15px/1 "Barlow Condensed",sans-serif;padding:0 5px;outline:none}
+.endrow{gap:14px}
+.endrow button{height:26px;font-size:14px}
+#empty a{color:var(--accent);cursor:pointer}
+.wv b.pre{position:absolute;top:-2px;bottom:-2px;background:rgba(20,20,20,.38)}
+.center{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+#cv{flex:none;height:clamp(170px,32vh,320px);background:var(--surface);border-radius:12px;display:flex;flex-direction:column;padding:8px 12px 10px;gap:4px}
+.cvh{display:flex;align-items:center;gap:10px;height:28px}
+.cvh b{font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cvh span{color:var(--muted);font-size:14px;white-space:nowrap}
+.cvh .sp{flex:1}
+.cvh button{height:26px;font-size:14px}
+.cvb{flex:1;display:flex;flex-direction:column;min-height:0;user-select:none}
+.ruler{position:relative;height:16px;flex:none}
+.ruler span{position:absolute;top:0;font-size:12px;color:var(--muted);transform:translateX(3px)}
+.lbar{position:relative;height:14px;flex:none}
+.brace{position:absolute;top:2px;bottom:2px;background:var(--accent);border-radius:3px;opacity:.9}
+.brace em,.smk em{position:absolute;top:-3px;bottom:-3px;width:12px;cursor:ew-resize}
+.brace em[data-h=ls]{left:-6px}.brace em[data-h=le]{right:-6px}
+.cwave{position:relative;flex:1;min-height:40px;background:var(--hi);border-radius:4px;overflow:hidden;cursor:pointer}
+.cwave svg{position:absolute;inset:0;width:100%;height:100%;fill:#b9b5ad;stroke:none}
+.cwave .gl{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.08)}
+.cwave .gl.b4{background:rgba(255,255,255,.2)}
+.cwave b.pre{position:absolute;top:0;bottom:0;background:rgba(10,10,10,.5)}
+.cwave i{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--accent);display:none}
+.cwave.on i{display:block}
+.smk{position:relative;height:14px;flex:none}
+.smk em{top:0;bottom:auto;height:14px;margin-left:-6px;width:12px}
+.smk em::after{content:"";position:absolute;left:0;top:2px;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:10px solid var(--text)}
+.chip.sel{box-shadow:0 0 0 2px var(--text)}
 </style>
 </head>
 <body>
@@ -146,7 +190,7 @@ main::-webkit-scrollbar-corner{background:transparent}
     <div class="list" id="songs"></div>
     <div class="foot num" id="verLine" title="Klick = nach Updates suchen"></div>
   </aside>
-  <main id="main"><div class="grid" id="grid"></div><div class="empty hidden" id="empty"></div></main>
+  <div class="center"><main id="main"><div class="grid" id="grid"></div><div class="empty hidden" id="empty"></div></main><section id="cv" class="hidden"></section></div>
 </div>
 <div class="status" id="status"><span class="t" id="statusT"></span><span id="statusA"></span></div>
 
@@ -202,11 +246,15 @@ function bytesToB64(u){ let s = ''; for (let i = 0; i < u.length; i += 32768) s 
 
 // ---------- Zustand ----------
 let songs = [];        // {key(=Ordnerpfad), name, tempo, dir, folder, stems:[{stem, kind, full:{name,file,path}, clips:[{name,file,path}]}]}
-let lineup = [];       // {key, side:{bass:'A'|'B'...}, cells:[{colName: ref}, {colName: ref}]}   ref = "<key>|<stem>|<clip|F>"
+// Das Line-up sind Song-Blöcke wie im Live-Set: Trenner-Zeile + Zeilen. Zelle = ref (neuer Clip) oder {old:id} (Clip, der schon im Set steht)
+let blocks = [];       // {name, key|null, side:{bass:'A'|'B'...}, rows:[{spalte: zelle}]}   ref = "<key>|<stem>|<clip|F>"
+let olds = {};         // id -> Clip-Name, für Clips aus dem geöffneten Set (id = "<zeile>|<spalte>" in der Datei)
 let roots = [];        // geladene Ordner (Pfade)
+let hidden = [];       // Song-Ordner, die links ausgeblendet sind
 let cols = DEFAULT_COLS.map(([name, color]) => colInfo(name, color));
 let tpl = null;        // {name, file (Kopie im Datenordner/Vorlage), src (Original)}
-let base = null;       // geöffnetes Set {name, path, blocks:[{name, rows:[{spalte: clipname}]}]}
+let base = null;       // geöffnetes Set {name, path, sig}
+let dirty = false;     // Änderungen am geöffneten Set, die noch nicht geschrieben sind
 let opts = { tempo: false, names: true };
 let open = {};
 let info = { version: '', build: '' };
@@ -228,22 +276,42 @@ function kindOf(s){
   return null;
 }
 const LANE_KIND = { bass:'bass', kick:'kick', top:'top', vox:'vox', melo:'melo', riser:'riser' };
-const song = key => songs.find(s => s.key === key);
+const song = key => key ? songs.find(s => s.key === key) : null;
 function parseRef(ref){ const j = ref.lastIndexOf('|'), i = ref.lastIndexOf('|', j - 1); return [ref.slice(0, i), ref.slice(i + 1, j), ref.slice(j + 1)]; }
 function clipOf(ref){
-  if (!ref) return null;
+  if (!ref || typeof ref !== 'string') return null;
   const [k, si, ci] = parseRef(ref), s = song(k);
   const st = s && s.stems[+si]; if (!st) return null;
   const clip = ci === 'F' ? st.full : st.clips[+ci];
   return clip ? { song: s, stem: st, clip, full: ci === 'F' } : null;
 }
-function sideOf(b, kind, i){ return (b.side && b.side[kind]) || ((i + (base ? base.blocks.length : 0)) % 2 ? 'B' : 'A'); }
+// Zelle: ref (Text) oder {ref, lp:{v, l}} mit eigenem Loop. v = Vorlauf in Takten, l = Loop-Länge in Takten
+const refOf = v => typeof v === 'string' ? v : v && v.ref ? v.ref : null;
+// Länge eines Clips in Takten (4/4) im Song-Tempo; gewarpt wird genau so, nie gestreckt
+function barsOf(c, secs){ return secs > 0 ? secs * c.song.tempo / 60 / 4 : 0; }
+// Automatisch: 5, 9, 13 … Takte = 1 Takt Vorlauf + Loop über die vollen 4er-Takte, sonst Loop über den ganzen Clip
+function autoLoop(bars){
+  const w = Math.round(bars);
+  if (Math.abs(bars - w) < 0.06 && w >= 5 && w % 4 === 1) return { s: 0, v: 1, l: w - 1, auto: true };
+  return { s: 0, v: 0, l: bars, auto: true };
+}
+function loopOf(v, c, secs){
+  const bars = barsOf(c, secs);
+  const lp = v && v.lp;
+  if (!lp || !bars) return Object.assign(autoLoop(bars), { bars });
+  const vv = Math.max(0, Math.min(lp.v, bars - 0.25)), l = Math.max(0.25, Math.min(lp.l, bars - vv));
+  return { s: Math.max(0, Math.min(lp.s || 0, bars - 0.25)), v: vv, l, bars, auto: false };
+}
+const fmtBars = x => (Math.round(x * 4) / 4).toLocaleString('de-DE');
+function sideOf(b, kind, i){ return (b.side && b.side[kind]) || (i % 2 ? 'B' : 'A'); }
 function tplPath(){ return !tpl ? null : tpl.file ? info.data + '/Vorlage/' + tpl.file : tpl.path; }
 function colFor(kind, side){
   const c = cols.filter(c => c.kind === kind);
   return c.find(x => x.side === side) || c.find(x => x.side === 'AB') || c[0] || null;
 }
-// Zeile 3: Full-Stems landen automatisch in der Spalte ihres Stems (A/B je Song)
+const blockName = (b, i) => b.name || (song(b.key) ? song(b.key).name : 'Song ' + (i + 1));
+const emptyBlock = () => ({ name: '', key: null, side: {}, rows: [{}, {}, {}] });
+// Letzte Zeile eines Song-Blocks: Full-Stems landen automatisch in der Spalte ihres Stems (A/B je Song), wo noch nichts liegt
 function autoRow(b, i){
   const s = song(b.key), out = {};
   if (!s) return out;
@@ -266,10 +334,9 @@ function busy(on, title, sub){ $('#busy').classList.toggle('on', !!on); if (titl
 let lastPct = -1;
 function pct(p){ p = Math.round(p); if (p === lastPct) return; lastPct = p; $('#bbar').style.width = p + '%'; }
 function hint(){
-  if (!songs.length) return 'Oben „Songs laden“: einen Paket-Ordner von prepn wählen oder einen Ordner, in dem viele liegen.';
-  if (!lineup.length) return 'Song von links in die Mitte ziehen.';
   if (!tpl && !base) return 'Oben links die Vorlage wählen (dein Live-Set) oder ein bestehendes Set öffnen.';
-  return 'Clips aus einem Song (aufklappen) in Zeile 1 und 2 ziehen · Song am Namen verschieben · dann „Set erstellen“.';
+  if (!songs.length) return 'Oben „Songs laden“ oder Ordner links hineinziehen.';
+  return 'Song links aufklappen, Clips in die Blöcke ziehen · Song links auf einen Block ziehen = Full-Stems automatisch · Name doppelklicken = umbenennen.';
 }
 
 // ---------- Speichern im Datenordner ----------
@@ -277,9 +344,9 @@ let saveTimer = null;
 function save(){
   if (!inApp) return;
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => native('saveState', { json: JSON.stringify({ roots, tpl, base: base && { name: base.name, path: base.path }, cols, opts, lineup }) }).catch(() => {}), 150);
+  saveTimer = setTimeout(() => native('saveState', { json: JSON.stringify({ roots, hidden, tpl, base, cols, opts, blocks, dirty }) }).catch(() => {}), 150);
 }
-function change(fn){ undo.push(JSON.stringify(lineup)); if (undo.length > 100) undo.shift(); redo = []; fn(); save(); draw(); }
+function change(fn){ undo.push(JSON.stringify(blocks)); if (undo.length > 100) undo.shift(); redo = []; fn(); dirty = true; save(); draw(); }
 
 // ---------- Songs laden ----------
 function readSong(p){
@@ -302,19 +369,29 @@ function readSong(p){
 }
 async function rescan(){
   const found = await native('scan', { paths: roots });
-  songs = found.map(readSong).filter(Boolean);
+  songs = found.map(readSong).filter(Boolean).filter(s => !hidden.includes(s.dir));
   songs.sort((a, b) => a.name.localeCompare(b.name) || a.folder.localeCompare(b.folder));
 }
-async function addSongs(){
-  const picked = await native('pickFolders');
-  if (!picked.length) return;
+async function addFolders(picked){
+  if (!picked || !picked.length) return;
   const before = songs.length;
-  for (const p of picked) if (!roots.includes(p)) roots.push(p);
+  for (const p of picked){ if (!roots.includes(p)) roots.push(p); hidden = hidden.filter(h => h !== p && !h.startsWith(p + '/')); }
   await rescan(); save(); draw();
   const n = songs.length - before;
   status(n > 0 ? n + (n > 1 ? ' Songs' : ' Song') + ' geladen. ' + hint() : 'Kein neues Song-Paket gefunden (gesucht wird nach SETMAKER.json von prepn).');
 }
+async function addSongs(){ await addFolders(await native('pickFolders')); }
+function removeSong(key){
+  const s = song(key); if (!s) return;
+  if (playing && playing.startsWith(key + '|')) stopPlay();
+  if (roots.includes(s.dir)) roots = roots.filter(r => r !== s.dir); else hidden.push(s.dir);
+  songs = songs.filter(x => x !== s);
+  save(); draw();
+  status(s.name + ' aus der Liste genommen. Der Ordner selbst bleibt, wie er ist. Über „Songs laden“ holst du ihn zurück.');
+}
 
+// Signatur einer Datei (erkennt, ob ein Set seit dem letzten Mal verändert wurde)
+function sigOf(b64){ let h = b64.length; for (let i = 0; i < b64.length; i += 997) h = (h * 31 + b64.charCodeAt(i)) | 0; return String(h); }
 // ---------- Vorlage ----------
 async function gunzipMaybe(u){
   if (u[0] !== 0x1f || u[1] !== 0x8b) return new TextDecoder().decode(u);
@@ -322,70 +399,94 @@ async function gunzipMaybe(u){
   return await new Response(ds).text();
 }
 async function loadTemplateDoc(path){ return parseXml(await gunzipMaybe(b64ToBytes(await native('readB64', { path })))); }
+async function readDoc(path){
+  const b64 = await native('readB64', { path });
+  return { doc: parseXml(await gunzipMaybe(b64ToBytes(b64))), sig: sigOf(b64), b64 };
+}
+const isStop = c => !!c && /^[=\-_ ]{3,}$/.test(val(c, 'Name') || '');
+// letzte Zeile, in der oben (Stem-Spalten) noch etwas liegt
+function upperEnd(L){ let last = -1; L.upper.forEach(t => t.slots.forEach((s, r) => { if (slotClip(s) && r > last) last = r; })); return last; }
+// Song-Blöcke oben im Set lesen: zwischen den ==== Trennern. withClips = die Clips merken (geöffnetes Set), sonst leer (Vorlage)
+function readBlocks(L, withClips){
+  const lastUpper = upperEnd(L), out = [], names = {};
+  let cur = null;
+  for (let r = 0; r <= lastUpper; r++){
+    const stop = L.upper.some(t => isStop(slotClip(t.slots[r])));
+    if (stop){ cur = { name: (L.scenes[r] && val(L.scenes[r], 'Name')) || '', key: null, side: {}, rows: [] }; out.push(cur); continue; }
+    if (!cur){ cur = { name: '', key: null, side: {}, rows: [] }; out.push(cur); }
+    const row = {};
+    if (withClips) for (const t of L.upper){
+      const c = slotClip(t.slots[r]); if (!c) continue;
+      const id = r + '|' + t.name; names[id] = val(c, 'Name') || '(ohne Namen)'; row[t.name] = { old: id };
+    }
+    cur.rows.push(row);
+  }
+  // der letzte Trenner schließt nur ab und ist kein eigener Song
+  const res = out.filter(b => b.rows.length);
+  if (withClips) res.forEach(b => { if (!b.name) b.name = guessName(b.rows.flatMap(r => Object.values(r).map(c => names[c.old]))); });
+  return { blocks: res, olds: names };
+}
+function guessName(list){
+  const n = {};
+  list.forEach(v => { const m = String(v).replace(/^\s*\d+\s+/, '').match(/_(.+?)(\s+\d+)?\s*$/); if (m) n[m[1].trim()] = (n[m[1].trim()] || 0) + 1; });
+  const best = Object.entries(n).sort((a, b) => b[1] - a[1])[0];
+  return best ? best[0].toUpperCase() : '';
+}
 async function chooseTemplate(){
   const path = await native('pickTemplate'); if (!path) return;
   try {
     busy(true, 'Vorlage wird gelesen');
-    const L = readLiveSet(await loadTemplateDoc(path));
+    const L = readLiveSet((await readDoc(path)).doc);
     busy(false);
     if (!L.upper.length) throw new Error('Keine Stem-Spalten gefunden (Spuren wie „A BASS“, „A/B KICK“).');
     let file = null; try { file = await native('storeTemplate', { path }); } catch (e) {}
     tpl = file ? { name: file, file, src: path } : { name: path.split('/').pop(), path };
-    if (!base) cols = L.upper.map(t => colInfo(t.name, t.color));
+    if (!base){
+      cols = L.upper.map(t => colInfo(t.name, t.color));
+      const empty = blocks.every(b => !b.key && !b.name && b.rows.every(r => !Object.keys(r).length));
+      if (empty){ blocks = readBlocks(L, false).blocks; if (!blocks.length) blocks = [emptyBlock()]; undo = []; redo = []; }
+    }
     save(); draw();
-    status('Vorlage ' + tpl.name + ' ist hinterlegt (' + L.upper.length + ' Stem-Spalten). Neue Sets starten oben leer, die Songs der Vorlage lässt buildn weg. ' + (L.stopper ? '' : 'Achtung: kein ==== Trenner-Clip in der Vorlage gefunden.'));
+    status('Vorlage ' + tpl.name + ' ist hinterlegt: ' + blocks.length + ' leere Song-Blöcke. ' + hint() + (L.stopper ? '' : ' Achtung: kein ==== Trenner-Clip in der Vorlage gefunden.'));
   } catch (e) { busy(false); status('Vorlage geht nicht: ' + (e.message || e), null, true); }
 }
-
-// ---------- Bestehendes Set öffnen ----------
-const isStop = c => !!c && /^[=\-_ ]{3,}$/.test(val(c, 'Name') || '');
-// Songs oben im Set lesen: Blöcke zwischen den ==== Trennern, nur die Clip-Namen (zum Anschauen)
-function readExisting(L){
-  const lastUpper = upperEnd(L), blocks = [];
-  let cur = null;
-  for (let r = 0; r <= lastUpper; r++){
-    const stop = L.upper.some(t => isStop(slotClip(t.slots[r])));
-    if (stop){ cur = { scene: (L.scenes[r] && val(L.scenes[r], 'Name')) || '', rows: [] }; blocks.push(cur); continue; }
-    const row = {};
-    for (const t of L.upper){ const c = slotClip(t.slots[r]); if (c) row[t.name] = val(c, 'Name') || '(ohne Namen)'; }
-    if (!cur){ cur = { scene: '', rows: [] }; blocks.push(cur); }
-    cur.rows.push(row);
-  }
-  const out = blocks.filter(b => b.rows.some(r => Object.keys(r).length));
-  out.forEach(b => { b.name = b.scene || guessName(b.rows); });
-  return out;
-}
-function guessName(rows){
-  const n = {};
-  rows.forEach(r => Object.values(r).forEach(v => {
-    const m = v.replace(/^\s*\d+\s+/, '').match(/_(.+?)(\s+\d+)?\s*$/); if (m) n[m[1].trim()] = (n[m[1].trim()] || 0) + 1;
-  }));
-  const best = Object.entries(n).sort((a, b) => b[1] - a[1])[0];
-  return best ? best[0].toUpperCase() : 'Song';
-}
-// letzte Zeile, in der oben (Stem-Spalten) noch etwas liegt
-function upperEnd(L){ let last = -1; L.upper.forEach(t => t.slots.forEach((s, r) => { if (slotClip(s) && r > last) last = r; })); return last; }
-async function loadBase(path){
-  const L = readLiveSet(await loadTemplateDoc(path));
+// Set öffnen: Blöcke mit ihren Clips ins Raster. keep = gespeicherten Stand behalten, wenn die Datei unverändert ist
+async function loadBase(path, keep){
+  const { doc, sig } = await readDoc(path);
+  const L = readLiveSet(doc);
   if (!L.upper.length) throw new Error('Keine Stem-Spalten gefunden (Spuren wie „A BASS“, „A/B KICK“).');
-  base = { name: path.split('/').pop(), path, blocks: readExisting(L) };
+  const r = readBlocks(L, true);
+  olds = r.olds;
   cols = L.upper.map(t => colInfo(t.name, t.color));
+  const same = keep && keep.sig === sig && keep.blocks;
+  blocks = same ? keep.blocks : r.blocks;
+  dirty = same ? !!keep.dirty : false;
+  base = { name: path.split('/').pop(), path, sig };
+  undo = []; redo = [];
+  return same;
 }
 async function openSet(){
+  if (!(await leaveBase())) return;
   const path = await native('pickTemplate', { open: true }); if (!path) return;
   try {
     busy(true, 'Set wird gelesen');
     await loadBase(path);
     busy(false); save(); draw();
-    status(base.name + ': ' + base.blocks.length + (base.blocks.length === 1 ? ' Song' : ' Songs') + ' im Set. Neue Songs hängt buildn darunter an.');
+    status(base.name + ': ' + blocks.length + (blocks.length === 1 ? ' Song-Block' : ' Song-Blöcke') + '. Verschieben, umbenennen, Clips dazu, dann „Set aktualisieren“.');
   } catch (e) { busy(false); base = null; draw(); status('Set geht nicht auf: ' + (e.message || e), null, true); }
 }
+// Ungespeicherte Änderungen am Set nicht still verwerfen
+async function leaveBase(){
+  if (!base || !dirty) return true;
+  return await native('confirm', { text: 'Die Änderungen an ' + base.name + ' sind noch nicht ins Set geschrieben. Trotzdem schließen?', action: 'Verwerfen', danger: true });
+}
 async function closeBase(){
-  base = null;
-  if (tpl){ try { cols = readLiveSet(await loadTemplateDoc(tplPath())).upper.map(t => colInfo(t.name, t.color)); } catch (e) {} }
+  if (!(await leaveBase())) return;
+  base = null; olds = {}; blocks = []; dirty = false; undo = []; redo = [];
+  if (tpl){ try { const L = readLiveSet((await readDoc(tplPath())).doc); cols = L.upper.map(t => colInfo(t.name, t.color)); blocks = readBlocks(L, false).blocks; } catch (e) {} }
+  if (!blocks.length) blocks = [emptyBlock()];
   save(); draw(); status('Neues Set aus der Vorlage. ' + hint());
 }
-
 // ---------- .als lesen / schreiben ----------
 function parseXml(txt){
   const doc = new DOMParser().parseFromString(txt, 'application/xml');
@@ -459,8 +560,13 @@ function makeAudioClip(doc, a){
   const el = new DOMParser().parseFromString(CLIP_SKELETON, 'application/xml').documentElement;
   const clip = doc.importNode(el, true);
   const secs = a.frames / a.rate, beats = Math.max(0.25, Math.round(secs * a.tempo / 60 * 1000) / 1000);
-  setVal(clip, ['CurrentEnd'], beats);
-  for (const n of ['LoopEnd', 'OutMarker', 'HiddenLoopEnd']) setVal(clip, ['Loop', n], beats);
+  // Loop-Klammer und Startmarker (in Schlägen): Start am Clipanfang, Loop nach dem Vorlauf
+  const lp = a.lp || { s: 0, v: 0, l: beats / 4 };
+  const ls = Math.min(beats - 0.25, Math.round(lp.v * 4 * 1000) / 1000), le = Math.min(beats, Math.round((lp.v + lp.l) * 4 * 1000) / 1000);
+  setVal(clip, ['CurrentStart'], ls); setVal(clip, ['CurrentEnd'], le);
+  setVal(clip, ['Loop', 'LoopStart'], ls); setVal(clip, ['Loop', 'LoopEnd'], le);
+  setVal(clip, ['Loop', 'StartRelative'], Math.round(((lp.s || 0) * 4 - ls) * 1000) / 1000);
+  setVal(clip, ['Loop', 'OutMarker'], beats); setVal(clip, ['Loop', 'HiddenLoopStart'], 0); setVal(clip, ['Loop', 'HiddenLoopEnd'], beats);
   setVal(clip, ['ScrollerTimePreserver', 'RightTime'], beats);
   setVal(clip, ['Name'], a.name); setVal(clip, ['Color'], a.color);
   setVal(clip, ['WarpMode'], a.warpMode);
@@ -473,90 +579,103 @@ function makeAudioClip(doc, a){
   wm[1].setAttribute('SecTime', String(secs)); wm[1].setAttribute('BeatTime', String(beats));
   return clip;
 }
-// Plan: welche Zeile bekommt was. Rückgabe [{row, stop:true, song}, {row, cells:{col:ref}}]
-function plan(){
-  const out = [];
-  lineup.forEach((b, i) => {
-    const s = song(b.key); if (!s) return;
-    out.push({ stop: true, song: s, block: b });
-    out.push({ cells: b.cells[0] || {}, song: s }); out.push({ cells: b.cells[1] || {}, song: s });
-    out.push({ cells: autoRow(b, i), song: s, full: true });
-  });
-  if (out.length) out.push({ stop: true, end: true });
-  return out;
-}
-
+// ---------- Set schreiben ----------
+// Der obere Bereich wird komplett neu gelegt: Block für Block, Trenner + Zeilen, ganz unten ein Trenner.
+// Spuren, Geräte und der rechte Block bleiben; der rechte Block steht danach mit dem Abstand aus der Vorlage darunter.
 async function buildSet(){
   if (!base && !tpl) return chooseTemplate();
-  if (!lineup.length){ status('Erst Songs ins Line-up ziehen.'); return; }
-  const day = new Date().toISOString().slice(0, 10);
-  const src = base ? base.path : (tpl.src || tpl.path), dirOf = p => p.substring(0, p.lastIndexOf('/'));
-  const outPath = await native('pickSave', { name: base ? base.name.replace(/\.als$/i, '') + ' + buildn.als' : 'LIVESET ' + day + '.als', dir: dirOf(src) });
-  if (!outPath) return;
-  if (outPath === tplPath()){ status('Die Vorlage wird nie überschrieben. Bitte einen anderen Namen wählen.', null, true); return; }
-  busy(true, 'Set wird gebaut', 'Vorlage lesen …'); pct(0);
+  if (!blocks.length){ status('Erst einen Song-Block anlegen.'); return; }
+  let outPath, srcB64 = null;
+  if (base){
+    if (!(await native('confirm', { text: base.name + ' mit dem neuen Stand überschreiben? Eine Kopie des alten Stands kommt in den Datenordner (Backups). Ist das Set gerade in Live offen, danach in Live neu öffnen.', action: 'Set aktualisieren' }))) return;
+    outPath = base.path;
+  } else {
+    const day = new Date().toISOString().slice(0, 10), src = tpl.src || tpl.path;
+    outPath = await native('pickSave', { name: 'LIVESET ' + day + '.als', dir: src.substring(0, src.lastIndexOf('/')) });
+    if (!outPath) return;
+    if (outPath === tplPath()){ status('Die Vorlage wird nie überschrieben. Bitte einen anderen Namen wählen.', null, true); return; }
+  }
+  busy(true, base ? 'Set wird aktualisiert' : 'Set wird gebaut', 'Datei lesen …'); pct(0);
   try {
-    const doc = await loadTemplateDoc(base ? base.path : tplPath());
-    const L = readLiveSet(doc);
+    const rd = await readDoc(base ? base.path : tplPath());
+    if (base && rd.sig !== base.sig) throw new Error(base.name + ' wurde inzwischen verändert (z. B. in Live gespeichert). Bitte das Set neu öffnen.');
+    srcB64 = rd.b64;
+    const doc = rd.doc, L = readLiveSet(doc);
     const byName = {}; L.upper.forEach(t => byName[t.name.toUpperCase()] = t);
     const last = upperEnd(L), low = lowerRange(L), n = L.scenes.length;
     const gap = low && low.start > last ? low.start - last : 6;          // Abstand wie in der Vorlage
     const tail = n - 1 - Math.max(last, low ? low.end : -1);             // leere Szenen ganz unten
-    let row;
-    if (base){
-      // Bestehendes Set: unter dem letzten belegten Platz weiter. Ist das ein Trenner, geht es dort weiter.
-      row = last + 1;
-      if (last >= 0 && L.upper.every(t => isStop(t.slots[last] && slotClip(t.slots[last])))) row = last;
-    } else {
-      // Neues Set: die Songs, die in der Vorlage stehen, fliegen raus. Spuren, Geräte und der rechte Block bleiben.
-      const stopEnd = low ? low.start : n;
-      for (const t of L.upper) for (let r = 0; r < stopEnd; r++){ const v = slotValue(t.slots[r]); if (v) while (v.firstChild) v.removeChild(v.firstChild); }
-      for (let r = 0; r <= last; r++) if (L.scenes[r]){ setVal(L.scenes[r], ['Name'], ''); setVal(L.scenes[r], ['IsTempoEnabled'], 'false'); }
-      row = 0;
+    const stopEnd = low ? low.start : n;
+    // Clips, die schon im Set stehen, herausnehmen (sie werden gleich an ihren neuen Platz gelegt)
+    const oldEl = {};
+    for (const t of L.upper) for (let r = 0; r < stopEnd; r++){
+      const v = slotValue(t.slots[r]); if (!v) continue;
+      const c = v.firstElementChild; if (c) oldEl[r + '|' + t.name] = c;
+      while (v.firstChild) v.removeChild(v.firstChild);
     }
-    const P = plan();
-    const endRow = row + P.length - 1;                          // letzter Trenner
-    const delta = low ? (base ? Math.max(0, endRow + gap - low.start) : endRow + gap - low.start) : 0;
+    for (let r = 0; r <= last; r++) if (L.scenes[r]){ setVal(L.scenes[r], ['Name'], ''); setVal(L.scenes[r], ['IsTempoEnabled'], 'false'); }
+    const total = blocks.reduce((k, b) => k + 1 + b.rows.length, 0) + 1;
+    const endRow = total - 1;
+    const delta = low ? endRow + gap - low.start : 0;
     const need = Math.max(endRow + 1, low ? low.end + delta + 1 : 0) + Math.max(0, tail);
     if (need > n) growScenes(L, need);
     if (low && delta) shiftLower(L, low.start, low.end, delta);
-    if (need < n && !base) shrinkScenes(L, need);
     const missing = new Set(), lost = [], stopClip = L.stopper, outDir = outPath.substring(0, outPath.lastIndexOf('/'));
-    let done = 0; const total = P.reduce((n, p) => n + (p.stop ? 0 : Object.keys(p.cells).length), 0) || 1;
-    for (let i = 0; i < P.length; i++, row++){
-      const p = P[i];
-      if (p.stop){
-        if (stopClip) for (const t of L.upper){ const s = t.slots[row]; if (s && !slotClip(s)) putClip(s, stopClip.cloneNode(true)); }
-        if (L.scenes[row] && p.song && opts.names) setVal(L.scenes[row], ['Name'], p.song.name + ' ' + Math.round(p.song.tempo));
-        continue;
-      }
-      if (opts.tempo && p.song && L.scenes[row]){ setVal(L.scenes[row], ['Tempo'], p.song.tempo); setVal(L.scenes[row], ['IsTempoEnabled'], 'true'); }
-      for (const [colName, ref] of Object.entries(p.cells)){
-        const t = byName[colName.toUpperCase()], c = clipOf(ref);
-        if (!t || !c){ missing.add(colName); continue; }
-        let a; try { a = await native('audioInfo', { path: c.clip.path }); } catch (e) { lost.push(c.clip.file); continue; }
-        const stemName = c.stem.stem.replace(/\s+\d+$/, '');
-        const name = p.full ? Math.round(c.song.tempo) + ' ' + stemName : stemName;
-        putClip(t.slots[row], makeAudioClip(doc, { name, color: t.color, tempo: c.song.tempo, frames: a.frames, rate: a.rate,
-          size: 0, mtime: 0, path: c.clip.path, rel: relPath(outDir, c.clip.path),
-          warpMode: (c.stem.kind === 'kick' || c.stem.kind === 'top') ? 0 : 4 }));
-        pct(100 * ++done / total);
-        $('#busyS').textContent = c.song.name + ' · ' + name;
+    const used = new Set();
+    let done = 0; const count = blocks.reduce((k, b, i) => k + b.rows.reduce((m, r) => m + Object.keys(r).length, 0) + Object.keys(autoRow(b, i)).length, 0) || 1;
+    const stopRow = row => { if (stopClip) for (const t of L.upper){ const s = t.slots[row]; if (s) putClip(s, stopClip.cloneNode(true)); } };
+    let row = 0;
+    for (let bi = 0; bi < blocks.length; bi++){
+      const b = blocks[bi], s = song(b.key);
+      stopRow(row);
+      if (L.scenes[row] && (b.name || (opts.names && s))) setVal(L.scenes[row], ['Name'], blockName(b, bi) + (s && !b.name ? ' ' + Math.round(s.tempo) : ''));
+      row++;
+      const auto = autoRow(b, bi);
+      for (let ri = 0; ri < b.rows.length; ri++, row++){
+        if (opts.tempo && s && L.scenes[row]){ setVal(L.scenes[row], ['Tempo'], s.tempo); setVal(L.scenes[row], ['IsTempoEnabled'], 'true'); }
+        const cells = Object.assign({}, ri === b.rows.length - 1 ? auto : {}, b.rows[ri]);
+        for (const [colName, cell] of Object.entries(cells)){
+          const t = byName[colName.toUpperCase()];
+          if (!t){ missing.add(colName); continue; }
+          if (cell && cell.old){
+            const el = oldEl[cell.old]; if (!el) continue;
+            putClip(t.slots[row], used.has(cell.old) ? el.cloneNode(true) : el); used.add(cell.old);
+          } else {
+            const c = clipOf(refOf(cell)); if (!c){ lost.push(String(refOf(cell)).split('|').pop()); continue; }
+            let a; try { a = await native('audioInfo', { path: c.clip.path }); } catch (e) { lost.push(c.clip.file); continue; }
+            const lp = loopOf(cell, c, a.frames / a.rate);
+            const stemName = c.stem.stem.replace(/\s+\d+$/, '');
+            const name = c.full ? Math.round(c.song.tempo) + ' ' + stemName : stemName;
+            putClip(t.slots[row], makeAudioClip(doc, { name, color: t.color, tempo: c.song.tempo, frames: a.frames, rate: a.rate,
+              size: 0, mtime: 0, path: c.clip.path, rel: relPath(outDir, c.clip.path),
+              warpMode: (c.stem.kind === 'kick' || c.stem.kind === 'top') ? 0 : 4, lp }));
+            $('#busyS').textContent = blockName(b, bi) + ' · ' + name;
+          }
+          pct(100 * ++done / count);
+        }
       }
     }
+    stopRow(row);
+    if (need < L.scenes.length) shrinkScenes(L, need);
     $('#busyS').textContent = 'Datei schreiben …';
     let xml = new XMLSerializer().serializeToString(doc);
     if (!/^<\?xml/.test(xml)) xml = '<?xml version="1.0" encoding="UTF-8"?>\n' + xml;
     const gz = new Uint8Array(await new Response(new Blob([xml]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+    if (base){
+      const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ').replace(':', '-');
+      await native('writeB64', { path: info.data + '/Backups/' + base.name.replace(/\.als$/i, '') + ' ' + stamp + '.als', data: srcB64 });
+    }
     await native('writeB64', { path: outPath, data: bytesToB64(gz) });
-    busy(false);
-    const name = outPath.split('/').pop();
-    let msg = 'Fertig: ' + name + (base ? ', ' + lineup.length + (lineup.length > 1 ? ' Songs' : ' Song') + ' angehängt.' : ' mit ' + lineup.length + (lineup.length > 1 ? ' Songs.' : ' Song.'));
-    if (!L.stopper) msg += ' Die Vorlage hatte keinen ==== Trenner-Clip, Trenner fehlen.';
-    if (missing.size) msg += ' Spalten nicht in der Vorlage: ' + [...missing].join(', ') + '.';
+    const name = outPath.split('/').pop(), wasBase = !!base;
+    // Ab jetzt ist das geschriebene Set offen: weitere Änderungen landen mit „Set aktualisieren“ darin
+    await loadBase(outPath);
+    busy(false); save(); draw();
+    let msg = (wasBase ? 'Aktualisiert: ' : 'Fertig: ') + name + ' mit ' + blocks.length + (blocks.length === 1 ? ' Song-Block.' : ' Song-Blöcken.');
+    if (!L.stopper) msg += ' Kein ==== Trenner-Clip gefunden, Trenner fehlen.';
+    if (missing.size) msg += ' Spalten nicht im Set: ' + [...missing].join(', ') + '.';
     if (lost.length) msg += ' Fehlende Dateien: ' + lost.length + '.';
     status(msg, [['In Live öffnen', () => native('openFile', { path: outPath })], ['Im Finder zeigen', () => native('reveal', { path: outPath })]], lost.length > 0);
-  } catch (e) { busy(false); status('Set erstellen fehlgeschlagen: ' + (e.message || e), null, true); }
+  } catch (e) { busy(false); status((base ? 'Set aktualisieren' : 'Set erstellen') + ' fehlgeschlagen: ' + (e.message || e), null, true); }
 }
 // Pfad vom Ordner des neuen Sets zur Audiodatei (Live findet die Datei damit auch, wenn sich der Start des Pfads ändert)
 function relPath(fromDir, file){
@@ -588,105 +707,147 @@ function shiftLower(L, from, to, delta){
 
 // ---------- Vorhören (macht die App, kann WAV und AIFF) ----------
 let playing = null;
-async function togglePlay(ref){
-  if (playing === ref){ playing = null; draw(); native('stop').catch(() => {}); return; }
+async function togglePlay(ref, at){
+  if (playing === ref && at == null){ playing = null; draw(); native('stop').catch(() => {}); return; }
   const c = clipOf(ref); if (!c) return;
-  try { await native('play', { path: c.clip.path }); playing = ref; }
+  try { await native('play', { path: c.clip.path, at: at || 0 }); playing = ref; setHead(at || 0); tick(); }
   catch (e) { playing = null; status('Abspielen geht nicht: ' + (e.message || e), null, true); }
   draw();
 }
-window.onNative = kind => {
+// Abspiel-Strich in der Waveform: nur die Striche verschieben, nichts neu zeichnen
+let headPos = 0, ticking = false;
+function setHead(p){ headPos = p; document.querySelectorAll('.chip.on .wv i, .cwave.on i').forEach(i => i.style.left = (p * 100) + '%'); }
+async function tick(){
+  if (ticking) return; ticking = true;
+  while (playing){
+    let p = -1; try { p = await native('pos'); } catch (e) {}
+    if (!playing) break;
+    if (p >= 0) setHead(p);
+    await new Promise(r => setTimeout(r, 80));
+  }
+  ticking = false;
+}
+// Kleine Waveforms: liest die App im Hintergrund, einmal pro Datei
+const waves = {}, durs = {}; let waveAsk = new Set(), waveTimer = null;
+function wavePath(path){
+  const w = waves[path];
+  if (w === undefined){ waveAsk.add(path); waves[path] = null; clearTimeout(waveTimer); waveTimer = setTimeout(loadWaves, 30); }
+  if (!w || !w.length) return '';
+  const n = w.length; let d = '';
+  for (let i = 0; i < n; i++){ const h = Math.max(0.6, w[i] * 10); d += `M${i} ${10 - h}h0.75v${2 * h}h-0.75z`; }
+  return `<svg viewBox="0 0 ${n} 20" preserveAspectRatio="none"><path d="${d}"/></svg>`;
+}
+async function loadWaves(){
+  const paths = [...waveAsk]; waveAsk = new Set(); if (!paths.length || !inApp) return;
+  try { const r = await native('peaks', { paths, n: 96 }); for (const p of paths){ const x = r[p] || {}; waves[p] = x.p || []; durs[p] = x.d || 0; } }
+  catch (e) { paths.forEach(p => waves[p] = []); }
+  draw();
+}
+function stopPlay(){ if (!playing) return; playing = null; native('stop').catch(() => {}); draw(); }
+window.onNative = (kind, data) => {
   if (kind === 'ended'){ playing = null; draw(); }
   if (kind === 'data') start();
+  if (kind === 'folders') addFolders(data).catch(fail);
 };
 
 // ---------- Zeichnen ----------
-function chip(ref, o){
-  const c = clipOf(ref); if (!c) return '';
+function chip(val, o){
+  const ref = refOf(val), c = clipOf(ref); if (!c) return o.cell ? `<div class="chip lost" draggable="true" title="Datei nicht gefunden"><span class="t">fehlt</span>${rmBtn()}</div>` : '';
   const col = colFor(c.stem.kind, 'A'), bg = col ? hex(col.color) : '#9a9a9a';
   const pre = c.stem.stem.replace(/_.*$/, ''), num = (c.clip.name.match(/Clip \d+$/) || ['Full'])[0];
   const label = o.list ? num : narrow ? num.replace('Clip ', '#') : pre + ' ' + num;
   const on = playing === ref;
-  return `<div class="chip" draggable="${o.auto ? 'false' : 'true'}" data-ref="${esc(ref)}" style="background:${bg}" title="${esc(c.song.name + ' · ' + c.clip.name)}">`
+  return `<div class="chip ${on ? 'on' : ''} ${o.cell && o.id === cvCell ? 'sel' : ''}" draggable="${o.auto ? 'false' : 'true'}" data-ref="${esc(ref)}" style="background:${bg}" title="${esc(c.song.name + ' · ' + c.clip.name)}\nKlick in die Waveform = ab dort vorhören">`
+    + `<span class="wv" data-seek="${esc(ref)}">${wavePath(c.clip.path)}${o.list ? '' : loopShade(val, c)}<i style="left:${on ? headPos * 100 : 0}%"></i></span>`
     + `<span class="pl ${on ? 'on' : ''}" data-play="${esc(ref)}" title="${on ? 'Stopp' : 'Vorhören'}"><svg><use href="#i-${on ? 'stop' : 'play'}"/></svg></span><span class="t">${esc(label)}</span>`
-    + (o.cell ? `<span class="rm" data-rm="1" title="Clip aus dem Set nehmen"><svg><use href="#i-x"/></svg></span>` : '') + '</div>';
+    + (o.cell ? rmBtn() : '') + '</div>';
+}
+// Vorlauf grau, hinter dem Loop-Ende grau: so sieht man in der Waveform, was loopt
+function loopShade(val, c){
+  const secs = durs[c.clip.path]; if (!secs) return '';
+  const L = loopOf(val, c, secs); if (!L.bars) return '';
+  const a = L.v / L.bars * 100, b = (L.v + L.l) / L.bars * 100;
+  return (a > 0.5 ? `<b class="pre" style="left:0;width:${a}%"></b>` : '') + (b < 99.5 ? `<b class="pre" style="left:${b}%;right:0"></b>` : '');
+}
+const rmBtn = () => `<span class="rm" data-rm="1" title="Clip aus dem Set nehmen"><svg><use href="#i-x"/></svg></span>`;
+function oldChip(id, color){
+  const t = olds[id] || '?';
+  return `<div class="chip old" draggable="true" style="border-color:${hex(color)}" title="${esc(t)} (steht schon im Set)"><span class="t">${esc(t)}</span>${rmBtn()}</div>`;
 }
 function drawSongs(){
-  const used = new Set(lineup.map(b => b.key));
+  const used = new Set(blocks.map(b => b.key));
+  const dup = {}; songs.forEach(s => dup[s.name] = (dup[s.name] || 0) + 1);
   $('#songCount').textContent = songs.length || '';
   $('#songs').innerHTML = songs.length ? songs.map(s => {
     const o = open[s.key];
     const body = o ? s.stems.map((st, si) => {
-      const clips = st.clips.map((c, ci) => chip(s.key + '|' + si + '|' + ci, { list: true })).join('');
-      return `<div class="stem"><div class="sn"><span>${esc(st.stem.replace(/_.*$/, ''))}</span><span class="num">${st.clips.length ? st.clips.length + ' Clips' : 'nur Full-Stem'}</span></div>${clips}</div>`;
+      const clips = st.clips.map((c, ci) => chip(s.key + '|' + si + '|' + ci, { list: true })).join('') + (st.full ? chip(s.key + '|' + si + '|F', { list: true }) : '');
+      return `<div class="stem"><div class="sn"><span>${esc(st.stem.replace(/_.*$/, ''))}</span><span class="num">${st.clips.length ? st.clips.length + ' Clips' : 'nur Full'}</span></div>${clips}</div>`;
     }).join('') : '';
-    return `<div class="song ${used.has(s.key) ? 'used' : ''}"><div class="sh" draggable="true" data-song="${esc(s.key)}" title="${esc(s.dir)}\nIn die Mitte ziehen = Song ins Line-up">`
-      + `<span class="tri" data-open="${esc(s.key)}" title="Clips zeigen"><svg><use href="#i-${o ? 'tri-d' : 'tri'}"/></svg></span><b>${esc(s.name)}</b><span class="bpm num">${Math.round(s.tempo)} BPM</span></div>${body}</div>`;
-  }).join('') : '<div class="muted" style="padding:8px 4px;color:var(--muted)">Noch keine Songs.</div>';
+    const sub = dup[s.name] > 1 ? `<span class="fold" title="${esc(s.dir)}">${esc(s.folder)}</span>` : '';
+    return `<div class="song ${used.has(s.key) ? 'used' : ''}"><div class="sh" draggable="true" data-song="${esc(s.key)}" title="${esc(s.dir)}\nAuf einen Block ziehen = Song mit Full-Stems">`
+      + `<span class="tri" data-open="${esc(s.key)}" title="Clips zeigen"><svg><use href="#i-${o ? 'tri-d' : 'tri'}"/></svg></span><b>${esc(s.name)}${sub}</b><span class="bpm num">${Math.round(s.tempo)} BPM</span>`
+      + `<span class="unsong" data-unsong="${esc(s.key)}" title="Aus der Liste nehmen (der Ordner bleibt)"><svg><use href="#i-x"/></svg></span></div>${body}</div>`;
+  }).join('') : '<div style="padding:8px 4px;color:var(--muted)">Noch keine Songs. Ordner hierher ziehen oder oben „Songs laden“.</div>';
 }
 function drawGrid(){
   const lab = t => `<div class="lab">${t || ''}</div>`;
   let h = `<div class="row hrow">${lab('<span class="sec">Line-up</span>')}${cols.map(c => `<div style="background:${hex(c.color)}" title="${esc(c.name)}">${esc(c.name)}</div>`).join('')}</div>`;
-  // Songs, die schon im geöffneten Set stehen: nur zum Anschauen
-  if (base) base.blocks.forEach(b => {
-    h += `<div class="block ex"><div class="row stop"><div class="lab" title="Steht schon im Set ${esc(base.name)}"><span class="nm">${esc(b.name)}</span><span class="sec" style="font-size:11px">im Set</span></div>${cols.map(() => '<div></div>').join('')}</div>`;
-    b.rows.forEach((r, ri) => {
-      h += `<div class="row">${lab(ri === b.rows.length - 1 && b.rows.length > 2 ? 'Full-Stems' : 'Clips ' + (ri + 1))}`
-        + cols.map(c => { const t = r[c.name]; return `<div class="cell">${t ? `<div class="old" style="border-color:${hex(c.color)}" title="${esc(t)}">${esc(t)}</div>` : ''}</div>`; }).join('') + '</div>';
+  const kinds = ['bass', 'top', 'melo'].filter(k => cols.filter(c => c.kind === k).length > 1);
+  const kn = { bass: 'Bass', top: 'Tops', melo: 'Melo' };
+  blocks.forEach((b, i) => {
+    const s = song(b.key);
+    const abBtns = s ? kinds.map(k => `<button data-ab="${i}|${k}" title="Full-Stem ${kn[k]} in die andere Spalte (A/B)">${kn[k]} ${sideOf(b, k, i)}</button>`).join('') : '';
+    const sub = s ? `<span class="sg" title="${esc(s.dir)}">${esc(s.name)} ${Math.round(s.tempo)}</span>` : '';
+    h += `<div class="block" data-block="${i}">`;
+    h += `<div class="row stop"><div class="lab" draggable="true" data-blk="${i}" title="Ziehen = Block verschieben · Doppelklick auf den Namen = umbenennen"><span class="nm" data-name="${i}">${esc(blockName(b, i))}</span>${b.name && s ? sub : ''}<button class="icon x" data-del="${i}" title="Block aus dem Line-up nehmen (⌘Z holt ihn zurück)"><svg><use href="#i-x"/></svg></button></div>${cols.map(() => '<div></div>').join('')}</div>`;
+    const auto = autoRow(b, i), lastR = b.rows.length - 1;
+    b.rows.forEach((row, r) => {
+      const isLast = r === lastR && b.rows.length > 1;
+      h += `<div class="row">${lab(isLast ? (abBtns ? `<span style="flex:1">Full</span><span class="ab">${abBtns}</span>` : 'Full') : 'Clips ' + (r + 1))}`;
+      h += cols.map(c => {
+        const v = row[c.name], a = isLast && !v ? auto[c.name] : null;
+        const inner = v ? (v.old ? oldChip(v.old, c.color) : chip(v, { cell: true, id: i + '|' + r + '|' + c.name })) : a ? chip(a, { auto: true }) : '';
+        return `<div class="cell ${a ? 'auto' : ''}" data-cell="${i}|${r}|${esc(c.name)}">${inner}</div>`;
+      }).join('') + '</div>';
     });
     h += '</div>';
   });
-  lineup.forEach((b, i) => {
-    const s = song(b.key);
-    const kinds = ['bass', 'top', 'melo'].filter(k => cols.filter(c => c.kind === k).length > 1);
-    const names = { bass: 'Bass', top: 'Tops', melo: 'Melo' };
-    const abBtns = kinds.map(k => `<button data-ab="${i}|${k}" title="Full-Stem ${names[k]} in die andere Spalte (A/B)">${names[k]} ${sideOf(b, k, i)}</button>`).join('');
-    h += `<div class="block" data-block="${i}">`;
-    h += `<div class="row stop"><div class="lab" draggable="true" data-blk="${i}" title="Ziehen = ganzen Song im Line-up verschieben"><span class="nm">${esc(s ? s.name + ' ' + Math.round(s.tempo) : 'Song fehlt')}</span><button class="icon x" data-del="${i}" title="Song aus dem Line-up nehmen (⌘Z holt ihn zurück)"><svg><use href="#i-x"/></svg></button></div>${cols.map(() => '<div></div>').join('')}</div>`;
-    const auto = autoRow(b, i);
-    for (let r = 0; r < ROWS; r++){
-      const isAuto = r === ROWS - 1;
-      h += `<div class="row">${lab(isAuto ? (abBtns ? `<span style="flex:1">Full</span><span class="ab">${abBtns}</span>` : 'Full-Stems') : 'Clips ' + (r + 1))}`;
-      h += cols.map(c => {
-        const ref = isAuto ? auto[c.name] : (b.cells[r] || {})[c.name];
-        return `<div class="cell ${isAuto ? 'auto' : ''}" ${isAuto ? '' : `data-cell="${i}|${r}|${esc(c.name)}"`}>${ref ? chip(ref, { auto: isAuto, cell: !isAuto }) : ''}</div>`;
-      }).join('') + '</div>';
-    }
-    h += '</div>';
-  });
-  if (lineup.length){
+  if (blocks.length){
     h += `<div class="row stop">${lab('')}${cols.map(() => '<div></div>').join('')}</div>`;
-    h += `<div class="endrow" id="endrow">Weiteren Song hierher ziehen</div>`;
+    h += `<div class="endrow" id="endrow"><span>Song hierher ziehen = neuer Block</span><button data-addblk="1">+ Leerer Block</button></div>`;
   }
   $('#grid').innerHTML = h;
-  $('#empty').classList.toggle('hidden', lineup.length > 0);
-  $('#empty').innerHTML = songs.length ? 'Song von links hierher ziehen.<br><span style="font-size:15px">Zeile 3 füllt buildn mit den Full-Stems, Zeile 1 und 2 belegst du mit Clips.</span>'
-                                       : 'Noch keine Songs.<br><span style="font-size:15px">Oben „Songs laden“ und einen Paket-Ordner von prepn wählen.</span>';
+  $('#grid').style.minWidth = `calc(var(--lab) + ${cols.length * 56 + 2}px)`;
+  $('#empty').classList.toggle('hidden', blocks.length > 0);
+  $('#empty').innerHTML = !tpl && !base ? 'Noch keine Vorlage.<br><span style="font-size:15px">Oben links „Vorlage wählen“ oder „Set öffnen“.</span>'
+                                        : 'Keine Song-Blöcke.<br><span style="font-size:15px">Song von links hierher ziehen oder <a data-addblk="1">leeren Block anlegen</a>.</span>';
 }
 // Spaltenbreite an das Fenster anpassen: alle Spalten sichtbar, erst bei sehr schmalem Fenster seitlich scrollen
 let narrow = false;
 function fit(){
   const m = $('#main'); if (!m) return;
+  // Breiten macht das CSS selbst (sofort beim Ziehen am Fenster); hier nur: kurze Beschriftung bei schmalen Spalten
   const w = m.clientWidth, n = Math.max(1, cols.length);
-  const lab = Math.round(Math.min(260, Math.max(180, w * 0.2)));
-  const cw = Math.max(56, Math.floor((w - lab - 2) / n));
-  const nw = cw < 100;
-  document.documentElement.style.setProperty('--lab', lab + 'px');
-  document.documentElement.style.setProperty('--cw', cw + 'px');
-  if (nw !== narrow){ narrow = nw; m.classList.toggle('narrow', nw); drawGrid(); }
+  const lab = Math.min(260, Math.max(180, innerWidth * 0.16));
+  const nw = (w - lab) / n < 100;
+  if (nw !== narrow){ narrow = nw; m.classList.toggle('narrow', nw); if (drag) pendingDraw = true; else drawGrid(); }
 }
 new ResizeObserver(() => fit()).observe(document.querySelector('#main'));
 function setTog(el, on){ el.classList.toggle('on', !!on); }
+let pendingDraw = false;
 function draw(){
-  drawSongs(); drawGrid(); fit();
+  if (drag){ pendingDraw = true; return; }   // nicht während eines Ziehens neu zeichnen, sonst bricht das Ziehen ab
+  pendingDraw = false;
+  drawSongs(); drawGrid(); fit(); drawClip();
   $('#tplKind').textContent = base ? 'Set' : tpl ? 'Neu aus' : '';
-  $('#tplName').textContent = base ? base.name : tpl ? tpl.name : 'Vorlage wählen';
-  $('#tpl').title = base ? base.path + '\nKlick = anderes Set öffnen' : 'Vorlage für neue Sets wählen. buildn legt eine Kopie im Datenordner ab, die Songs darin lässt es beim Bauen weg.';
+  $('#tplName').textContent = base ? base.name + (dirty ? ' •' : '') : tpl ? tpl.name : 'Vorlage wählen';
+  $('#tpl').title = base ? base.path + (dirty ? '\nNoch nicht geschriebene Änderungen' : '') + '\nKlick = anderes Set öffnen' : 'Vorlage für neue Sets wählen. buildn legt eine Kopie im Datenordner ab.';
   $('#tpl').classList.toggle('missing', !tpl && !base);
   $('#baseClose').classList.toggle('hidden', !base);
   $('#openSet').classList.toggle('hidden', !!base);
-  $('#build').disabled = !lineup.length;
-  $('#build').textContent = base ? 'Songs anhängen' : 'Set erstellen';
+  $('#build').disabled = !blocks.length || (!!base && !dirty);
+  $('#build').textContent = base ? 'Set aktualisieren' : 'Set erstellen';
   $('#tplInfo').textContent = tpl ? tpl.name + (tpl.src ? ' (Kopie von ' + tpl.src + ')' : '') : 'Noch keine Vorlage gewählt.';
   const v = 'Version ' + info.version + ' · Build ' + info.build;
   $('#verLine').textContent = v; $('#ver').textContent = v;
@@ -696,28 +857,40 @@ function draw(){
 
 // ---------- Drag & Drop ----------
 let drag = null;
+const cellVal = id => { const [b, r, c] = id.split('|'); return blocks[+b] && blocks[+b].rows[+r] ? blocks[+b].rows[+r][c] : undefined; };
+function setCell(id, v){ const [b, r, c] = id.split('|'); const row = blocks[+b].rows[+r]; if (v == null) delete row[c]; else row[c] = v; }
 document.addEventListener('dragstart', e => {
   const t = e.target.closest ? e.target : e.target.parentElement;
   const bl = t.closest('[data-blk]'), ch = t.closest('.chip[draggable="true"]'), sh = t.closest('[data-song]');
   if (bl) drag = { type: 'block', index: +bl.dataset.blk };
-  else if (ch){ const cell = ch.closest('[data-cell]'); drag = { type: 'clip', ref: ch.dataset.ref, from: cell ? cell.dataset.cell : null }; }
+  else if (ch){
+    const cell = ch.closest('[data-cell]');
+    const from = cell && !cell.classList.contains('auto') ? cell.dataset.cell : null;
+    drag = { type: 'clip', val: from ? cellVal(from) : ch.dataset.ref, from };
+  }
   else if (sh) drag = { type: 'song', key: sh.dataset.song };
   else return;
   e.dataTransfer.effectAllowed = 'copyMove';
   e.dataTransfer.setData('text/plain', 'buildn');
   if (drag.type === 'block') document.querySelector(`[data-block="${drag.index}"]`)?.classList.add('dragging');
 });
-document.addEventListener('dragend', () => { drag = null; clearDrop(); document.querySelectorAll('.dragging').forEach(x => x.classList.remove('dragging')); });
+document.addEventListener('dragend', () => { drag = null; clearDrop(); document.querySelectorAll('.dragging').forEach(x => x.classList.remove('dragging')); if (pendingDraw) draw(); });
 function clearDrop(){ document.querySelectorAll('.drop,.dropbefore').forEach(x => x.classList.remove('drop', 'dropbefore')); lastTgt = null; }
 function target(e){
   if (!drag) return null;
+  const end = e.target.closest('#endrow, #empty');
   if (drag.type === 'clip'){
     const cell = e.target.closest('[data-cell]'); if (cell) return { el: cell, cls: 'drop' };
     if (drag.from && e.target.closest('aside')) return { el: $('#aside'), cls: 'drop', remove: true };
   }
-  if (drag.type === 'song' || drag.type === 'block'){
+  if (drag.type === 'song'){
+    if (end) return { el: end, cls: 'drop', add: true };
+    const blk = e.target.closest('[data-block]'); if (blk) return { el: blk, cls: 'drop', assign: +blk.dataset.block };
+    if (e.target.closest('#main')) return { el: blocks.length ? $('#endrow') : $('#empty'), cls: 'drop', add: true };
+  }
+  if (drag.type === 'block'){
     const blk = e.target.closest('[data-block]'); if (blk) return { el: blk, cls: 'dropbefore', before: +blk.dataset.block };
-    if (e.target.closest('#main')) return { el: lineup.length ? $('#endrow') : $('#empty'), cls: 'drop', before: lineup.length };
+    if (e.target.closest('#main')) return { el: $('#endrow'), cls: 'drop', before: blocks.length };
   }
   return null;
 }
@@ -735,21 +908,17 @@ document.addEventListener('drop', e => {
   const d = drag; drag = null; clearDrop();
   change(() => {
     if (d.type === 'clip'){
-      const clear = from => { const [b, r, c] = from.split('|'); if (lineup[+b] && lineup[+b].cells[+r]) delete lineup[+b].cells[+r][c]; };
-      if (t.remove){ clear(d.from); return; }
-      const [b, r, c] = t.el.dataset.cell.split('|'), blk = lineup[+b];
-      blk.cells[+r] = blk.cells[+r] || {};
-      const prev = blk.cells[+r][c];
-      if (d.from && d.from !== t.el.dataset.cell && !e.altKey){
-        clear(d.from);
-        if (prev){ const [fb, fr, fc] = d.from.split('|'); lineup[+fb].cells[+fr] = lineup[+fb].cells[+fr] || {}; lineup[+fb].cells[+fr][fc] = prev; } // tauschen
-      }
-      blk.cells[+r][c] = d.ref;
+      if (t.remove){ setCell(d.from, null); return; }
+      const to = t.el.dataset.cell, prev = cellVal(to);
+      if (d.from === to) return;
+      if (d.from && !e.altKey){ setCell(d.from, prev); }      // verschieben, auf belegtem Platz = tauschen
+      setCell(to, d.val);
     } else if (d.type === 'song'){
-      lineup.splice(t.before, 0, { key: d.key, side: {}, cells: [{}, {}] });
+      if (t.add){ const b = emptyBlock(); b.key = d.key; blocks.push(b); }
+      else { const b = blocks[t.assign]; b.key = d.key; b.side = {}; }
     } else if (d.type === 'block'){
-      const [b] = lineup.splice(d.index, 1);
-      lineup.splice(t.before > d.index ? t.before - 1 : t.before, 0, b);
+      const [b] = blocks.splice(d.index, 1);
+      blocks.splice(t.before > d.index ? t.before - 1 : t.before, 0, b);
     }
   });
 });
@@ -758,23 +927,116 @@ document.addEventListener('drop', e => {
 document.addEventListener('click', e => {
   const pl = e.target.closest('[data-play]'); if (pl){ e.stopPropagation(); togglePlay(pl.dataset.play); return; }
   const rm = e.target.closest('[data-rm]');
-  if (rm){ const cell = rm.closest('[data-cell]'); const [b, r, c] = cell.dataset.cell.split('|'); change(() => { delete lineup[+b].cells[+r][c]; }); return; }
-  const op = e.target.closest('[data-open]'); if (op){ open[op.dataset.open] = !open[op.dataset.open]; draw(); return; }
-  const del = e.target.closest('[data-del]'); if (del){ change(() => lineup.splice(+del.dataset.del, 1)); status('Song aus dem Line-up genommen. ⌘Z holt ihn zurück.'); return; }
+  if (rm){ const cell = rm.closest('[data-cell]'); if (cell) change(() => setCell(cell.dataset.cell, null)); return; }
+  const sk = e.target.closest('[data-seek]');
+  if (sk){ const r = sk.getBoundingClientRect(); togglePlay(sk.dataset.seek, Math.min(0.999, Math.max(0, (e.clientX - r.left) / r.width))); return; }
+  const un = e.target.closest('[data-unsong]'); if (un){ e.stopPropagation(); removeSong(un.dataset.unsong); return; }
+  const op = e.target.closest('[data-open]');
+  if (op){ const k = op.dataset.open; open[k] = !open[k]; if (!open[k] && playing && playing.startsWith(k + '|')) stopPlay(); draw(); return; }
+  const del = e.target.closest('[data-del]'); if (del){ change(() => blocks.splice(+del.dataset.del, 1)); status('Block aus dem Line-up genommen. ⌘Z holt ihn zurück.'); return; }
+  const add = e.target.closest('[data-addblk]'); if (add){ change(() => blocks.push(emptyBlock())); return; }
+  const cv = e.target.closest('[data-cv]'); if (cv){ cvAction(cv.dataset.cv); return; }
   const ab = e.target.closest('[data-ab]');
-  if (ab){ const [i, k] = ab.dataset.ab.split('|'); change(() => { const b = lineup[+i]; b.side = b.side || {}; b.side[k] = sideOf(b, k, +i) === 'A' ? 'B' : 'A'; }); return; }
+  if (ab){ const [i, k] = ab.dataset.ab.split('|'); change(() => { const b = blocks[+i]; b.side = b.side || {}; b.side[k] = sideOf(b, k, +i) === 'A' ? 'B' : 'A'; }); return; }
+});
+// ---------- Clip-Fenster (Doppelklick auf einen Clip im Raster) ----------
+// Startmarker und Loop-Klammer einstellen, auf dem Takt-Raster des Songs. Alt beim Ziehen = in Vierteln.
+let cvCell = null, cvRef = null, cvDrag = null;
+const bigWaves = {};
+function openClip(id){ const v = cellVal(id); if (!refOf(v)) return; cvCell = id; cvRef = refOf(v); $('#cv').classList.remove('hidden'); drawClip(); drawGrid(); }
+function closeClip(){ if (!cvCell) return; cvCell = cvRef = null; $('#cv').classList.add('hidden'); drawGrid(); }
+async function bigWave(path){
+  if (bigWaves[path] !== undefined) return;
+  bigWaves[path] = null;
+  try { const r = await native('peaks', { paths: [path], n: 400 }); bigWaves[path] = (r[path] || {}).p || []; durs[path] = (r[path] || {}).d || durs[path]; } catch (e) { bigWaves[path] = []; }
+  drawClip();
+}
+function drawClip(){
+  if (!cvCell) return;
+  const v = cellVal(cvCell), c = clipOf(refOf(v));
+  if (!c || refOf(v) !== cvRef){ closeClip(); return; }
+  const secs = durs[c.clip.path] || 0; bigWave(c.clip.path);
+  const L = loopOf(v, c, secs), bars = L.bars || 1, pc = x => (x / bars * 100) + '%';
+  const w = bigWaves[c.clip.path] || [];
+  let d = ''; for (let i = 0; i < w.length; i++){ const h = Math.max(0.5, w[i] * 48); d += `M${i} ${50 - h}h0.8v${2 * h}h-0.8z`; }
+  let grid = '', ruler = '';
+  for (let k = 0; k < bars - 0.001; k++){
+    const n = k - Math.round(L.v), lab = n >= 0 ? n + 1 : n;
+    grid += `<b class="gl ${(k - L.v) % 4 === 0 ? 'b4' : ''}" style="left:${pc(k)}"></b>`;
+    if (bars <= 32 || k % 4 === 0) ruler += `<span style="left:${pc(k)}">${lab}</span>`;
+    if (!narrow) for (let q = 1; q < 4 && bars <= 8; q++) grid += `<b class="gl" style="left:${pc(k + q / 4)};opacity:.4"></b>`;
+  }
+  const on = playing === cvRef;
+  $('#cv').innerHTML = `<div class="cvh"><b>${esc(c.stem.stem)} · ${esc((c.clip.name.match(/Clip \d+$/) || ['Full'])[0])}</b><span>${fmtBars(bars)} Takte · ${Math.round(c.song.tempo)} BPM · Start ${L.s - L.v >= 0 ? fmtBars(L.s - L.v + 1) : '−' + fmtBars(L.v - L.s)} · Loop ${fmtBars(L.l)} Takte${L.auto ? ' (automatisch)' : ''}</span><span class="sp"></span>`
+    + (L.auto ? '' : `<button data-cv="auto" title="Startmarker und Loop wie von buildn erkannt">Automatisch</button>`)
+    + `<button class="icon" data-cv="close" title="Clip-Fenster schließen (Esc)"><svg><use href="#i-x"/></svg></button></div>`
+    + `<div class="cvb"><div class="ruler">${ruler}</div>`
+    + `<div class="lbar" title="Loop-Klammer: Enden ziehen"><i class="brace" style="left:${pc(L.v)};width:${pc(L.l)}"><em data-h="ls"></em><em data-h="le"></em></i></div>`
+    + `<div class="cwave ${on ? 'on' : ''}" data-cvseek="1" title="Klick = ab hier vorhören">${grid}<svg viewBox="0 0 ${Math.max(1, w.length)} 100" preserveAspectRatio="none"><path d="${d}"/></svg>`
+    + (L.v > 0 ? `<b class="pre" style="left:0;width:${pc(L.v)}"></b>` : '') + (L.v + L.l < bars - 0.01 ? `<b class="pre" style="left:${pc(L.v + L.l)};right:0"></b>` : '')
+    + `<i style="left:${on ? headPos * 100 : 0}%"></i></div>`
+    + `<div class="smk" title="Startmarker: hier beginnt der Clip beim Starten"><em data-h="s" style="left:${pc(L.s)}"></em></div></div>`;
+}
+function cvAction(k){
+  if (k === 'close'){ closeClip(); return; }
+  if (k === 'auto'){ const v = cellVal(cvCell); change(() => setCell(cvCell, refOf(v))); drawClip(); }
+}
+document.addEventListener('pointerdown', e => {
+  const h = e.target.closest('#cv [data-h]');
+  const wv = !h && e.target.closest('#cv [data-cvseek]');
+  if (wv){ const r = wv.getBoundingClientRect(); togglePlay(cvRef, Math.min(0.999, Math.max(0, (e.clientX - r.left) / r.width))).then(drawClip); return; }
+  if (!h) return;
+  e.preventDefault();
+  const v = cellVal(cvCell), c = clipOf(refOf(v)); if (!c) return;
+  undo.push(JSON.stringify(blocks)); redo = [];
+  cvDrag = { h: h.dataset.h, c, rect: $('#cv .cwave').getBoundingClientRect() };
+});
+document.addEventListener('pointermove', e => {
+  if (!cvDrag) return;
+  const v = cellVal(cvCell), L = loopOf(v, cvDrag.c, durs[cvDrag.c.clip.path] || 0), bars = L.bars;
+  const step = e.altKey ? 0.25 : 1;
+  let x = (e.clientX - cvDrag.rect.left) / cvDrag.rect.width * bars;
+  x = Math.round(x / step) * step;
+  if (Math.abs(x - bars) < step / 2 || x > bars) x = bars;        // Clip-Ende darf auch krumm sein
+  let { s, v: ls, l } = L, le = ls + l;
+  if (cvDrag.h === 'ls') ls = Math.max(0, Math.min(x, le - 0.25));
+  if (cvDrag.h === 'le') le = Math.max(ls + 0.25, Math.min(x, bars));
+  if (cvDrag.h === 's') s = Math.max(0, Math.min(x, bars - 0.25));
+  setCell(cvCell, { ref: cvRef, lp: { s, v: ls, l: le - ls } });
+  drawClip();
+});
+document.addEventListener('pointerup', () => { if (!cvDrag) return; cvDrag = null; dirty = true; save(); draw(); });
+// Block umbenennen: Doppelklick auf den Namen
+document.addEventListener('dblclick', e => {
+  const ch = e.target.closest('[data-cell] .chip[data-ref]');
+  if (ch && !ch.closest('.cell.auto')){ openClip(ch.closest('[data-cell]').dataset.cell); return; }
+  const nm = e.target.closest('[data-name]'); if (!nm) return;
+  const i = +nm.dataset.name, b = blocks[i];
+  const inp = document.createElement('input');
+  inp.className = 'rename'; inp.value = blockName(b, i); inp.spellcheck = false;
+  nm.replaceWith(inp); inp.focus(); inp.select();
+  let done = false;
+  const finish = ok => {
+    if (done) return; done = true;
+    const v = inp.value.trim();
+    if (ok && v !== blockName(b, i)) change(() => { b.name = v; }); else draw();
+  };
+  inp.addEventListener('keydown', k => { if (k.key === 'Enter') finish(true); if (k.key === 'Escape') finish(false); k.stopPropagation(); });
+  inp.addEventListener('blur', () => finish(true));
 });
 document.addEventListener('keydown', e => {
+  if (e.target.closest && e.target.closest('input')) return;
   if (e.metaKey && e.key.toLowerCase() === 'z'){
     e.preventDefault();
     const from = e.shiftKey ? redo : undo, to = e.shiftKey ? undo : redo;
     if (!from.length) return;
-    to.push(JSON.stringify(lineup)); lineup = JSON.parse(from.pop()); save(); draw();
+    to.push(JSON.stringify(blocks)); blocks = JSON.parse(from.pop()); dirty = true; save(); draw();
   }
-  if (e.key === 'Escape'){ $('#back').classList.add('hidden'); }
+  if (e.key === ' ' && playing){ e.preventDefault(); stopPlay(); }
+  if (e.key === 'Escape'){ $('#back').classList.add('hidden'); closeClip(); }
 });
-$('#addSongs').onclick = () => addSongs().catch(err => status(String(err.message || err), null, true));
 const fail = err => status(String(err.message || err), null, true);
+$('#addSongs').onclick = () => addSongs().catch(fail);
 $('#tpl').onclick = e => { if (e.target.closest('#baseClose')) return closeBase().catch(fail); (base ? openSet() : chooseTemplate()).catch(fail); };
 $('#openSet').onclick = () => openSet().catch(fail);
 $('#tplPick').onclick = () => chooseTemplate().catch(fail);
@@ -784,8 +1046,8 @@ $('#backBtn').onclick = () => $('#back').classList.add('hidden');
 $('#optTempo').onclick = () => { opts.tempo = !opts.tempo; save(); draw(); };
 $('#optNames').onclick = () => { opts.names = !opts.names; save(); draw(); };
 $('#clearSongs').onclick = async () => {
-  if (!(await native('confirm', { text: 'Alle Songs aus der Liste nehmen? Das Line-up wird dabei geleert. Die Ordner selbst bleiben unangetastet.', action: 'Leeren', danger: true }))) return;
-  roots = []; songs = []; lineup = []; undo = []; redo = []; save(); draw(); status(hint());
+  if (!(await native('confirm', { text: 'Alle Songs aus der Liste nehmen? Die Ordner selbst bleiben unangetastet, das Line-up bleibt.', action: 'Leeren', danger: true }))) return;
+  stopPlay(); roots = []; hidden = []; songs = []; save(); draw(); status(hint());
 };
 $('#dReveal').onclick = () => native('dataReveal');
 $('#dRelink').onclick = () => native('dataRelink');
@@ -799,15 +1061,24 @@ async function start(){
     info = await native('info');
     const raw = await native('loadState');
     const st = raw ? JSON.parse(raw) : {};
-    roots = st.roots || []; tpl = st.tpl || null; opts = Object.assign({ tempo: false, names: true }, st.opts || {});
-    lineup = st.lineup || []; if (st.cols && st.cols.length) cols = st.cols;
+    roots = st.roots || []; hidden = st.hidden || []; tpl = st.tpl || null; opts = Object.assign({ tempo: false, names: true }, st.opts || {});
+    if (st.cols && st.cols.length) cols = st.cols;
+    // älterer Stand (nur Line-up mit Songs) wird zu Blöcken
+    let saved = st.blocks || (st.lineup || []).map(b => ({ name: '', key: b.key, side: b.side || {}, rows: [(b.cells || [])[0] || {}, (b.cells || [])[1] || {}, {}] }));
     if (roots.length) await rescan();
     if (st.base && st.base.path){
-      try { await loadBase(st.base.path); }
-      catch (e) { base = null; draw(); status('Das zuletzt geöffnete Set ist nicht mehr da: ' + st.base.path, null, true); return; }
+      try {
+        const same = await loadBase(st.base.path, { sig: st.base.sig, blocks: st.blocks, dirty: st.dirty });
+        draw();
+        status(same ? base.name + ' ist offen.' + (dirty ? ' Noch nicht geschriebene Änderungen, „Set aktualisieren“ schreibt sie.' : '')
+                    : base.name + ' wurde außerhalb von buildn geändert und ist neu eingelesen.');
+        return;
+      } catch (e) { base = null; status('Das zuletzt geöffnete Set ist nicht mehr da: ' + st.base.path, null, true); }
     }
+    blocks = saved;
+    if (!blocks.length && tpl){ try { blocks = readBlocks(readLiveSet((await readDoc(tplPath())).doc), false).blocks; } catch (e) {} }
     draw();
-    const gone = lineup.filter(b => !song(b.key)).length;
+    const gone = blocks.filter(b => b.key && !song(b.key)).length;
     status(gone ? gone + ' Song(s) im Line-up nicht gefunden: Ordner verschoben? Über „Songs laden“ neu wählen.' : hint(), null, gone > 0);
   } catch (e) { draw(); status('Start: ' + (e.message || e), null, true); }
 }
