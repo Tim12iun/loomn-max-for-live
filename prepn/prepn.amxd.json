@@ -334,7 +334,8 @@
           400,
           165
          ],
-         "rendermode": 1
+         "rendermode": 1,
+         "varname": "web"
         }
        },
        {
@@ -480,6 +481,170 @@
          ],
          "text": "1"
         }
+       },
+       {
+        "box": {
+         "id": "unatbg",
+         "maxclass": "panel",
+         "numinlets": 1,
+         "numoutlets": 0,
+         "patching_rect": [
+          700,
+          40,
+          150,
+          22
+         ],
+         "presentation": 1,
+         "presentation_rect": [
+          0,
+          0,
+          400,
+          165
+         ],
+         "hidden": 1,
+         "varname": "natbg",
+         "bgcolor": [
+          0.12,
+          0.12,
+          0.12,
+          1.0
+         ],
+         "mode": 0,
+         "border": 0
+        }
+       },
+       {
+        "box": {
+         "id": "unatT",
+         "maxclass": "comment",
+         "numinlets": 1,
+         "numoutlets": 0,
+         "patching_rect": [
+          700,
+          70,
+          150,
+          22
+         ],
+         "presentation": 1,
+         "presentation_rect": [
+          10,
+          22,
+          380,
+          26
+         ],
+         "hidden": 1,
+         "varname": "natT",
+         "text": "\u25cf STEMS WERDEN AUFGENOMMEN",
+         "fontname": "Arial Bold",
+         "fontsize": 17.0,
+         "textcolor": [
+          1.0,
+          0.478,
+          0.184,
+          1.0
+         ],
+         "textjustification": 1
+        }
+       },
+       {
+        "box": {
+         "id": "unatP",
+         "maxclass": "comment",
+         "numinlets": 1,
+         "numoutlets": 0,
+         "patching_rect": [
+          700,
+          100,
+          150,
+          22
+         ],
+         "presentation": 1,
+         "presentation_rect": [
+          10,
+          52,
+          380,
+          44
+         ],
+         "hidden": 1,
+         "varname": "natP",
+         "text": "0 %",
+         "fontname": "Arial Bold",
+         "fontsize": 32.0,
+         "textcolor": [
+          0.9,
+          0.9,
+          0.9,
+          1.0
+         ],
+         "textjustification": 1
+        }
+       },
+       {
+        "box": {
+         "id": "unatB",
+         "maxclass": "comment",
+         "numinlets": 1,
+         "numoutlets": 0,
+         "patching_rect": [
+          700,
+          130,
+          150,
+          22
+         ],
+         "presentation": 1,
+         "presentation_rect": [
+          10,
+          100,
+          380,
+          18
+         ],
+         "hidden": 1,
+         "varname": "natB",
+         "text": "",
+         "fontname": "Arial",
+         "fontsize": 12.0,
+         "textcolor": [
+          1.0,
+          0.478,
+          0.184,
+          1.0
+         ],
+         "textjustification": 1
+        }
+       },
+       {
+        "box": {
+         "id": "unatS",
+         "maxclass": "comment",
+         "numinlets": 1,
+         "numoutlets": 0,
+         "patching_rect": [
+          700,
+          160,
+          150,
+          22
+         ],
+         "presentation": 1,
+         "presentation_rect": [
+          10,
+          124,
+          380,
+          34
+         ],
+         "hidden": 1,
+         "varname": "natS",
+         "text": "Nichts anfassen, einfach laufen lassen.",
+         "fontname": "Arial",
+         "fontsize": 11.0,
+         "textcolor": [
+          0.6,
+          0.6,
+          0.6,
+          1.0
+         ],
+         "textjustification": 1,
+         "linecount": 2
+        }
        }
       ],
       "lines": [
@@ -616,7 +781,8 @@
         }
        }
       ]
-     }
+     },
+     "varname": "ui"
     }
    },
    {
@@ -696,7 +862,8 @@
       400,
       165
      ],
-     "rendermode": 1
+     "rendermode": 1,
+     "varname": "web"
     }
    },
    {
@@ -729,6 +896,170 @@
      ],
      "outlettype": [],
      "text": "s ---popopen"
+    }
+   },
+   {
+    "box": {
+     "id": "natbg",
+     "maxclass": "panel",
+     "numinlets": 1,
+     "numoutlets": 0,
+     "patching_rect": [
+      700,
+      40,
+      150,
+      22
+     ],
+     "presentation": 1,
+     "presentation_rect": [
+      0,
+      0,
+      400,
+      165
+     ],
+     "hidden": 1,
+     "varname": "natbg",
+     "bgcolor": [
+      0.12,
+      0.12,
+      0.12,
+      1.0
+     ],
+     "mode": 0,
+     "border": 0
+    }
+   },
+   {
+    "box": {
+     "id": "natT",
+     "maxclass": "comment",
+     "numinlets": 1,
+     "numoutlets": 0,
+     "patching_rect": [
+      700,
+      70,
+      150,
+      22
+     ],
+     "presentation": 1,
+     "presentation_rect": [
+      10,
+      22,
+      380,
+      26
+     ],
+     "hidden": 1,
+     "varname": "natT",
+     "text": "\u25cf STEMS WERDEN AUFGENOMMEN",
+     "fontname": "Arial Bold",
+     "fontsize": 17.0,
+     "textcolor": [
+      1.0,
+      0.478,
+      0.184,
+      1.0
+     ],
+     "textjustification": 1
+    }
+   },
+   {
+    "box": {
+     "id": "natP",
+     "maxclass": "comment",
+     "numinlets": 1,
+     "numoutlets": 0,
+     "patching_rect": [
+      700,
+      100,
+      150,
+      22
+     ],
+     "presentation": 1,
+     "presentation_rect": [
+      10,
+      52,
+      380,
+      44
+     ],
+     "hidden": 1,
+     "varname": "natP",
+     "text": "0 %",
+     "fontname": "Arial Bold",
+     "fontsize": 32.0,
+     "textcolor": [
+      0.9,
+      0.9,
+      0.9,
+      1.0
+     ],
+     "textjustification": 1
+    }
+   },
+   {
+    "box": {
+     "id": "natB",
+     "maxclass": "comment",
+     "numinlets": 1,
+     "numoutlets": 0,
+     "patching_rect": [
+      700,
+      130,
+      150,
+      22
+     ],
+     "presentation": 1,
+     "presentation_rect": [
+      10,
+      100,
+      380,
+      18
+     ],
+     "hidden": 1,
+     "varname": "natB",
+     "text": "",
+     "fontname": "Arial",
+     "fontsize": 12.0,
+     "textcolor": [
+      1.0,
+      0.478,
+      0.184,
+      1.0
+     ],
+     "textjustification": 1
+    }
+   },
+   {
+    "box": {
+     "id": "natS",
+     "maxclass": "comment",
+     "numinlets": 1,
+     "numoutlets": 0,
+     "patching_rect": [
+      700,
+      160,
+      150,
+      22
+     ],
+     "presentation": 1,
+     "presentation_rect": [
+      10,
+      124,
+      380,
+      34
+     ],
+     "hidden": 1,
+     "varname": "natS",
+     "text": "Nichts anfassen, einfach laufen lassen.",
+     "fontname": "Arial",
+     "fontsize": 11.0,
+     "textcolor": [
+      0.6,
+      0.6,
+      0.6,
+      1.0
+     ],
+     "textjustification": 1,
+     "linecount": 2
     }
    }
   ],

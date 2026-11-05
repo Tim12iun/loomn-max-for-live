@@ -2,7 +2,7 @@
 // Farben -> Spalten. "Rendern" nimmt pro Spalte einen Full-Stem unten im Projekt auf (Echtzeit).
 // "Paket" schreibt Full-Stems, graue Schnitte und Serum-MIDI als JSON neben das Live-Set.
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.7.3";
+var VERSION = "0.7.4";
 var PLUGIN_ID = "setmaker-prep";
 inlets = 1;
 outlets = 1; // -> jweb (über s ---toweb)
@@ -546,6 +546,7 @@ function catColor(c){ return c.color || cfg.colors[c.lane] || null; }
 
 // ---------- Start ----------
 function init(){
+  if (this.patcher) PATCH = this.patcher;
   DIR = deviceDir.call(this);
   if (DIR){
     var posix = DIR.indexOf(":/") >= 0 ? DIR.substring(DIR.indexOf(":/") + 1) : DIR;
@@ -683,6 +684,66 @@ function forget(laneId){
 // fn(item, i) wird so oft aufgerufen, wie in ~12 ms passt, dann gibt das Device Live wieder frei.
 var busy = false, worker = null, lastPct = -1;
 // Großes Overlay in der UI: zeigt deutlich, dass gearbeitet wird (Ableton darf dabei ruckeln)
+// ---------- Native Anzeige während der Aufnahme ----------
+// Die Web-Oberfläche (jweb) wird während der Aufnahme schwarz, sobald Live Spuren anlegt und aufnimmt.
+// Deshalb wird sie dann ausgeblendet und eine einfache Max-Anzeige (Text) eingeblendet, im Gerät und im Schwebefenster.
+var PATCH = null, NAT = ["natbg", "natT", "natP", "natB", "natS"];
+function natPatchers(){
+  var list = [];
+  if (!PATCH) return list;
+  list.push(PATCH);
+  try { var ui = PATCH.getnamed("ui"); if (ui && ui.subpatcher()) list.push(ui.subpatcher()); } catch (e) {}
+  return list;
+}
+function nat(on, title, sub){
+  var ps = natPatchers();
+  for (var i = 0; i < ps.length; i++){
+    try {
+      var web = ps[i].getnamed("web"); if (web) web.hidden = on ? 1 : 0;
+      for (var k = 0; k < NAT.length; k++){ var o = ps[i].getnamed(NAT[k]); if (o) o.hidden = on ? 0 : 1; }
+      if (on){
+        var t = ps[i].getnamed("natT"); if (t && title) t.message("set", title);
+        var s2 = ps[i].getnamed("natS"); if (s2 && sub) s2.message("set", sub);
+      }
+    } catch (e) {}
+  }
+  if (on) natPct(0);
+}
+function natPct(pct){
+  var full = Math.round(pct / 4), bar = "";
+  for (var b = 0; b < 25; b++) bar += b < full ? "\u2588" : "\u2591";
+  var ps = natPatchers();
+  for (var i = 0; i < ps.length; i++){
+    try {
+      var p = ps[i].getnamed("natP"); if (p) p.message("set", pct + " %");
+      var bb = ps[i].getnamed("natB"); if (bb) bb.message("set", bar);
+    } catch (e) {}
+  }
+}
+
+// ---------- Main stumm + Ansicht festhalten ----------
+// Aufgenommen wird hinter dem Mixer der Quellspuren, also VOR dem Main. Main-Lautstärke auf -inf
+// macht die Aufnahme still, ohne die Stems leiser zu machen. Danach wird der alte Wert zurückgesetzt.
+function masterVol(){ return new LiveAPI("live_set master_track mixer_device volume"); }
+function muteMain(){
+  var v = masterVol(); if (!Number(v.id)) return null;
+  var before = n(v, "value");
+  v.set("value", 0);
+  return before;
+}
+function unmuteMain(before){
+  if (before === null || before === undefined || isNaN(before)) return;
+  var v = masterVol(); if (Number(v.id)) v.set("value", before);
+}
+function showDevice(){
+  // Live springt beim Anlegen auf die neue Spur. Zurück zur Spur, auf der prepn liegt.
+  try {
+    var me = new LiveAPI("this_device canonical_parent");
+    if (Number(me.id)) new LiveAPI("live_set view").set("selected_track", "id", Number(me.id));
+    new LiveAPI("live_app view").call("show_view", "Detail/DeviceChain");
+  } catch (e) {}
+}
+
 function overlay(on, title, sub){ say("overlay", { on: on ? 1 : 0, title: title || "", sub: sub || "" }); }
 function work(items, fn, label, done){
   busy = true; lastPct = -1;
@@ -751,7 +812,7 @@ function render(songNameEnc){
   if (isBusy()) return;
   var songName = decodeURIComponent(songNameEnc || "SONG").toUpperCase();
   var s = scan();
-  var plan = [], srcs = [], endTime = 0;
+  var plan = [], srcs = [], endTime = 0, startTime = -1;
   for (var l = 0; l < LANES.length; l++){
     var lane = LANES[l], src = s.lanes[lane.id];
     if (lane.midi || !src || !src.length) continue;
@@ -763,10 +824,14 @@ function render(songNameEnc){
   // Song-Ende suchen: Clips Spur für Spur in Häppchen lesen (Spuren mit Hunderten Clips frieren sonst Live ein)
   work(srcs, function (tr){
     var cl = ids(tr.api, "arrangement_clips");
-    for (var c = 0; c < cl.length; c++) endTime = Math.max(endTime, n(byId(cl[c]), "end_time"));
+    for (var c = 0; c < cl.length; c++){
+      var cc = byId(cl[c]), st0 = n(cc, "start_time");
+      endTime = Math.max(endTime, n(cc, "end_time"));
+      if (startTime < 0 || st0 < startTime) startTime = st0;
+    }
   }, "Suche Song-Ende", function (){
     if (!endTime){ status("Keine Clips im Arrangement gefunden."); return; }
-    startRecording(plan, songName, endTime);
+    startRecording(plan, songName, endTime, Math.max(0, startTime), 1, null);
   });
 }
 // Aufnahme-Kette pro Stem:
@@ -818,12 +883,17 @@ function cleanupJob(j){
     setRoutingByName(st, "input_routing_type", "available_input_routing_types", NO_INPUT);
   }
 }
-function startRecording(plan, songName, endTime){
+function startRecording(plan, songName, endTime, startTime, attempt, mainBefore){
   var song = new LiveAPI("live_set");
   var tempo = Math.round(n(song, "tempo"));
   var fails = [];
 
-  job = { stems: [], buses: [], rerouted: [], endTime: endTime + 4, started: false };
+  if (attempt === 1){
+    nat(true, "● STEMS WERDEN AUFGENOMMEN", "Nichts anfassen, einfach laufen lassen. Main ist solange stumm. Stopp = abbrechen.");
+    mainBefore = muteMain();
+  }
+  job = { stems: [], buses: [], rerouted: [], endTime: endTime + 4, startTime: startTime, started: false, checked: false,
+          plan: plan, songName: songName, attempt: attempt, mainBefore: mainBefore };
   for (var p = 0; p < plan.length; p++){
     var lane = plan[p].lane, src = plan[p].src;
     var stemName = lane.short + "_" + songName + " " + tempo;
@@ -854,16 +924,28 @@ function startRecording(plan, songName, endTime){
     var j = job; job = null;
     cleanupJob(j);
     for (var d = j.stems.length - 1; d >= 0; d--) deleteTrack(j.stems[d].id);
+    nat(false); unmuteMain(j.mainBefore); showDevice();
     status("Aufnahme nicht gestartet: " + fails.join("; ") + ". Nichts wurde verändert.");
     refresh();
     return;
   }
   song.set("loop", 0);
   song.set("arrangement_overdub", 0);
+  song.set("record_mode", 0);
   song.call("stop_playing");
-  song.set("current_song_time", 0);
-  song.set("record_mode", 1);
-  song.call("continue_playing");
+  // Live startet sonst ab dem Einfüge-Marker (z. B. Takt 19). Deshalb: Wiedergabe starten, im selben Moment
+  // auf den Anfang springen und erst dann Aufnahme an. tick() prüft, ob es wirklich vorne losging.
+  if (attempt === 1){
+    song.call("start_playing");
+    song.set("current_song_time", 0);
+    song.set("record_mode", 1);
+  } else {
+    song.call("stop_playing"); // zweimal Stopp = zurück zum Anfang
+    song.set("current_song_time", 0);
+    song.set("record_mode", 1);
+    song.call("continue_playing");
+  }
+  showDevice();
   task = new Task(tick); task.interval = 200; task.repeat(); // nur während der Aufnahme, finish() stoppt ihn
   status("Aufnahme läuft … nicht anfassen.");
   overlay(true, "● STEMS WERDEN AUFGENOMMEN", "Nichts anfassen, einfach laufen lassen. Stopp = abbrechen.");
@@ -874,9 +956,28 @@ function tick(){
   var song = new LiveAPI("live_set");
   var t = n(song, "current_song_time"), playing = n(song, "is_playing");
   if (playing) job.started = true;
+  if (playing && !job.checked){
+    job.checked = true;
+    if (t > Math.min(job.startTime, 0) + 2){ wrongStart(t); return; } // nach 0,2 s darf es höchstens ~1 Schlag weit sein
+  }
   var pct = Math.min(100, Math.round(100 * t / job.endTime));
-  if (pct !== job.pct){ job.pct = pct; say("progress", { pct: pct }); } // nur bei Änderung an die UI
+  if (pct !== job.pct){ job.pct = pct; say("progress", { pct: pct }); natPct(pct); } // nur bei Änderung an die UI
   if (job.started && (!playing || t >= job.endTime)) finish(!playing && t < job.endTime);
+}
+
+// Start lag nicht am Anfang: alles zurückbauen und einmal mit der anderen Start-Methode neu versuchen.
+function wrongStart(t){
+  if (task){ task.cancel(); task = null; }
+  var song = new LiveAPI("live_set");
+  song.set("record_mode", 0);
+  song.call("stop_playing");
+  var j = job; job = null;
+  cleanupJob(j);
+  for (var d = j.stems.length - 1; d >= 0; d--) deleteTrack(j.stems[d].id);
+  if (j.attempt < 2){ startRecording(j.plan, j.songName, j.endTime - 4, j.startTime, j.attempt + 1, j.mainBefore); return; }
+  nat(false); unmuteMain(j.mainBefore); showDevice();
+  status("Aufnahme abgebrochen: Live startete nicht am Anfang (bei Schlag " + Math.round(t) + "). Bitte einmal Stopp doppelt drücken und neu rendern.");
+  refresh();
 }
 
 function finish(aborted){
@@ -887,11 +988,18 @@ function finish(aborted){
   song.call("stop_playing");
   var j = job; job = null;
   cleanupJob(j);
+  nat(false); unmuteMain(j.mainBefore);
   // Nur melden, was wirklich aufgenommen wurde. Leere Stem-Spuren wieder löschen.
-  var ok = [], empty = [];
+  var ok = [], empty = [], late = [];
   for (var k = 0; k < j.stems.length; k++){
     var st = byId(j.stems[k].id);
-    if (ids(st, "arrangement_clips").length){ st.set("mute", 1); ok.push(j.stems[k].name.split("_")[0]); }
+    var rec = ids(st, "arrangement_clips");
+    if (rec.length){
+      st.set("mute", 1); ok.push(j.stems[k].name.split("_")[0]);
+      var first = -1;
+      for (var r = 0; r < rec.length; r++){ var rs = n(byId(rec[r]), "start_time"); if (first < 0 || rs < first) first = rs; }
+      if (first > j.startTime + 0.25) late.push(j.stems[k].name.split("_")[0] + " ab Takt " + (Math.floor(first / 4) + 1));
+    }
     else { empty.push(j.stems[k].name.split("_")[0]); deleteTrack(j.stems[k].id); }
   }
   var msg;
@@ -899,8 +1007,10 @@ function finish(aborted){
   else {
     msg = (aborted ? "Abgebrochen. " : "") + ok.length + " Full-Stems liegen unten (stumm): " + ok.join(", ") + ".";
     if (empty.length) msg += " Ohne Aufnahme (gelöscht): " + empty.join(", ") + ".";
+    if (late.length) msg += " ACHTUNG, Anfang fehlt: " + late.join(", ") + ".";
     msg += aborted ? " Stem-Spuren löschen und neu rendern." : " Jetzt Passagen schneiden und grau färben, dann „Paket“.";
   }
+  showDevice();
   status(msg);
   refresh();
 }
