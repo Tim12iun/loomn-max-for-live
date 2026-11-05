@@ -34,8 +34,9 @@ Ablauf
    Inhalt: jeder Full-Stem in voller Laenge ohne Luecken, jede markierte Passage als "<STEM> Clip 1", "Clip 2" ...
    (von links nach rechts) und SETMAKER.json mit Serum-MIDI fuer den Set-Builder.
    Die Dateien schreibt prepn_pkg.js (Node for Max) im Hintergrund.
-   Danach raeumt prepn auf: die Stem-Spuren werden geloescht, ihre Aufnahmen wandern von Samples/Recorded
-   nach Samples/Processed/prepn (nur Dateien, die prepn aufgenommen hat; nichts wird geloescht).
+5. "Clear" (pulsiert, wenn es dran ist): raeumt auf, was prepn angelegt hat. Die Stem-Spuren werden geloescht,
+   ihre Aufnahmen wandern von Samples/Recorded nach Samples/Processed/prepn (nichts wird geloescht).
+   Der jeweils naechste Schritt leuchtet orange. Faerben (1) ist optional.
 
 Zahnrad: Farbe je Stem, Paket-Ordner, Update.
 
