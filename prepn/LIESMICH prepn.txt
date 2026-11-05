@@ -26,10 +26,11 @@ Ablauf
 2. Song-Name pruefen, "Rendern" klicken. Das Device legt unten pro Farbe eine Stem-Spur an
    (z. B. TOPS_IMSOLOST 132) und nimmt den Song einmal in Echtzeit auf. Waehrenddessen nichts anfassen.
    Danach sind die Stem-Spuren stumm geschaltet, damit nichts doppelt klingt.
-3. Passagen: In den Stem-Spuren mit Cmd+E schneiden und die gewuenschten Stuecke grau faerben
-   (oder eigene Farbe: Clip anklicken, dann Feld "Schnitt"). Clip-Namen werden uebernommen.
+3. Passagen: In einer Stem-Spur den gewuenschten Bereich im Arrangement markieren und 0 druecken.
+   Live schneidet das Stueck aus und deaktiviert es. Jedes deaktivierte Stueck wird ein eigener Clip
+   (im fertigen Set wieder aktiv). Clip-Namen werden uebernommen. Grau faerben geht weiterhin.
 4. Set speichern, dann "Paket". Es entsteht "SETMAKER - <SONG>.json" neben der .als:
-   Full-Stems, graue Schnitte (Positionen im Full-Stem) und Serum-MIDI-Noten. Das liest spaeter der Set-Builder.
+   Full-Stems, markierte Passagen (Positionen im Full-Stem) und Serum-MIDI-Noten. Das liest spaeter der Set-Builder.
 
 "Schweben" oeffnet die Oberflaeche als Fenster, das ueber Ableton schwebt.
 

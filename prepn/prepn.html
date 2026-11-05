@@ -58,7 +58,7 @@ button:disabled{opacity:.4;cursor:default}
 <div class="row steps">
   <button id="auto" title="Erkennt die Spuren und färbt sie in der Farbe ihres Stems. Danach in Ableton prüfen und ggf. umfärben. Alt+Klick = rückgängig"><span class="n">1</span>Färben</button>
   <button class="go" id="render" title="Nimmt pro Farbe einen Stem unten im Projekt auf (läuft in Echtzeit)"><span class="n">2</span>Stems rendern</button>
-  <button id="pkg" title="Optional: grau gefärbte Passagen + Serum-MIDI als Song-Paket speichern"><span class="n">3</span>Paket</button>
+  <button id="pkg" title="Passagen markieren: in den Stem-Spuren Bereich wählen und 0 drücken (deaktiviert). Paket speichert diese Stücke als einzelne Clips (wieder aktiv) + Serum-MIDI."><span class="n">3</span>Paket</button>
 </div>
 <div class="grid" id="grid"></div>
 <div class="status"><i id="bar"></i><span id="status">Farbe = Stem. Feld klicken = Farbe ändern.</span></div>
@@ -66,10 +66,10 @@ button:disabled{opacity:.4;cursor:default}
 <div id="pal"><div class="box"><div class="t" id="palT"></div><div class="g" id="palG"></div></div></div>
 <script>
 const PALETTE = [16749734, 16753961, 13408551, 16249980, 12581632, 1769263, 2490280, 6094824, 9160191, 5538020, 9611263, 14183652, 15029152, 16777215, 16725558, 16149507, 10056267, 16773172, 8912743, 4047616, 49071, 1698303, 1090798, 32192, 8940772, 11958214, 16726484, 13684944, 14837594, 16753524, 13872497, 15597486, 13821080, 12243060, 10208397, 13958625, 13496824, 12173795, 13482980, 11442405, 15064289, 11119017, 13013643, 12026454, 10060650, 12565097, 10927616, 8237133, 8962746, 10204100, 8758722, 8623052, 10851765, 12558270, 12349846, 8092539, 11481907, 11096369, 7491393, 14402304, 8754719, 5480241, 695438, 2319236, 1716118, 3101346, 6441901, 10701741, 13381230, 3947580];
-const MAIN = [['bass','Bass'],['kick','Kick'],['top','Tops'],['vox','Vox'],['melo','Melody'],['serum','Serum'],['riser','Riser'],['rest','Rest'],['cut','Schnitt']];
+const MAIN = [['bass','Bass'],['kick','Kick'],['top','Tops'],['vox','Vox'],['melo','Melody'],['serum','Serum'],['riser','Riser'],['rest','Rest']];
 const EXTRA = [['inst1','Inst 10'],['inst2','Inst 11'],['vocal','Vocal Chain'],['free1','Spur 14']];
 const SHORT = {bass:'BASS',kick:'KICK',top:'TOPS',vox:'VOCALS',melo:'MELODY',inst1:'INST10',inst2:'INST11',vocal:'VOCALCHAIN',riser:'RISER',free1:'SPUR14'};
-const TIP = {rest:'Rest: wird nicht gerendert', cut:'Schnitt: Clips in dieser Farbe (oder grau) werden im Paket als einzelne Clips gespeichert'};
+const TIP = {rest:'Rest: wird nicht gerendert', cut:'Schnitt'};
 const $ = s => document.querySelector(s);
 const toMax = (...a) => window.max ? window.max.outlet(...a) : console.log('max', a);
 const hex = rgb => '#' + (rgb >>> 0).toString(16).padStart(6, '0');
