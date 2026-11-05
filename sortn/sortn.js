@@ -2,7 +2,7 @@
 // Erkennt die Rolle jeder Spur (Kick, Hi-Hat, Bass …), benennt einheitlich um und färbt nach Kategorie.
 // Einstellungen in sortn_settings.json im eigenen Ordner (unabhängig von prepn).
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.2.6";
+var VERSION = "0.2.7";
 var PLUGIN_ID = "setmaker-sort";
 inlets = 1;
 outlets = 1; // -> jweb (über s ---toweb)
@@ -40,9 +40,12 @@ var SM = (function () {
       version: 1,
       categories: [
         cat("kick", "Kick", "kick", 14, ["kick", "bd", "bassdrum", "kik"]),
-        cat("snare", "Snare", "top", 18, ["snare", "clap", "rim", "rimshot", "sd", "snap"]),
+        cat("snare", "Snare", "top", 18, ["snare", "rim", "rimshot", "sd"]),
+        cat("clap", "Clap", "top", 46, ["clap", "claps", "clp", "snap", "handclap"]),
         cat("hihat", "Hi-Hat", "top", 19, ["hihat", "hat", "hats", "hh", "oh", "ch"]),
-        cat("tops", "Tops", "top", 61, ["tops", "top", "perc", "shaker", "ride", "crash", "cymbal", "conga", "bongo", "toms", "tom", "tamb", "cowbell"]),
+        cat("shaker", "Shaker", "top", 34, ["shaker", "shakers", "shake", "shk", "maracas"]),
+        cat("perc", "Perc", "top", 47, ["perc", "percs", "percussion", "conga", "bongo", "toms", "tom", "tamb", "tambourine", "cowbell", "timbale", "woodblock", "clave"]),
+        cat("tops", "Tops", "top", 61, ["tops", "top", "ride", "crash", "cymbal"]),
         cat("bass", "Bass", "bass", 22, ["bass", "sub", "808", "reese"]),
         cat("vocalchop", "Vocal Chop", "vox", 25, ["chop", "vocal chop", "vox chop"]),
         cat("vocal", "Vocals", "vox", 26, ["vocal", "vocals", "vox", "voc", "acapella", "acappella", "voice", "chant", "adlib", "choir"]),
@@ -492,8 +495,44 @@ function readSettingsFile(){
 }
 // Einfaches Tool: nur diese Optionen sind einstellbar, alles andere ist fest auf Standard
 var USER_OPTS = { numberSingle: 1, keepColor: 1, matchClips: 1 };
+// Einmalige Anpassungen alter Einstellungsdateien (pro Name nur einmal, danach darf der Nutzer frei ändern)
+function migrate(x){
+  if (!x.migrations) x.migrations = [];
+  if (x.migrations.indexOf("clap") < 0){
+    var has = false, at = -1;
+    for (var i = 0; i < x.categories.length; i++){
+      var c = x.categories[i];
+      if (c.id === "clap") has = true;
+      if (c.id === "snare"){
+        at = i;
+        c.keywords = c.keywords.filter(function (w){ var l = String(w).toLowerCase(); return l !== "clap" && l !== "claps" && l !== "snap"; });
+      }
+    }
+    if (!has){
+      var dc = SM.defaults().categories;
+      for (var j = 0; j < dc.length; j++) if (dc[j].id === "clap") x.categories.splice(at >= 0 ? at + 1 : x.categories.length, 0, dc[j]);
+    }
+    x.migrations.push("clap");
+  }
+  if (x.migrations.indexOf("perc") < 0){
+    // Shaker und Perc bekommen eigene Kategorien vor "Tops"; ihre Begriffe wandern aus Tops heraus
+    var dc2 = SM.defaults().categories, move = {}, ids = {}, k, n;
+    for (k = 0; k < dc2.length; k++) if (dc2[k].id === "shaker" || dc2[k].id === "perc")
+      for (n = 0; n < dc2[k].keywords.length; n++) move[dc2[k].keywords[n]] = 1;
+    for (k = 0; k < x.categories.length; k++) ids[x.categories[k].id] = k;
+    if (ids.tops !== undefined)
+      x.categories[ids.tops].keywords = x.categories[ids.tops].keywords.filter(function (w){ return !move[String(w).toLowerCase()]; });
+    var pos = ids.tops !== undefined ? ids.tops : x.categories.length;
+    for (k = 0; k < dc2.length; k++){
+      var id2 = dc2[k].id;
+      if ((id2 === "shaker" || id2 === "perc") && ids[id2] === undefined){ x.categories.splice(pos, 0, dc2[k]); pos++; }
+    }
+    x.migrations.push("perc");
+  }
+  return x;
+}
 function norm(s){
-  var x = SM.normalize(s), d = SM.defaults().sort;
+  var x = migrate(SM.normalize(s)), d = SM.defaults().sort;
   for (var k in d) if (!USER_OPTS[k]) x.sort[k] = d[k];
   return x;
 }
