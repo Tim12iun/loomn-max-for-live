@@ -5,15 +5,25 @@ Die Plugins haben einen Update-Knopf (⟳), der hier nach neuen Versionen schaut
 
 | Plugin | Ordner | Zweck |
 |---|---|---|
-| sortn | `SetMaker/sortn` | Spuren erkennen, umbenennen, einfärben |
-| SetMaker Prep | `SetMaker/prepn` | Stems pro Live-Set-Spalte rendern, Song-Paket schreiben |
+| sortn | `sortn/` | Spuren erkennen, umbenennen, einfärben |
+| prepn | `prepn/` | Stems pro Live-Set-Spalte rendern, Song-Paket schreiben |
 
-Installation: Ordner `SetMaker` nach `~/Music/Ableton/User Library/Presets/Audio Effects/Max Audio Effect/LOOMN Max for Live/` legen.
-Einstellungen: jedes Plugin legt seine eigene Datei im eigenen Ordner an (nicht im Repo).
+Installation: den Ordner des Plugins (z. B. `prepn`) nach
+`~/Music/Ableton/User Library/Presets/Audio Effects/Max Audio Effect/MAX for LIVE 3rd Party/LOOMN-MAX4LIVE/` legen.
+Jeder Plugin-Ordner hat seine eigene LIESMICH-Datei mit Installation und Bedienung.
+Einstellungen: jedes Plugin legt seine eigene Datei im eigenen Ordner an (nicht im Repo). Nichts wird zwischen Plugins geteilt.
+
+Neues Plugin = neuer Ordner auf oberster Ebene + Eintrag in `manifest.json`.
 
 ## Für Entwickler
-- `manifest.json`: Version + Dateiliste pro Plugin. Bei jedem Release Version hochzählen, sonst sieht der Update-Knopf nichts.
-- `src/setmaker/`: gemeinsame Blöcke (`setmaker_shared.js`, `loomn_update.js`), die per Build in die Device-Scripts kopiert werden, plus `.maxpat`-Quellen.
+- `manifest.json`: pro Plugin Version, Ordner (`dir`), Dateien (`files`, `amxd`) und alte Dateinamen (`obsolete`).
+  Bei jedem Release Version hochzählen, sonst sieht der Update-Knopf nichts.
+  Die Plugin-IDs (`setmaker-prep`, `setmaker-sort`) bleiben so, damit auch ältere Devices ihr Update finden.
+- Der Update-Knopf lädt jede Datei unter genau ihrem Namen in den eigenen Ordner (überschreibt, kein „Datei (1)“).
+  `.amxd` wird aus `<name>.amxd.json` selbst geschrieben. Max kann keine Dateien löschen: Dateien aus `obsolete`,
+  die noch im Ordner liegen, nennt das Device nach dem Update zum Löschen im Finder.
+- `src/shared/`: gemeinsame Blöcke (`loomn_update.js` für alle, `setmaker_shared.js` nur für sortn),
+  per `python3 src/shared/sync_shared.py` in die Device-Scripts kopiert. `src/<plugin>/`: `.maxpat`-Quellen.
 - Update-URL in den Devices: `https://raw.githubusercontent.com/Tim12iun/loomn-max-for-live/main/`
 
 ## Performance-Regeln (für alle Devices)

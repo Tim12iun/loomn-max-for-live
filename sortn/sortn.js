@@ -2,7 +2,7 @@
 // Erkennt die Rolle jeder Spur (Kick, Hi-Hat, Bass …), benennt einheitlich um und färbt nach Kategorie.
 // Einstellungen in sortn_settings.json im eigenen Ordner (unabhängig von prepn).
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.2.2";
+var VERSION = "0.2.4";
 var PLUGIN_ID = "setmaker-sort";
 inlets = 1;
 outlets = 1; // -> jweb (über s ---toweb)
@@ -53,7 +53,7 @@ var SM = (function () {
       ],
       rest: { label: "Rest", color: col(55) },
       sort: {
-        rename: true, colorize: true, colorClips: false, numberSingle: false,
+        rename: true, colorize: true, colorClips: false, matchClips: false, keepColor: 13, numberSingle: false,
         pattern: "{name} {n}", keepCustomNames: false, renameRest: false, groups: true,
         sources: { trackName: true, clipNames: true, fileNames: true, devices: true }
       }
@@ -255,6 +255,8 @@ var SM = (function () {
       var row = { id: tr.id, index: tr.index !== undefined ? tr.index : r, name: tr.name, color: tr.color, isGroup: !!tr.isGroup,
                   group: tr.group, depth: 0, cat: null, source: "", conf: "", why: [], alt: null };
       if (STEM_RE.test(tr.name)) { row.source = "stem"; }
+      // Spuren in der "Nicht ändern"-Farbe bleiben, wie sie sind
+      else if (o.keepColor !== undefined && o.keepColor !== null && o.keepColor >= 0 && tr.color === o.keepColor) { row.source = "keep"; row.why = ["Farbe „Nicht ändern“"]; }
       else {
         var sres = score(tr, tr.isGroup);
         if (sres) { row.cat = sres.cat; row.source = "auto"; row.conf = sres.conf; row.why = sres.why; row.alt = sres.alt; }
@@ -266,7 +268,7 @@ var SM = (function () {
     // Unbekannte Spur in einer erkannten Gruppe (z. B. Gruppe "Vocals") -> erbt die Kategorie
     for (var u = 0; u < rows.length; u++) {
       var ru = rows[u];
-      if (ru.cat || ru.isGroup || ru.source === "stem") continue;
+      if (ru.cat || ru.isGroup || ru.source === "stem" || ru.source === "keep") continue;
       var pg = ru.group ? byId[ru.group] : null;
       while (pg && !pg.cat) pg = pg.group ? byId[pg.group] : null;
       if (pg && pg.cat) { ru.cat = pg.cat; ru.source = "group"; ru.conf = "unsicher"; ru.why = ["Gruppe: " + pg.name]; }
@@ -284,10 +286,10 @@ var SM = (function () {
     if (o.groups) {
       for (var gi = rows.length - 1; gi >= 0; gi--) {
         var gr = rows[gi];
-        if (!gr.isGroup || gr.source === "stem" || overrides[gr.id] !== undefined) continue;
+        if (!gr.isGroup || gr.source === "stem" || gr.source === "keep" || overrides[gr.id] !== undefined) continue;
         var leafCats = {}, nLeaf = 0, nKnown = 0, inherited = 0;
         for (var li = 0; li < rows.length; li++) {
-          var lr = rows[li]; if (lr.isGroup || lr.source === "stem") continue;
+          var lr = rows[li]; if (lr.isGroup || lr.source === "stem" || lr.source === "keep") continue;
           var anc = lr.group ? byId[lr.group] : null, inside = false;
           while (anc) { if (anc === gr) { inside = true; break; } anc = anc.group ? byId[anc.group] : null; }
           if (!inside) continue;
@@ -306,14 +308,14 @@ var SM = (function () {
     // Neue Namen + Farben
     var count = {}, groupCount = {}, seen = {}, groupSeen = {};
     for (var e = 0; e < rows.length; e++) {
-      var rr = rows[e]; if (rr.source === "stem" || rr.source === "skip") continue;
+      var rr = rows[e]; if (rr.source === "stem" || rr.source === "skip" || rr.source === "keep") continue;
       var key = rr.cat || "_rest";
       if (rr.isGroup) groupCount[key] = (groupCount[key] || 0) + 1; else count[key] = (count[key] || 0) + 1;
     }
     for (var f = 0; f < rows.length; f++) {
       var row2 = rows[f];
       row2.newName = row2.name; row2.newColor = row2.color; row2.lane = "";
-      if (row2.source === "stem" || row2.source === "skip") continue;
+      if (row2.source === "stem" || row2.source === "skip" || row2.source === "keep") continue;
       var c2 = row2.cat ? byCat[row2.cat] : null, key2 = row2.cat || "_rest";
       row2.lane = c2 ? (c2.lane || "") : "";
       if (o.colorize) row2.newColor = c2 ? c2.color.index : s.rest.color.index;
@@ -412,14 +414,22 @@ var LU = (function () {
     f.eof = f.position; f.close();
     return true;
   }
-  // install(entry, deviceDir, writeText, cb(err, count)) – Textdateien über responseText, Binärdateien (.amxd) direkt in Datei
+  function exists(path) { var f = new File(path, "read"); var ok = f.isopen; if (ok) f.close(); return ok; }
+  // Alte Dateien (entry.obsolete) kann Max nicht löschen: nur melden, welche noch im Ordner liegen
+  function leftovers(entry, deviceDir) {
+    var out = [], list = entry.obsolete || [];
+    for (var i = 0; i < list.length; i++) if (exists(deviceDir + list[i])) out.push(list[i]);
+    return out;
+  }
+  // install(entry, deviceDir, writeText, cb(err, count, left)) – Textdateien über responseText, Binärdateien (.amxd) direkt in Datei.
+  // Jede Datei wird unter genau ihrem Namen überschrieben (kein "Datei (1)"). left = alte Dateien, die von Hand weg müssen.
   function install(entry, deviceDir, writeText, cb) {
     // .amxd stehen in entry.amxd (nicht in files), damit alte Updater sie nicht doppelt anlegen
     var files = entry.files.slice(0).concat(entry.amxd || []), done = 0;
     // Script zuletzt, damit nichts mitten im Update neu geladen wird
     files.sort(function (a, b) { return (/\.js$/.test(a) ? 1 : 0) - (/\.js$/.test(b) ? 1 : 0); });
     function next() {
-      if (!files.length) return cb(null, done);
+      if (!files.length) return cb(null, done, leftovers(entry, deviceDir));
       var f = files.shift(), url = BASE + enc(entry.dir + "/" + f);
       if (/\.amxd$/.test(f)) {
         // .amxd = Binär-Header + Patcher-JSON. Max' Download legt sonst "Datei (1)" an, darum:
@@ -439,7 +449,7 @@ var LU = (function () {
     }
     next();
   }
-  return { BASE: BASE, cmp: cmp, check: check, install: install };
+  return { BASE: BASE, cmp: cmp, check: check, install: install, leftovers: leftovers };
 })();
 // ==== END loomn_update ====
 
@@ -472,7 +482,6 @@ function writeText(path, s){
   for (var i = 0; i < s.length; i += 16000) f.writestring(s.substring(i, i + 16000));
   f.eof = f.position; f.close(); return true;
 }
-function parentDir(d){ var x = d.substring(0, d.length - 1); return x.substring(0, x.lastIndexOf("/") + 1); }
 // Eigene Einstellungsdatei nur für sortn, im eigenen Ordner (unabhängig von prepn)
 var SETTINGS_FILE = "sortn_settings.json";
 function settingsPath(){ return DIR + SETTINGS_FILE; }
@@ -545,6 +554,7 @@ var busy = false, worker = null;
 function work(items, fn, label, done){
   busy = true; lastPct = -1;
   var i = 0;
+  progress(label + " 0/" + items.length, 0, items.length); // Anzeige sofort zeigen
   worker = new Task(function (){
     var start = new Date().getTime();
     try {
@@ -573,7 +583,7 @@ function summary(){
   var known = 0, rest = 0, change = 0;
   for (var i = 0; i < plan.rows.length; i++){
     var r = plan.rows[i];
-    if (r.source === "stem" || r.source === "skip") continue;
+    if (r.source === "stem" || r.source === "skip" || r.source === "keep") continue;
     if (r.cat) known++; else rest++;
     if (r.newName !== r.name || r.newColor !== r.color) change++;
   }
@@ -608,18 +618,25 @@ function apply(){
   var o = settings.sort, todo = [], undo = [];
   for (var i = 0; i < plan.rows.length; i++){
     var r = plan.rows[i];
-    if (r.source === "stem" || r.source === "skip") continue;
-    if (r.newName !== r.name || r.newColor !== r.color || (o.colorize && o.colorClips)) todo.push(r);
+    if (r.source === "stem" || r.source === "skip" || r.source === "keep") continue;
+    if (r.newName !== r.name || r.newColor !== r.color || o.matchClips || (o.colorize && o.colorClips)) todo.push(r);
   }
   if (!todo.length){ status("Alles war schon sortiert, nichts geändert."); send(); return; }
   work(todo, function (r){
     var t = byId(r.id), tr = findTrack(r.id), entry = { id: r.id, name: r.name, color: r.color, clips: [] }, did = false;
     if (r.newName !== r.name){ t.set("name", r.newName); did = true; }
     if (r.newColor !== r.color){ t.set("color_index", r.newColor); did = true; }
-    if (o.colorize && o.colorClips && tr){
+    // Clips angleichen: Clips bekommen Spurname und Spurfarbe (oder nur Farbe mit "Clips mitfärben")
+    var clipColor = o.matchClips || (o.colorize && o.colorClips), clipName = o.matchClips;
+    if ((clipColor || clipName) && tr){
       for (var c = 0; c < tr.clipIds.length; c++){
-        var cl = byId(tr.clipIds[c]), before = Number(cl.get("color_index"));
-        if (before !== r.newColor){ entry.clips.push({ id: tr.clipIds[c], color: before }); cl.set("color_index", r.newColor); did = true; }
+        var cl = byId(tr.clipIds[c]);
+        if (!Number(cl.id)) continue;
+        var bc = Number(cl.get("color_index")), bnArr = cl.get("name"), bn = (bnArr && bnArr.join) ? bnArr.join(" ") : String(bnArr);
+        var ch = { id: tr.clipIds[c], color: bc, name: bn }, any = false;
+        if (clipColor && bc !== r.newColor){ cl.set("color_index", r.newColor); any = true; }
+        if (clipName && bn !== r.newName){ cl.set("name", r.newName); any = true; }
+        if (any){ entry.clips.push(ch); did = true; }
       }
     }
     if (did) undo.push(entry);
@@ -646,7 +663,7 @@ function undo(){
     var t = byId(u.id);
     if (!t.id || Number(t.id) === 0) return; // Spur gelöscht
     t.set("name", u.name); t.set("color_index", u.color);
-    for (var c = 0; c < u.clips.length; c++){ var cl = byId(u.clips[c].id); if (Number(cl.id)) cl.set("color_index", u.clips[c].color); }
+    for (var c = 0; c < u.clips.length; c++){ var cl = byId(u.clips[c].id); if (Number(cl.id)){ cl.set("color_index", u.clips[c].color); if (u.clips[c].name !== undefined) cl.set("name", u.clips[c].name); } }
     var tr = findTrack(u.id); if (tr){ tr.name = u.name; tr.color = u.color; }
     n++;
   }, "Setze zurück", function (){
@@ -697,9 +714,11 @@ function update(){
     if (err){ status(err); return; }
     if (!info.newer){ status("Aktuell: v" + VERSION + " ist die neueste Version."); return; }
     status("Lade v" + info.latest + " …");
-    LU.install(info.entry, DIR, writeText, function (e2, count){
+    LU.install(info.entry, DIR, writeText, function (e2, count, left){
       if (e2){ status("Update fehlgeschlagen: " + e2); return; }
-      status("v" + info.latest + " geladen (" + count + " Dateien). Device löschen und neu reinziehen.");
+      var msg = "v" + info.latest + " geladen (" + count + " Dateien). Device löschen und neu reinziehen.";
+      if (left && left.length) msg += " Alte Dateien bitte im Finder löschen: " + left.join(", ");
+      status(msg);
     });
   });
 }

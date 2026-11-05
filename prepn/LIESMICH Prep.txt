@@ -1,16 +1,21 @@
-SET MAKER LIVE - Song-Prep v0.5 (Test-Version)
+prepn v0.7.2 (Test-Version) – Stems pro Farbe rendern und Song-Paket schreiben
+prepn arbeitet komplett eigenstaendig, unabhaengig von sortn.
 
 Installation
-- Alle Dateien im selben Ordner lassen ("SetMaker Prep.amxd", "setmaker_prep.js", "setmaker_prep.html").
-- Song-Projekt oeffnen, "SetMaker Prep.amxd" auf die Main-Spur ziehen.
-- Altes v0.1-Device vorher loeschen.
+- Den Ordner "prepn" hierhin legen (Finder: Shift+Cmd+G, Pfad einfuegen):
+  ~/Music/Ableton/User Library/Presets/Audio Effects/Max Audio Effect/MAX for LIVE 3rd Party/LOOMN-MAX4LIVE/
+  Ergebnis: .../LOOMN-MAX4LIVE/prepn/
+- Alle Dateien im Ordner "prepn" zusammen lassen: prepn.amxd, setmaker_prep.js, setmaker_prep.html.
+- Song-Projekt oeffnen, "prepn.amxd" auf die Main-Spur ziehen. Alte Versionen ("SetMaker Prep") vorher aus dem Set loeschen.
+- Einstellungen: setmaker_prep_settings.json im Ordner prepn. Legt das Device selbst an, bleibt bei Updates erhalten.
+- Update: ⟳ im Device laedt die neue Version direkt in diesen Ordner (gleiche Dateinamen, wird ueberschrieben).
+  Danach Device loeschen und neu reinziehen. Meldet das Device alte Dateien, diese im Finder loeschen.
 
 Ablauf
 0. "Auto": erkennt die Spuren ueber Spurnamen, Clipnamen und Sample-Dateinamen (Kick, Hi-Hat, Snare, Bass, Vocals ...)
    und faerbt sie in der Farbe ihrer Spalte ein. Unbekanntes bekommt die "Rest"-Farbe. Danach in Ableton pruefen und
    falsch erkannte Spuren einfach umfaerben. Alt+Klick auf "Auto" = Einfaerben rueckgaengig.
-   Farben sind voreingestellt, eine Farbe pro Spalte. Prep ist eigenstaendig und teilt nichts mit Sort
-   (eigene Datei setmaker_prep_settings.json im Ordner prepn, bleibt bei Updates erhalten).
+   Farben sind voreingestellt, eine Farbe pro Spalte.
    Farbe aendern: Feld klicken -> Farbe aus der Ableton-Palette waehlen.
    Shift+Klick auf ein Feld = Farbe der gerade ausgewaehlten Spur uebernehmen.
 1. Farben lernen: Spur in Ableton anklicken (z. B. eine Tops-Spur), dann im Device das Feld "Tops" klicken.

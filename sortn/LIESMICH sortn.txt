@@ -1,12 +1,17 @@
-sortn v0.2 (Test-Version)
+sortn v0.2.4 (Test-Version)
 Erkennt, was in jeder Spur steckt (Kick, Hi-Hat, Bass, Vocals ...), benennt die Spuren einheitlich um
 (Kick 1, Kick 2 ...) und faerbt sie pro Kategorie. Alles, was nicht erkannt wird, bekommt die Rest-Farbe.
 sortn arbeitet komplett eigenstaendig, unabhaengig von prepn.
 
 Installation
-- Ordner "sortn" behalten (sortn.amxd, sortn.js, sortn.html muessen zusammen liegen).
-- Altes "SetMaker Sort" vorher aus dem Set loeschen.
-- "sortn.amxd" auf die Main-Spur ziehen. Einstellungen landen in sortn_settings.json im selben Ordner.
+- Den Ordner "sortn" hierhin legen (Finder: Shift+Cmd+G, Pfad einfuegen):
+  ~/Music/Ableton/User Library/Presets/Audio Effects/Max Audio Effect/MAX for LIVE 3rd Party/LOOMN-MAX4LIVE/
+  Ergebnis: .../LOOMN-MAX4LIVE/sortn/
+- Alle Dateien im Ordner "sortn" zusammen lassen: sortn.amxd, sortn.js, sortn.html.
+- "sortn.amxd" auf die Main-Spur ziehen. Altes "SetMaker Sort" vorher aus dem Set loeschen.
+- Einstellungen: sortn_settings.json im Ordner sortn. Legt das Device selbst an, bleibt bei Updates erhalten.
+- Update: ⟳ im Device laedt die neue Version direkt in diesen Ordner (gleiche Dateinamen, wird ueberschrieben).
+  Danach Device loeschen und neu reinziehen. Meldet das Device alte Dateien, diese im Finder loeschen.
 
 Ablauf
 1. Das Device liest beim Laden alle Spuren ein (in kleinen Schritten, Ableton bleibt bedienbar).
@@ -14,13 +19,16 @@ Ablauf
    orange = von Hand. Maus ueber eine Zeile zeigt, warum. Im Auswahlfeld kannst du pro Spur die Kategorie
    von Hand setzen oder "Nicht aendern" waehlen.
 2. "▶ Ausfuehren" benennt um und faerbt. "↶" macht das letzte Ausfuehren rueckgaengig. "↻" liest neu ein.
+3. "Bleibt": Spuren in dieser Farbe laesst sortn komplett in Ruhe (Name und Farbe). Standard weiss.
+   Anklicken = einen Grauton, Schwarz oder "aus" waehlen. So klammerst du Spuren aus, die du selbst benannt hast.
+4. "Clips": Wenn angehakt, bekommen beim Ausfuehren auch die Clips den Namen und die Farbe ihrer Spur.
 
 Farben und Begriffe aendern
 - "⚙" oeffnet die Einstellungen im grossen Fenster.
 - Farbquadrat links anklicken = Farbe waehlen. Oder ◉ = Farbe der in Ableton ausgewaehlten Spur uebernehmen.
 - Pro Kategorie: Name, Begriffe (Komma-getrennt), Gross/klein, "allg." (greift nur, wenn nichts Genaueres passt),
   Reihenfolge (= Prioritaet), loeschen. "+ Kategorie" fuer neue. Unten die Rest-Farbe.
-- Optionen: Umbenennen, Faerben, Clips mitfaerben, Nummer auch bei einer Spur, eigene Namen behalten,
+- Optionen: Umbenennen, Faerben, Nummer auch bei einer Spur, eigene Namen behalten,
   Rest umbenennen, Gruppen nach Inhalt, Muster ({name} {n}), wo gesucht wird.
 
 Woran erkannt wird
@@ -29,5 +37,4 @@ Woran erkannt wird
 - Begriffe, die in fast allen Spuren vorkommen (meist der Songtitel), werden ignoriert.
 - Stem-Spuren von prepn (z. B. TOPS_SONG 132) werden nie angefasst.
 
-⟳ prueft auf GitHub, ob es eine neue Version gibt. Danach Device loeschen und neu reinziehen.
 Bei Problemen: Rechtsklick aufs Device -> Max-Fenster oeffnen und Screenshot schicken.
