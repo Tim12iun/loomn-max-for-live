@@ -2,7 +2,7 @@
 // Farben -> Spalten. "Rendern" nimmt pro Spalte einen Full-Stem unten im Projekt auf (Echtzeit).
 // "Paket" schreibt einen Song-Ordner: Full-Stems, markierte Passagen als Clips, Serum-MIDI (JSON).
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.8.6";
+var VERSION = "0.8.7";
 var PLUGIN_ID = "setmaker-prep";
 inlets = 1;
 outlets = 2; // 0 -> jweb (über s ---toweb), 1 -> prepn_pkg.js (node.script)
@@ -958,6 +958,11 @@ function startRecording(plan, songName, endTime, startTime, attempt, mainBefore,
   }
   job.loopWas = range.loopWas !== undefined ? range.loopWas : n(song, "loop");
   range.loopWas = job.loopWas;
+  // Metronom und Vorzähler aus (sonst klickt es am Anfang), danach wie vorher
+  if (range.metroWas === undefined){ range.metroWas = n(song, "metronome"); range.countWas = n(song, "count_in_duration"); }
+  job.metroWas = range.metroWas; job.countWas = range.countWas;
+  song.set("metronome", 0);
+  try { song.set("count_in_duration", 0); } catch (e) {}
   song.set("loop", 0);
   song.set("arrangement_overdub", 0);
   song.set("record_mode", 0);
@@ -979,6 +984,12 @@ function startRecording(plan, songName, endTime, startTime, attempt, mainBefore,
   task = new Task(tick); task.interval = 200; task.repeat(); // nur während der Aufnahme, finish() stoppt ihn
   status("Aufnahme läuft … nicht anfassen.");
   overlay(true, "● STEMS WERDEN AUFGENOMMEN", "Nichts anfassen, einfach laufen lassen. Stopp = abbrechen.");
+}
+
+function restoreClick(j){
+  var song = new LiveAPI("live_set");
+  if (j.metroWas) song.set("metronome", 1);
+  if (j.countWas > 0) try { song.set("count_in_duration", j.countWas); } catch (e) {}
 }
 
 function tick(){
@@ -1006,6 +1017,7 @@ function wrongStart(t){
   for (var d = j.stems.length - 1; d >= 0; d--) deleteTrack(j.stems[d].id);
   if (j.attempt < 2){ startRecording(j.plan, j.songName, j.endTime, j.startTime, j.attempt + 1, j.mainBefore, j.range); return; }
   new LiveAPI("live_set").set("loop", j.loopWas ? 1 : 0);
+  restoreClick(j);
   nat(false); unmuteMain(j.mainBefore); showDevice();
   status("Aufnahme abgebrochen: Live startete nicht am Anfang (bei Schlag " + Math.round(t) + "). Bitte einmal Stopp doppelt drücken und neu rendern.");
   refresh();
@@ -1020,6 +1032,7 @@ function finish(aborted){
   var j = job; job = null;
   cleanupJob(j);
   song.set("loop", j.loopWas ? 1 : 0);
+  restoreClick(j);
   nat(false); unmuteMain(j.mainBefore);
   // Nur melden, was wirklich aufgenommen wurde. Leere Stem-Spuren wieder löschen.
   var ok = [], empty = [], late = [];
