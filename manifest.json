@@ -1,12 +1,13 @@
 {
  "plugins": {
   "setmaker-prep": {
-   "version": "0.7.6",
+   "version": "0.8.0",
    "dir": "prepn",
    "files": [
     "prepn.html",
     "LIESMICH prepn.txt",
-    "prepn.js"
+    "prepn.js",
+    "prepn_pkg.js"
    ],
    "amxd": [
     "prepn.amxd"

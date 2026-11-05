@@ -1,11 +1,11 @@
 // SET MAKER LIVE – Song-Prep v0.2 (Max for Live, [js])
 // Farben -> Spalten. "Rendern" nimmt pro Spalte einen Full-Stem unten im Projekt auf (Echtzeit).
-// "Paket" schreibt Full-Stems, graue Schnitte und Serum-MIDI als JSON neben das Live-Set.
+// "Paket" schreibt einen Song-Ordner: Full-Stems, markierte Passagen als Clips, Serum-MIDI (JSON).
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.7.6";
+var VERSION = "0.8.0";
 var PLUGIN_ID = "setmaker-prep";
 inlets = 1;
-outlets = 1; // -> jweb (über s ---toweb)
+outlets = 2; // 0 -> jweb (über s ---toweb), 1 -> prepn_pkg.js (node.script)
 
 var LANES = [
   { id: "bass",  short: "BASS" },  { id: "kick", short: "KICK" },
@@ -631,6 +631,7 @@ function refresh(){
   }
   var stems = []; for (var k in s.stems) stems.push(k);
   var enc = encodeURIComponent(JSON.stringify({ version: VERSION, cfg: cfg, counts: counts, names: names, stems: stems,
+                 pkgRoot: settings.pkgRoot || "", pkgDefault: pkgFolder(g(song, "file_path"), "", 0),
                  tempo: n(song, "tempo"), setName: g(song, "name"), recording: !!job }));
   if (enc === lastStateJson) return;               // nichts geändert -> UI nicht neu zeichnen
   lastStateJson = enc;
@@ -1046,34 +1047,59 @@ function isCutClip(clip){
   // Alte Markierung per Grau/Schnitt-Farbe geht weiter.
   return n(clip, "muted") === 1 || (cfg.cut && n(clip, "color_index") === cfg.cut.index) || isGrey(n(clip, "color"));
 }
+// Paket = Ordner "Live-Set" im Projektordner (oder Song-Ordner im eigenen Ordner aus dem Zahnrad) mit
+//   <STEM>.wav            Full-Stem ohne Lücken (die aufgenommene Datei, egal wie geschnitten wurde)
+//   <STEM> Clip 1.wav …   jede markierte Passage (Taste 0), von links nach rechts nummeriert
+//   SETMAKER.json         Übersicht + Serum-MIDI für den Set-Builder
+// Die Dateien schreibt prepn_pkg.js (Node for Max) neben Live her, Live friert dabei nicht ein.
+// Ziel: eigener Ordner (Zahnrad) -> <Ordner>/<SONG TEMPO>/, sonst Projektordner -> <Projekt>/Live-Set/
+function pkgRoot(setPath){
+  if (settings.pkgRoot) return settings.pkgRoot;
+  return setPath ? setPath.substring(0, setPath.lastIndexOf("/")) : "";
+}
+function pkgFolder(setPath, songName, tempo){
+  if (settings.pkgRoot) return settings.pkgRoot + "/" + songName + " " + Math.round(tempo);
+  return setPath ? pkgRoot(setPath) + "/Live-Set" : "";
+}
+function posixPath(p){ p = String(p || ""); return p.indexOf(":/") >= 0 ? p.substring(p.indexOf(":/") + 1) : p; }
+function setroot(p){
+  p = posixPath(p).replace(/\/+$/, "");
+  if (!p) return;
+  settings.pkgRoot = p; saveCfg(); lastStateJson = ""; refresh();
+  status("Paket-Ordner: " + p);
+}
+function resetroot(){ delete settings.pkgRoot; saveCfg(); lastStateJson = ""; refresh(); status("Paket landet im Projektordner unter „Live-Set“."); }
+
+
+var pkgWait = null;
+function markerSec(clip, m, tempo){ return n(clip, "warping") === 1 ? m * 60 / tempo : m; }
 function pkg(songNameEnc){
   if (isBusy()) return;
   var songName = decodeURIComponent(songNameEnc || "SONG").toUpperCase();
   var song = new LiveAPI("live_set"), s = scan();
-  var setPath = g(song, "file_path");
-  if (!setPath){ status("Live-Set erst speichern, dann „Paket“."); return; }
-  var out = { format: "setmaker-song", version: 2, song: songName, tempo: n(song, "tempo"),
-              sourceSet: setPath, lanes: [] };
-  // Erst nur die Clip-ids sammeln (billig), die Clips selbst dann in Häppchen lesen
-  var items = [];
+  var setPath = g(song, "file_path"), tempo = n(song, "tempo");
+  var folder = pkgFolder(setPath, songName, tempo);
+  if (!folder){ status("Live-Set erst speichern (oder im Zahnrad einen eigenen Ordner wählen)."); return; }
+  var json = { format: "setmaker-song", version: 3, song: songName, tempo: tempo, sourceSet: setPath, lanes: [] };
+  var stems = [], items = [];
   for (var l = 0; l < LANES.length; l++){
     var lane = LANES[l];
     if (lane.midi){
       var midiTracks = s.lanes[lane.id] || [];
-      var me = { lane: lane.id, clipName: lane.short + "_" + songName + " " + Math.round(out.tempo), midi: [] };
+      var me = { lane: lane.id, clipName: lane.short + "_" + songName + " " + Math.round(tempo), midi: [] };
       for (var m = 0; m < midiTracks.length; m++){
         var cl = ids(midiTracks[m].api, "arrangement_clips");
         for (var c = 0; c < cl.length; c++) items.push({ midi: true, entry: me, id: cl[c], track: midiTracks[m].name });
       }
-      out.lanes.push(me);
+      json.lanes.push(me);
       continue;
     }
     var st = s.stems[lane.short];
     if (!st) continue;
-    var entry = { lane: lane.id, clipName: st.name, fullStem: null, cuts: [] };
+    var entry = { lane: lane.id, name: st.name, files: {}, file: null, clips: [] };
     var ac = ids(st.api, "arrangement_clips");
     for (var a = 0; a < ac.length; a++) items.push({ midi: false, entry: entry, id: ac[a] });
-    out.lanes.push(entry);
+    stems.push(entry);
   }
   work(items, function (it){
     var clip = byId(it.id);
@@ -1084,31 +1110,53 @@ function pkg(songNameEnc){
                            length: len, cut: isCutClip(clip), active: true, notes: notes });
       return;
     }
-    var file = g(clip, "file_path");
-    if (!it.entry.fullStem) it.entry.fullStem = file;
-    if (isCutClip(clip)){
-      it.entry.cuts.push({ name: g(clip, "name"), file: file,
-        start_marker: n(clip, "start_marker"), end_marker: n(clip, "end_marker"),
-        start_time: n(clip, "start_time"), end_time: n(clip, "end_time"), active: true }); // im Live-Set wieder aktiv
-    }
+    var file = g(clip, "file_path"), e = it.entry;
+    e.files[file] = (e.files[file] || 0) + n(clip, "length");
+    if (isCutClip(clip)) e.clips.push({ file: file, start_time: n(clip, "start_time"), end_time: n(clip, "end_time"),
+      start: markerSec(clip, n(clip, "start_marker"), tempo), end: markerSec(clip, n(clip, "end_marker"), tempo) });
   }, "Lese Clips", function (){
-    var lanes = [];
-    for (var z = 0; z < out.lanes.length; z++){
-      var e = out.lanes[z];
-      if (e.midi){ if (e.midi.length) lanes.push(e); continue; }
-      e.cuts.sort(function (x, y) { return x.start_time - y.start_time; });
-      for (var i = 0; i < e.cuts.length; i++) e.cuts[i].clipName = e.clipName + " (" + (i + 1) + ")";
-      lanes.push(e);
+    var job = { dir: folder, stems: [], json: json };
+    var nClips = 0;
+    for (var z = 0; z < stems.length; z++){
+      var e = stems[z], best = null;
+      for (var f in e.files) if (!best || e.files[f] > e.files[best]) best = f; // die aufgenommene Datei
+      if (!best) continue;
+      e.clips.sort(function (x, y) { return x.start_time - y.start_time; });
+      var clips = [];
+      for (var i = 0; i < e.clips.length; i++){
+        var k = e.clips[i];
+        if (k.file !== best) continue; // Fremd-Clip in der Stem-Spur: nicht aus dieser Datei schneidbar
+        clips.push({ name: e.name + " Clip " + (clips.length + 1), start: k.start, end: k.end,
+                     start_time: k.start_time, end_time: k.end_time });
+      }
+      nClips += clips.length;
+      job.stems.push({ file: best, name: e.name, clips: clips });
+      json.lanes.push({ lane: e.lane, stem: e.name, clips: clips.map(function (q) {
+        return { name: q.name, start_time: q.start_time, end_time: q.end_time, active: true }; }) });
     }
-    out.lanes = lanes;
-    if (!out.lanes.length){ status("Nichts zu packen: erst rendern."); return; }
-    var dir = setPath.substring(0, setPath.lastIndexOf("/") + 1);
-    var path = dir + "SETMAKER - " + songName + ".json";
-    if (writeText(path, JSON.stringify(out, null, 1))){
-      var cuts = 0; for (var q = 0; q < out.lanes.length; q++) cuts += (out.lanes[q].cuts || out.lanes[q].midi || []).length;
-      status("Paket gespeichert: " + path + " (" + out.lanes.length + " Spalten, " + cuts + " Schnitte/MIDI-Clips)");
-    } else status("Konnte Paket nicht schreiben: " + path);
+    var lanes = [];
+    for (var y = 0; y < json.lanes.length; y++) if (!json.lanes[y].midi || json.lanes[y].midi.length) lanes.push(json.lanes[y]);
+    json.lanes = lanes;
+    if (!job.stems.length){ status("Nichts zu packen: erst Stems aufnehmen."); return; }
+    busy = true;
+    overlay(true, "PAKET WIRD GESCHRIEBEN", job.stems.length + " Stems, " + nClips + " Clips");
+    say("progress", { pct: 0 });
+    pkgWait = new Task(function (){ pkgEnd("Paket-Schreiber antwortet nicht. Ist Node for Max blockiert? Gerät neu reinziehen."); });
+    pkgWait.schedule(120000);
+    outlet(1, "job", encodeURIComponent(JSON.stringify(job)));
+    status("Schreibe Paket nach " + folder + " …");
   });
+}
+function pkgEnd(msg){
+  if (pkgWait){ pkgWait.cancel(); pkgWait = null; }
+  busy = false; overlay(false); say("progress", { pct: 0 });
+  status(msg); refresh();
+}
+// Antworten von prepn_pkg.js
+function node(kind, val){
+  if (kind === "progress"){ say("progress", { pct: Number(val) }); if (pkgWait){ pkgWait.cancel(); pkgWait.schedule(120000); } return; }
+  if (kind === "done"){ var r = JSON.parse(decodeURIComponent(val)); pkgEnd("Paket fertig: " + r.files + " Dateien in " + r.dir); return; }
+  if (kind === "error"){ pkgEnd("Paket fehlgeschlagen: " + decodeURIComponent(val)); return; }
 }
 
 // ---------- Update über GitHub ----------

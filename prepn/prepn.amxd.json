@@ -109,7 +109,7 @@
      "id": "o13",
      "maxclass": "newobj",
      "numinlets": 2,
-     "numoutlets": 2,
+     "numoutlets": 3,
      "patching_rect": [
       270,
       50,
@@ -118,9 +118,10 @@
      ],
      "outlettype": [
       "",
+      "",
       ""
      ],
-     "text": "route popout"
+     "text": "route popout choosefolder"
     }
    },
    {
@@ -128,7 +129,7 @@
      "id": "o5",
      "maxclass": "newobj",
      "numinlets": 1,
-     "numoutlets": 1,
+     "numoutlets": 2,
      "patching_rect": [
       150,
       90,
@@ -136,6 +137,7 @@
       22
      ],
      "outlettype": [
+      "",
       ""
      ],
      "text": "js prepn.js",
@@ -999,6 +1001,80 @@
      "textjustification": 1,
      "linecount": 2
     }
+   },
+   {
+    "box": {
+     "id": "n1",
+     "maxclass": "newobj",
+     "text": "opendialog fold",
+     "numinlets": 1,
+     "numoutlets": 2,
+     "outlettype": [
+      "",
+      ""
+     ],
+     "patching_rect": [
+      300,
+      330,
+      200,
+      22
+     ]
+    }
+   },
+   {
+    "box": {
+     "id": "n2",
+     "maxclass": "newobj",
+     "text": "prepend setroot",
+     "numinlets": 1,
+     "numoutlets": 1,
+     "outlettype": [
+      ""
+     ],
+     "patching_rect": [
+      300,
+      360,
+      200,
+      22
+     ]
+    }
+   },
+   {
+    "box": {
+     "id": "n3",
+     "maxclass": "newobj",
+     "text": "node.script prepn_pkg.js @autostart 1 @watch 0",
+     "numinlets": 1,
+     "numoutlets": 2,
+     "outlettype": [
+      "",
+      ""
+     ],
+     "patching_rect": [
+      40,
+      420,
+      200,
+      22
+     ]
+    }
+   },
+   {
+    "box": {
+     "id": "n4",
+     "maxclass": "newobj",
+     "text": "prepend node",
+     "numinlets": 1,
+     "numoutlets": 1,
+     "outlettype": [
+      ""
+     ],
+     "patching_rect": [
+      40,
+      450,
+      200,
+      22
+     ]
+    }
    }
   ],
   "lines": [
@@ -1058,18 +1134,6 @@
      ],
      "destination": [
       "o8",
-      0
-     ]
-    }
-   },
-   {
-    "patchline": {
-     "source": [
-      "o13",
-      1
-     ],
-     "destination": [
-      "o5",
       0
      ]
     }
@@ -1166,6 +1230,90 @@
      ],
      "destination": [
       "o14",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "source": [
+      "o13",
+      2
+     ],
+     "destination": [
+      "o5",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "source": [
+      "o13",
+      1
+     ],
+     "destination": [
+      "n1",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "source": [
+      "n1",
+      0
+     ],
+     "destination": [
+      "n2",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "source": [
+      "n2",
+      0
+     ],
+     "destination": [
+      "o5",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "source": [
+      "o5",
+      1
+     ],
+     "destination": [
+      "n3",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "source": [
+      "n3",
+      0
+     ],
+     "destination": [
+      "n4",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "source": [
+      "n4",
+      0
+     ],
+     "destination": [
+      "o5",
       0
      ]
     }
