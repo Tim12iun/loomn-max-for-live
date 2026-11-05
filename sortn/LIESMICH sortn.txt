@@ -1,4 +1,4 @@
-sortn v0.2.8 (Test-Version)
+sortn v0.2.9 (Test-Version)
 Erkennt, was in jeder Spur steckt (Kick, Hi-Hat, Bass, Vocals ...), benennt die Spuren einheitlich um
 (Kick 1, Kick 2 ...) und faerbt sie pro Kategorie. Alles, was nicht erkannt wird, bekommt die Rest-Farbe.
 sortn arbeitet komplett eigenstaendig, unabhaengig von prepn.
@@ -11,7 +11,9 @@ Installation
 - "sortn.amxd" auf die Main-Spur ziehen. Altes "SetMaker Sort" vorher aus dem Set loeschen.
 - Einstellungen: sortn_settings.json im Ordner sortn. Legt das Device selbst an, bleibt bei Updates erhalten.
 - Update: Download-Pfeil (Zahnrad -> oben rechts) im Device laedt die neue Version direkt in diesen Ordner (gleiche Dateinamen, wird ueberschrieben).
-  Danach Device loeschen und neu reinziehen. Meldet das Device alte Dateien, diese im Finder loeschen.
+  Ab v0.2.9 startet das Device danach von selbst neu (Versionsnummer steht oben neben "sortn").
+  Von v0.2.8 oder aelter: nach dem Update einmal Device loeschen und neu reinziehen.
+  Meldet das Device alte Dateien, diese im Finder loeschen.
 
 Ablauf (Vorderseite)
 1. Beim Laden liest das Device alle Spuren ein. Oben siehst du: erkannt, pruefen (unsicher), Rest, Aenderungen.

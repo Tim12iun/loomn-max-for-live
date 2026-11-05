@@ -109,7 +109,7 @@
      "id": "o5",
      "maxclass": "newobj",
      "numinlets": 1,
-     "numoutlets": 1,
+     "numoutlets": 2,
      "patching_rect": [
       150,
       90,
@@ -117,6 +117,7 @@
       22
      ],
      "outlettype": [
+      "",
       ""
      ],
      "text": "js sortn.js",
@@ -237,6 +238,61 @@
      "outlettype": [],
      "text": "s ---sortfromweb"
     }
+   },
+   {
+    "box": {
+     "id": "r1",
+     "maxclass": "newobj",
+     "numinlets": 1,
+     "numoutlets": 1,
+     "patching_rect": [
+      300,
+      130,
+      60,
+      22
+     ],
+     "outlettype": [
+      ""
+     ],
+     "text": "deferlow"
+    }
+   },
+   {
+    "box": {
+     "id": "r2",
+     "maxclass": "newobj",
+     "numinlets": 1,
+     "numoutlets": 2,
+     "patching_rect": [
+      300,
+      160,
+      40,
+      22
+     ],
+     "outlettype": [
+      "",
+      ""
+     ],
+     "text": "t b b"
+    }
+   },
+   {
+    "box": {
+     "id": "r3",
+     "maxclass": "message",
+     "numinlets": 2,
+     "numoutlets": 1,
+     "patching_rect": [
+      340,
+      190,
+      55,
+      22
+     ],
+     "outlettype": [
+      ""
+     ],
+     "text": "compile"
+    }
    }
   ],
   "lines": [
@@ -340,6 +396,66 @@
     "patchline": {
      "source": [
       "o4",
+      0
+     ],
+     "destination": [
+      "o5",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "source": [
+      "o5",
+      1
+     ],
+     "destination": [
+      "r1",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "source": [
+      "r1",
+      0
+     ],
+     "destination": [
+      "r2",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "source": [
+      "r2",
+      1
+     ],
+     "destination": [
+      "r3",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "source": [
+      "r3",
+      0
+     ],
+     "destination": [
+      "o5",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "source": [
+      "r2",
       0
      ],
      "destination": [

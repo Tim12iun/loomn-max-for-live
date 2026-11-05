@@ -2,10 +2,10 @@
 // Erkennt die Rolle jeder Spur (Kick, Hi-Hat, Bass …), benennt einheitlich um und färbt nach Kategorie.
 // Einstellungen in sortn_settings.json im eigenen Ordner (unabhängig von prepn).
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.2.8";
+var VERSION = "0.2.9";
 var PLUGIN_ID = "setmaker-sort";
 inlets = 1;
-outlets = 1; // -> jweb (über s ---toweb)
+outlets = 2; // 0 -> jweb (über s ---toweb), 1 -> Neustart nach Update (deferlow -> compile + bang)
 
 // ==== BEGIN setmaker_shared (gemeinsam für SetMaker Sort + SetMaker Prep) ====
 // Rollen-Erkennung aus Spur-, Clip-, Sample- und Instrument-Namen. ES5 (Max [js]).
@@ -795,9 +795,11 @@ function update(){
     status("Lade v" + info.latest + " …");
     LU.install(info.entry, DIR, writeText, function (e2, count, left){
       if (e2){ status("Update fehlgeschlagen: " + e2); return; }
-      var msg = "v" + info.latest + " geladen (" + count + " Dateien). Device löschen und neu reinziehen.";
+      var msg = "v" + info.latest + " geladen. Startet neu …";
       if (left && left.length) msg += " Alte Dateien bitte im Finder löschen: " + left.join(", ");
       status(msg);
+      // Neues Script sofort laden (Patch: Outlet 1 -> deferlow -> compile, bang). Ältere Patches ohne Outlet 1 ignorieren das.
+      var rt = new Task(function (){ outlet(1, "bang"); }); rt.schedule(400);
     });
   });
 }
