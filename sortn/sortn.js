@@ -2,7 +2,7 @@
 // Erkennt die Rolle jeder Spur (Kick, Hi-Hat, Bass …), benennt einheitlich um und färbt nach Kategorie.
 // Einstellungen in sortn_settings.json im eigenen Ordner (unabhängig von prepn).
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.2.5";
+var VERSION = "0.2.6";
 var PLUGIN_ID = "setmaker-sort";
 inlets = 1;
 outlets = 1; // -> jweb (über s ---toweb)
@@ -490,16 +490,23 @@ function readSettingsFile(){
   if (!txt) return null;
   try { return JSON.parse(txt); } catch (e) { post("sortn: sortn_settings.json ist kaputt, nehme Standard.\n"); return null; }
 }
+// Einfaches Tool: nur diese Optionen sind einstellbar, alles andere ist fest auf Standard
+var USER_OPTS = { numberSingle: 1, keepColor: 1, matchClips: 1 };
+function norm(s){
+  var x = SM.normalize(s), d = SM.defaults().sort;
+  for (var k in d) if (!USER_OPTS[k]) x.sort[k] = d[k];
+  return x;
+}
 function loadSettings(){
   var s = readSettingsFile();
-  settings = SM.normalize(s);
+  settings = norm(s);
   saveSettings(); // fehlende Felder/Standardwerte in die Datei schreiben, fremde Keys bleiben
 }
 // Vor dem Schreiben neu lesen, damit Prep-Felder (z. B. "cut") erhalten bleiben
 function saveSettings(){
   var disk = readSettingsFile() || {};
   for (var k in settings) disk[k] = settings[k];
-  settings = SM.normalize(disk);
+  settings = norm(disk);
   if (!writeText(settingsPath(), JSON.stringify(settings, null, 1))) status("Konnte Einstellungen nicht speichern: " + settingsPath());
 }
 
@@ -591,7 +598,7 @@ function summary(){
          + (plan.ignored.length ? " Ignoriert (Songtitel?): " + plan.ignored.join(", ") : ""));
 }
 // Datei kann von Prep geändert worden sein
-function loadSettingsQuiet(){ var s = readSettingsFile(); if (s) settings = SM.normalize(s); }
+function loadSettingsQuiet(){ var s = readSettingsFile(); if (s) settings = norm(s); }
 
 // Nur neu rechnen (Overrides/Einstellungen), ohne Live neu einzulesen
 function recompute(){
@@ -680,7 +687,7 @@ function showsettings(){ wantTab = new Date().getTime(); say("tab", { tab: "set"
 function setsettings(enc){
   var s;
   try { s = JSON.parse(decodeURIComponent(enc)); } catch (e) { status("Einstellungen unlesbar."); return; }
-  settings = SM.normalize(s);
+  settings = norm(s);
   saveSettings();
   recompute();
 }
@@ -688,7 +695,7 @@ function resetsettings(){
   var keep = readSettingsFile() || {};
   var d = SM.defaults();
   for (var k in d) keep[k] = d[k];
-  settings = SM.normalize(keep);
+  settings = norm(keep);
   writeText(settingsPath(), JSON.stringify(settings, null, 1));
   overrides = {};
   status("Standard-Einstellungen geladen.");
