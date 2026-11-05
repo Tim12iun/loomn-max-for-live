@@ -14,7 +14,7 @@
    "amxdType": "aaaa"
   },
   "setmaker-sort": {
-   "version": "0.2.2",
+   "version": "0.2.3",
    "dir": "SetMaker/sortn",
    "files": [
     "sortn.html",
