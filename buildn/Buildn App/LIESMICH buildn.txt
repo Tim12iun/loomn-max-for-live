@@ -17,7 +17,7 @@ Ablauf
 3. Song links aufklappen, Clips vorhoeren (Play, Klick in die Waveform springt). Zuklappen stoppt das Vorhoeren.
    Song links auf einen Block ziehen = Block heisst wie der Song, Zeile 1/2 = Clip 1/2, letzte Zeile = Full-Stems.
    Hat ein Stem mehr Clips (Clip 3, 4 ...), waechst der Block um weitere Zeilen, Full bleibt unten.
-   Einzelne Clips gehen in beliebige Zellen.
+   Kleines + zwischen letzter Clip-Zeile und Full = neue Clip-Zeile. Einzelne Clips gehen in beliebige Zellen.
    A/B: Song 1 liegt auf A, Song 2 auf B, Song 3 auf A ... und passt sich beim Verschieben selbst an.
    Full-Clip im Raster in eine andere Zeile ziehen = alle Full-Stems des Songs wandern mit.
    Beim Ziehen: leerer Block = orange Rahmen, zwischen belegten Bloecken oeffnet sich eine Luecke zum Einfuegen.

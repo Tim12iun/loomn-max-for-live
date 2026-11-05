@@ -100,6 +100,9 @@ main::-webkit-scrollbar-corner{background:transparent}
 .block.gap{padding-top:44px}
 .block.gap::before{content:"Song hier einfügen";position:absolute;left:8px;right:8px;top:6px;height:32px;border:1.5px dashed var(--accent);border-radius:7px;color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:14px}
 .cell.off{background:repeating-linear-gradient(135deg,#1d1c1b 0 6px,#211f1e 6px 12px)}
+.addrow{height:11px;display:flex;align-items:center;background:var(--bg)}
+.addrow button{position:sticky;left:calc(var(--lab) - 30px);width:22px;height:11px;padding:0;border-radius:4px;font-size:12px;line-height:11px;color:var(--muted);background:var(--hi)}
+.addrow button:hover{color:#111;background:var(--accent)}
 .row.drop>.cell{box-shadow:inset 0 2px 0 var(--accent),inset 0 -2px 0 var(--accent)}
 .block{position:relative;background:var(--surface)}
 body.bdrag,body.bdrag *{cursor:grabbing!important}
@@ -879,6 +882,7 @@ function drawGrid(){
     const auto = autoRow(b, i), fr = fullRow(b), side = i % 2 ? 'B' : 'A';
     b.rows.forEach((row, r) => {
       const isFull = r === fr && (s || b.rows.length > 1);
+      if (isFull) h += `<div class="addrow"><button data-addrow="${i}" title="Neue Clip-Zeile über Full">+</button></div>`;
       h += `<div class="row" data-row="${i}|${r}">${lab(isFull ? (s ? 'Full · ' + side : 'Full') : 'Clips ' + (r + 1))}`;
       h += cols.map(c => {
         const k = colKey(c), act = activeCol(c, i), id = i + '|' + r + '|' + k;
@@ -1062,6 +1066,8 @@ document.addEventListener('click', e => {
   const op = e.target.closest('[data-open]');
   if (op){ const k = op.dataset.open; open[k] = !open[k]; if (!open[k] && playing && playing.startsWith(k + '|')) stopPlay(); draw(); return; }
   const del = e.target.closest('[data-del]'); if (del){ change(() => blocks.splice(+del.dataset.del, 1)); status('Block aus dem Line-up genommen. ⌘Z holt ihn zurück.'); return; }
+  const ar = e.target.closest('[data-addrow]');
+  if (ar){ const b = blocks[+ar.dataset.addrow], fr = fullRow(b); change(() => { b.rows.splice(fr, 0, {}); b.full = fr + 1; }); return; }
   const add = e.target.closest('[data-addblk]'); if (add){ change(() => blocks.push(emptyBlock())); return; }
   const cv = e.target.closest('[data-cv]'); if (cv){ cvAction(cv.dataset.cv); return; }
 });
