@@ -31,16 +31,49 @@ var LU = (function () {
       cb(null, { latest: entry.version, newer: cmp(entry.version, localVersion) > 0, entry: entry });
     });
   }
+  function utf8(str) {
+    var out = [];
+    for (var i = 0; i < str.length; i++) {
+      var c = str.charCodeAt(i);
+      if (c >= 0xD800 && c <= 0xDBFF && i + 1 < str.length) { c = 0x10000 + ((c - 0xD800) << 10) + (str.charCodeAt(++i) - 0xDC00); }
+      if (c < 0x80) out.push(c);
+      else if (c < 0x800) out.push(0xC0 | (c >> 6), 0x80 | (c & 63));
+      else if (c < 0x10000) out.push(0xE0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+      else out.push(0xF0 | (c >> 18), 0x80 | ((c >> 12) & 63), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+    }
+    return out;
+  }
+  function u32(n) { return [n & 255, (n >> 8) & 255, (n >> 16) & 255, (n >>> 24) & 255]; }
+  function ascii(s) { var a = []; for (var i = 0; i < s.length; i++) a.push(s.charCodeAt(i)); return a; }
+  // .amxd schreiben: "ampf" 4 <typ> "meta" 4 0 "ptch" <len> <json>\n\0
+  function writeAmxd(path, json, type) {
+    var body = utf8(json).concat([10, 0]);
+    var head = ascii("ampf").concat(u32(4), ascii(type), ascii("meta"), u32(4), u32(0), ascii("ptch"), u32(body.length));
+    var f = new File(path, "write", "BINR");
+    if (!f.isopen) return false;
+    f.position = 0;
+    f.writebytes(head);
+    for (var i = 0; i < body.length; i += 4096) f.writebytes(body.slice(i, i + 4096));
+    f.eof = f.position; f.close();
+    return true;
+  }
   // install(entry, deviceDir, writeText, cb(err, count)) – Textdateien über responseText, Binärdateien (.amxd) direkt in Datei
   function install(entry, deviceDir, writeText, cb) {
-    var files = entry.files.slice(0), done = 0;
+    // .amxd stehen in entry.amxd (nicht in files), damit alte Updater sie nicht doppelt anlegen
+    var files = entry.files.slice(0).concat(entry.amxd || []), done = 0;
     // Script zuletzt, damit nichts mitten im Update neu geladen wird
     files.sort(function (a, b) { return (/\.js$/.test(a) ? 1 : 0) - (/\.js$/.test(b) ? 1 : 0); });
     function next() {
       if (!files.length) return cb(null, done);
       var f = files.shift(), url = BASE + enc(entry.dir + "/" + f);
       if (/\.amxd$/.test(f)) {
-        get(url, function (err) { if (err) return cb(f + ": " + err); done++; next(); }, posix(deviceDir) + f);
+        // .amxd = Binär-Header + Patcher-JSON. Max' Download legt sonst "Datei (1)" an, darum:
+        // JSON als Text laden ("<name>.json" im Repo) und die .amxd selbst schreiben (überschreibt).
+        get(BASE + enc(entry.dir + "/" + f + ".json"), function (err, txt) {
+          if (err) return cb(f + ": " + err);
+          if (!txt || !writeAmxd(deviceDir + f, txt, entry.amxdType || "aaaa")) return cb(f + ": konnte nicht schreiben");
+          done++; next();
+        });
       } else {
         get(url, function (err, txt) {
           if (err) return cb(f + ": " + err);
