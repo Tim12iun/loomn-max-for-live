@@ -2,7 +2,7 @@
 // Farben -> Spalten. "Rendern" nimmt pro Spalte einen Full-Stem unten im Projekt auf (Echtzeit).
 // "Paket" schreibt Full-Stems, graue Schnitte und Serum-MIDI als JSON neben das Live-Set.
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.7.5";
+var VERSION = "0.7.6";
 var PLUGIN_ID = "setmaker-prep";
 inlets = 1;
 outlets = 1; // -> jweb (über s ---toweb)
@@ -687,7 +687,7 @@ var busy = false, worker = null, lastPct = -1;
 // ---------- Native Anzeige während der Aufnahme ----------
 // Die Web-Oberfläche (jweb) wird während der Aufnahme schwarz, sobald Live Spuren anlegt und aufnimmt.
 // Deshalb wird sie dann ausgeblendet und eine einfache Max-Anzeige (Text) eingeblendet, im Gerät und im Schwebefenster.
-var PATCH = null, NAT = ["natbg", "natT", "natP", "natB", "natS"];
+var PATCH = null, NAT = ["natT", "natP", "natB", "natS"];
 function natPatchers(){
   var list = [];
   if (!PATCH) return list;
@@ -700,7 +700,14 @@ function nat(on, title, sub){
   for (var i = 0; i < ps.length; i++){
     try {
       var web = ps[i].getnamed("web"); if (web) web.hidden = on ? 1 : 0;
-      for (var k = 0; k < NAT.length; k++){ var o = ps[i].getnamed(NAT[k]); if (o) o.hidden = on ? 0 : 1; }
+      var found = 0;
+      for (var k = 0; k < NAT.length; k++){
+        var o = ps[i].getnamed(NAT[k]);
+        if (!o) continue;
+        found++; o.hidden = on ? 0 : 1;
+        if (on) try { ps[i].bringtofront(o); } catch (e3) {}
+      }
+      if (on && !found) post("prepn: Anzeige fehlt im Gerät. Gerät löschen und neu reinziehen.\n");
       if (on){
         var t = ps[i].getnamed("natT"); if (t && title) t.message("set", title);
         var s2 = ps[i].getnamed("natS"); if (s2 && sub) s2.message("set", sub);

@@ -484,44 +484,13 @@
        },
        {
         "box": {
-         "id": "unatbg",
-         "maxclass": "panel",
-         "numinlets": 1,
-         "numoutlets": 0,
-         "patching_rect": [
-          700,
-          40,
-          150,
-          22
-         ],
-         "presentation": 1,
-         "presentation_rect": [
-          0,
-          0,
-          400,
-          165
-         ],
-         "hidden": 1,
-         "varname": "natbg",
-         "bgcolor": [
-          0.12,
-          0.12,
-          0.12,
-          1.0
-         ],
-         "mode": 0,
-         "border": 0
-        }
-       },
-       {
-        "box": {
          "id": "unatT",
          "maxclass": "comment",
          "numinlets": 1,
          "numoutlets": 0,
          "patching_rect": [
           700,
-          70,
+          40,
           150,
           22
          ],
@@ -554,7 +523,7 @@
          "numoutlets": 0,
          "patching_rect": [
           700,
-          100,
+          70,
           150,
           22
          ],
@@ -571,9 +540,9 @@
          "fontname": "Arial Bold",
          "fontsize": 32.0,
          "textcolor": [
-          0.9,
-          0.9,
-          0.9,
+          1.0,
+          0.478,
+          0.184,
           1.0
          ],
          "textjustification": 1
@@ -587,7 +556,7 @@
          "numoutlets": 0,
          "patching_rect": [
           700,
-          130,
+          100,
           150,
           22
          ],
@@ -620,7 +589,7 @@
          "numoutlets": 0,
          "patching_rect": [
           700,
-          160,
+          130,
           150,
           22
          ],
@@ -637,9 +606,9 @@
          "fontname": "Arial",
          "fontsize": 11.0,
          "textcolor": [
-          0.6,
-          0.6,
-          0.6,
+          1.0,
+          0.478,
+          0.184,
           1.0
          ],
          "textjustification": 1,
@@ -900,44 +869,13 @@
    },
    {
     "box": {
-     "id": "natbg",
-     "maxclass": "panel",
-     "numinlets": 1,
-     "numoutlets": 0,
-     "patching_rect": [
-      700,
-      40,
-      150,
-      22
-     ],
-     "presentation": 1,
-     "presentation_rect": [
-      0,
-      0,
-      400,
-      165
-     ],
-     "hidden": 1,
-     "varname": "natbg",
-     "bgcolor": [
-      0.12,
-      0.12,
-      0.12,
-      1.0
-     ],
-     "mode": 0,
-     "border": 0
-    }
-   },
-   {
-    "box": {
      "id": "natT",
      "maxclass": "comment",
      "numinlets": 1,
      "numoutlets": 0,
      "patching_rect": [
       700,
-      70,
+      40,
       150,
       22
      ],
@@ -970,7 +908,7 @@
      "numoutlets": 0,
      "patching_rect": [
       700,
-      100,
+      70,
       150,
       22
      ],
@@ -987,9 +925,9 @@
      "fontname": "Arial Bold",
      "fontsize": 32.0,
      "textcolor": [
-      0.9,
-      0.9,
-      0.9,
+      1.0,
+      0.478,
+      0.184,
       1.0
      ],
      "textjustification": 1
@@ -1003,7 +941,7 @@
      "numoutlets": 0,
      "patching_rect": [
       700,
-      130,
+      100,
       150,
       22
      ],
@@ -1036,7 +974,7 @@
      "numoutlets": 0,
      "patching_rect": [
       700,
-      160,
+      130,
       150,
       22
      ],
@@ -1053,9 +991,9 @@
      "fontname": "Arial",
      "fontsize": 11.0,
      "textcolor": [
-      0.6,
-      0.6,
-      0.6,
+      1.0,
+      0.478,
+      0.184,
       1.0
      ],
      "textjustification": 1,
