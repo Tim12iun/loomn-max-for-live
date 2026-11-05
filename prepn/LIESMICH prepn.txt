@@ -29,8 +29,8 @@ Ablauf
 3. Passagen: In einer Stem-Spur den gewuenschten Bereich im Arrangement markieren und 0 druecken.
    Live schneidet das Stueck aus und deaktiviert es. Jedes deaktivierte Stueck wird ein eigener Clip
    (im fertigen Set wieder aktiv). Clip-Namen werden uebernommen. Grau faerben geht weiterhin.
-4. "Paket" klicken. Ziel (Zahnrad): Projektordner > Ordner "Live-Set" (wird angelegt) oder ein eigener Ordner
-   (dann je Song ein Unterordner "<SONG> <BPM>"). Der eigene Ordner bleibt fuer alle Projekte gespeichert.
+4. "Paket" klicken. Ziel (Zahnrad): Projektordner > Ordner "<Song>-Live-Set" (wird angelegt) oder ein eigener Ordner
+   (darin ebenfalls "<Song>-Live-Set"). Song = Feld vorne, Standard: Projektname bis zum ersten _. Der eigene Ordner bleibt fuer alle Projekte gespeichert.
    Inhalt: jeder Full-Stem in voller Laenge ohne Luecken, jede markierte Passage als "<STEM> Clip 1", "Clip 2" ...
    (von links nach rechts) und SETMAKER.json mit Serum-MIDI fuer den Set-Builder.
    Die Dateien schreibt prepn_pkg.js (Node for Max) im Hintergrund.

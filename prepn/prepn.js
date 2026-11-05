@@ -2,7 +2,7 @@
 // Farben -> Spalten. "Rendern" nimmt pro Spalte einen Full-Stem unten im Projekt auf (Echtzeit).
 // "Paket" schreibt einen Song-Ordner: Full-Stems, markierte Passagen als Clips, Serum-MIDI (JSON).
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.8.1";
+var VERSION = "0.8.2";
 var PLUGIN_ID = "setmaker-prep";
 inlets = 1;
 outlets = 2; // 0 -> jweb (über s ---toweb), 1 -> prepn_pkg.js (node.script)
@@ -631,7 +631,7 @@ function refresh(){
   }
   var stems = []; for (var k in s.stems) stems.push(k);
   var enc = encodeURIComponent(JSON.stringify({ version: VERSION, cfg: cfg, counts: counts, names: names, stems: stems,
-                 pkgRoot: settings.pkgRoot || "", pkgDefault: pkgFolder(g(song, "file_path"), "", 0),
+                 pkgRoot: settings.pkgRoot || "", pkgDefault: pkgFolder(g(song, "file_path"), defaultSong(g(song, "name"))),
                  tempo: n(song, "tempo"), setName: g(song, "name"), recording: !!job }));
   if (enc === lastStateJson) return;               // nichts geändert -> UI nicht neu zeichnen
   lastStateJson = enc;
@@ -1057,9 +1057,11 @@ function pkgRoot(setPath){
   if (settings.pkgRoot) return settings.pkgRoot;
   return setPath ? setPath.substring(0, setPath.lastIndexOf("/")) : "";
 }
-function pkgFolder(setPath, songName, tempo){
-  if (settings.pkgRoot) return settings.pkgRoot + "/" + songName + " " + Math.round(tempo);
-  return setPath ? pkgRoot(setPath) + "/Live-Set" : "";
+// Ordnername: "<Song>-Live-Set", Song so geschrieben wie vorne im Feld (Standard: Projektname bis zum ersten _)
+function pkgFolder(setPath, song){
+  var name = String(song || "Song").replace(/[\/:]/g, "-") + "-Live-Set";
+  if (settings.pkgRoot) return settings.pkgRoot + "/" + name;
+  return setPath ? pkgRoot(setPath) + "/" + name : "";
 }
 function posixPath(p){ p = String(p || ""); return p.indexOf(":/") >= 0 ? p.substring(p.indexOf(":/") + 1) : p; }
 function setroot(p){
@@ -1075,10 +1077,10 @@ var pkgWait = null, pkgCleanup = null, pkgMsg = "";
 function markerSec(clip, m, tempo){ return n(clip, "warping") === 1 ? m * 60 / tempo : m; }
 function pkg(songNameEnc){
   if (isBusy()) return;
-  var songName = decodeURIComponent(songNameEnc || "SONG").toUpperCase();
+  var rawName = decodeURIComponent(songNameEnc || "SONG"), songName = rawName.toUpperCase();
   var song = new LiveAPI("live_set"), s = scan();
   var setPath = g(song, "file_path"), tempo = n(song, "tempo");
-  var folder = pkgFolder(setPath, songName, tempo);
+  var folder = pkgFolder(setPath, rawName);
   if (!folder){ status("Live-Set erst speichern (oder im Zahnrad einen eigenen Ordner wählen)."); return; }
   var json = { format: "setmaker-song", version: 3, song: songName, tempo: tempo, sourceSet: setPath, lanes: [] };
   var stems = [], items = [];
@@ -1181,6 +1183,8 @@ function node(kind, val){
   if (kind === "tidyerror"){ pkgEnd(pkgMsg + " Aufnahmen konnten nicht verschoben werden: " + decodeURIComponent(val)); return; }
   if (kind === "error"){ pkgCleanup = null; pkgEnd("Paket fehlgeschlagen, nichts aufgeräumt: " + decodeURIComponent(val)); return; }
 }
+
+function defaultSong(setName){ return String(setName || "").replace(/\.als$/i, "").split("_")[0] || "Song"; }
 
 // ---------- Update über GitHub ----------
 function update(){
