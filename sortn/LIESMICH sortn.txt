@@ -1,4 +1,4 @@
-sortn v0.2.5 (Test-Version)
+sortn v0.2.6 (Test-Version)
 Erkennt, was in jeder Spur steckt (Kick, Hi-Hat, Bass, Vocals ...), benennt die Spuren einheitlich um
 (Kick 1, Kick 2 ...) und faerbt sie pro Kategorie. Alles, was nicht erkannt wird, bekommt die Rest-Farbe.
 sortn arbeitet komplett eigenstaendig, unabhaengig von prepn.
@@ -28,8 +28,8 @@ Rueckseite (Zahnrad, zurueck mit dem Pfeil oben links)
 - Kategorien: Farbquadrat anklicken = Farbe waehlen, Pipette = Farbe der in Ableton ausgewaehlten Spur.
   Name, Begriffe (Komma-getrennt), Aa = Gross/klein, "allg." (greift nur, wenn nichts Genaueres passt),
   Pfeile = Reihenfolge (= Prioritaet), X = loeschen, "+ Kategorie" fuer neue. Unten die Rest-Farbe.
-- Optionen: Umbenennen, Faerben, Nummer auch bei einer Spur, eigene Namen behalten,
-  Unbekannte umbenennen, Gruppen nach Inhalt, Muster ({name} {n}), wo gesucht wird, alles auf Standard.
+- Optionen: "Immer nummerieren" (Kick 1 statt Kick) und "Auf Standard". Alles andere ist fest eingestellt:
+  Spuren werden umbenannt und gefaerbt, Gruppen nach Inhalt, gesucht wird in Spur-, Clip-, Sample- und Instrument-Namen.
 
 Woran erkannt wird
 - Spurname (ausser "3-Audio" usw.), Clipnamen, Sample-Dateinamen, Instrument-Namen (z. B. Serum, Drum Rack).

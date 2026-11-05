@@ -24,7 +24,7 @@
    ]
   },
   "setmaker-sort": {
-   "version": "0.2.5",
+   "version": "0.2.6",
    "dir": "sortn",
    "files": [
     "sortn.html",
