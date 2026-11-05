@@ -100,9 +100,6 @@ main::-webkit-scrollbar-corner{background:transparent}
 .block.gap{padding-top:44px}
 .block.gap::before{content:"Song hier einfügen";position:absolute;left:8px;right:8px;top:6px;height:32px;border:1.5px dashed var(--accent);border-radius:7px;color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:14px}
 .cell.off{background:repeating-linear-gradient(135deg,#1d1c1b 0 6px,#211f1e 6px 12px)}
-.addrow{height:11px;display:flex;align-items:center;background:var(--bg)}
-.addrow button{position:sticky;left:calc(var(--lab) - 30px);width:22px;height:11px;padding:0;border-radius:4px;font-size:12px;line-height:11px;color:var(--muted);background:var(--hi)}
-.addrow button:hover{color:#111;background:var(--accent)}
 .row.drop>.cell{box-shadow:inset 0 2px 0 var(--accent),inset 0 -2px 0 var(--accent)}
 .block{position:relative;background:var(--surface)}
 body.bdrag,body.bdrag *{cursor:grabbing!important}
@@ -329,25 +326,25 @@ function sideOf(b, kind, i){ return i % 2 ? 'B' : 'A'; }
 // Spalten-Paare (A BASS / B BASS …) speichern den Clip unter „@bass“; welche Spalte, ergibt sich aus der Position des Blocks
 const isPair = kind => !!kind && cols.filter(c => c.kind === kind).length > 1;
 const colKey = c => isPair(c.kind) ? '@' + c.kind : c.name;
-function colOfKey(key, i){ return key[0] === '@' ? colFor(key.slice(1), i % 2 ? 'B' : 'A') : cols.find(c => c.name === key) || null; }
+// '@kind' = Seite nach der Regel (Block 1 A, Block 2 B …), '@kind~' = bewusst auf die andere Seite gelegt. Beim Verschieben wechseln beide mit.
+const ruleSide = i => i % 2 ? 'B' : 'A', otherSide = x => x === 'A' ? 'B' : 'A';
+function colOfKey(key, i){
+  if (key[0] !== '@') return cols.find(c => c.name === key) || null;
+  const flip = key.endsWith('~'), kind = key.replace(/^@|~$/g, '');
+  return colFor(kind, flip ? otherSide(ruleSide(i)) : ruleSide(i));
+}
+const cellKey = (c, i) => !isPair(c.kind) ? c.name : '@' + c.kind + (colFor(c.kind, ruleSide(i)) === c ? '' : '~');
 // Ist die Spalte in diesem Block die aktive Seite des Paares (oder gar kein Paar)?
 const activeCol = (c, i) => !isPair(c.kind) || colFor(c.kind, i % 2 ? 'B' : 'A') === c;
 // Alte Stände und geöffnete Sets: Clips in A/B-Spalten auf „@art“ umstellen
 function normalizeBlocks(list){
-  for (const b of list){
+  list.forEach((b, i) => {
     delete b.side;
-    const rows = [];
-    for (const row of b.rows){
-      const extra = {};
-      for (const k of Object.keys(row)){
-        const c = cols.find(x => x.name === k);
-        if (c && isPair(c.kind)){ const nk = '@' + c.kind; if (row[nk] === undefined) row[nk] = row[k]; else extra[nk] = row[k]; delete row[k]; }
-      }
-      rows.push(row); if (Object.keys(extra).length) rows.push(extra);   // A und B in einer Zeile: nichts verlieren, zweite Zeile
+    for (const row of b.rows) for (const k of Object.keys(row)){
+      const c = cols.find(x => x.name === k);
+      if (c && isPair(c.kind)){ const nk = cellKey(c, i); if (row[nk] === undefined) row[nk] = row[k]; delete row[k]; }
     }
-    if (rows.length > b.rows.length && b.full != null) b.full += rows.length - b.rows.length;
-    b.rows = rows;
-  }
+  });
   return list;
 }
 const fullRow = b => b.full != null && b.full < b.rows.length ? b.full : b.rows.length - 1;
@@ -391,7 +388,7 @@ let saveTimer = null;
 function save(){
   if (!inApp) return;
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => native('saveState', { json: JSON.stringify({ roots, hidden, tpl, base, cols, opts, blocks, dirty }) }).catch(() => {}), 150);
+  saveTimer = setTimeout(() => native('saveState', { json: JSON.stringify({ v: 2, roots, hidden, tpl, base, cols, opts, blocks, dirty }) }).catch(() => {}), 150);
 }
 function change(fn){
   undo.push(JSON.stringify(blocks)); if (undo.length > 100) undo.shift(); redo = [];
@@ -527,7 +524,7 @@ async function loadBase(path, keep){
   const r = readBlocks(L, true, path.substring(0, path.lastIndexOf('/')));
   normalizeBlocks(r.blocks);
   olds = r.olds;
-  const same = keep && keep.sig === sig && keep.blocks;
+  const same = keep && keep.v === 2 && keep.sig === sig && keep.blocks;
   blocks = same ? normalizeBlocks(keep.blocks) : r.blocks;
   dirty = same ? !!keep.dirty : false;
   base = { name: path.split('/').pop(), path, sig };
@@ -882,13 +879,12 @@ function drawGrid(){
     const auto = autoRow(b, i), fr = fullRow(b), side = i % 2 ? 'B' : 'A';
     b.rows.forEach((row, r) => {
       const isFull = r === fr && (s || b.rows.length > 1);
-      if (isFull) h += `<div class="addrow"><button data-addrow="${i}" title="Neue Clip-Zeile über Full">+</button></div>`;
       h += `<div class="row" data-row="${i}|${r}">${lab(isFull ? (s ? 'Full · ' + side : 'Full') : 'Clips ' + (r + 1))}`;
       h += cols.map(c => {
-        const k = colKey(c), act = activeCol(c, i), id = i + '|' + r + '|' + k;
-        const v = act ? row[k] : null, a = act && isFull && !v ? auto[k] : null;
+        const k = cellKey(c, i), act = activeCol(c, i), id = i + '|' + r + '|' + k;
+        const v = row[k], a = act && isFull && !v ? auto[k] : null;
         const inner = v ? (v.old && !clipOf(refOf(v)) ? oldChip(v.old, c.color) : chip(v, { cell: true, id })) : a ? chip(a, { auto: true }) : '';
-        return `<div class="cell ${a ? 'auto' : ''} ${act ? '' : 'off'}" data-cell="${esc(id)}"${act ? '' : ` title="Song ${i + 1} liegt auf ${side}: Clips hier landen in ${esc(colFor(c.kind, side).name)}"`}>${inner}</div>`;
+        return `<div class="cell ${a ? 'auto' : ''} ${act ? '' : 'off'}" data-cell="${esc(id)}"${act ? '' : ` title="Song ${i + 1} liegt nach der Regel auf ${side}. Clips hier bleiben auf der anderen Seite und wechseln beim Verschieben mit."`}>${inner}</div>`;
       }).join('') + '</div>';
     });
     h += '</div>';
@@ -1024,9 +1020,6 @@ function fillBlock(bi, key, fullAt){
   // Clips des vorigen Songs in diesem Block herausnehmen, alles andere bleibt
   if (prev) b.rows.forEach(row => Object.keys(row).forEach(k => { const r = refOf(row[k]); if (typeof r === 'string' && r.startsWith(prev + '|')) delete row[k]; }));
   b.full = fullAt != null && fullAt < b.rows.length ? fullAt : b.rows.length - 1;
-  // so viele Clip-Zeilen wie der Stem mit den meisten Clips hat (Clip 3, 4 …), Full bleibt darunter
-  const most = Math.max(0, ...s.stems.map(st => st.clips.length));
-  while (b.rows.length - 1 < most){ b.rows.splice(b.full, 0, {}); b.full++; }
   const clipRows = b.rows.map((_, r) => r).filter(r => r !== b.full);
   const side = bi % 2 ? 'B' : 'A';
   over = new Set(); overAt = Date.now();
@@ -1066,8 +1059,6 @@ document.addEventListener('click', e => {
   const op = e.target.closest('[data-open]');
   if (op){ const k = op.dataset.open; open[k] = !open[k]; if (!open[k] && playing && playing.startsWith(k + '|')) stopPlay(); draw(); return; }
   const del = e.target.closest('[data-del]'); if (del){ change(() => blocks.splice(+del.dataset.del, 1)); status('Block aus dem Line-up genommen. ⌘Z holt ihn zurück.'); return; }
-  const ar = e.target.closest('[data-addrow]');
-  if (ar){ const b = blocks[+ar.dataset.addrow], fr = fullRow(b); change(() => { b.rows.splice(fr, 0, {}); b.full = fr + 1; }); return; }
   const add = e.target.closest('[data-addblk]'); if (add){ change(() => blocks.push(emptyBlock())); return; }
   const cv = e.target.closest('[data-cv]'); if (cv){ cvAction(cv.dataset.cv); return; }
 });
@@ -1255,7 +1246,7 @@ async function start(){
     if (roots.length) await rescan();
     if (st.base && st.base.path){
       try {
-        const same = await loadBase(st.base.path, { sig: st.base.sig, blocks: st.blocks, dirty: st.dirty });
+        const same = await loadBase(st.base.path, { v: st.v, sig: st.base.sig, blocks: st.blocks, dirty: st.dirty });
         draw();
         status(same ? base.name + ' ist offen.' + (dirty ? ' Noch nicht geschriebene Änderungen, „Set aktualisieren“ schreibt sie.' : '')
                     : base.name + ' wurde außerhalb von buildn geändert und ist neu eingelesen.');
