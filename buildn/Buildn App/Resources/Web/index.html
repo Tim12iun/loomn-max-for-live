@@ -1019,7 +1019,10 @@ function fillBlock(bi, key, fullAt){
   while (b.rows.length < 3) b.rows.push({});
   // Clips des vorigen Songs in diesem Block herausnehmen, alles andere bleibt
   if (prev) b.rows.forEach(row => Object.keys(row).forEach(k => { const r = refOf(row[k]); if (typeof r === 'string' && r.startsWith(prev + '|')) delete row[k]; }));
-  b.full = fullAt != null && fullAt < b.rows.length ? fullAt : Math.min(2, b.rows.length - 1);
+  b.full = fullAt != null && fullAt < b.rows.length ? fullAt : b.rows.length - 1;
+  // so viele Clip-Zeilen wie der Stem mit den meisten Clips hat (Clip 3, 4 …), Full bleibt darunter
+  const most = Math.max(0, ...s.stems.map(st => st.clips.length));
+  while (b.rows.length - 1 < most){ b.rows.splice(b.full, 0, {}); b.full++; }
   const clipRows = b.rows.map((_, r) => r).filter(r => r !== b.full);
   const side = bi % 2 ? 'B' : 'A';
   over = new Set(); overAt = Date.now();
