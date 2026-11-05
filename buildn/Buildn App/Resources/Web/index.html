@@ -1068,7 +1068,7 @@ document.addEventListener('click', e => {
 let cvCell = null, cvRef = null, cvDrag = null, cvCursor = 0;   // cvCursor: Abspielstart im Clip-Fenster (0…1), wie in Ableton
 const bigWaves = {};
 function openClip(id){ const v = cellVal(id); if (!refOf(v)) return; if (id !== cvCell) cvCursor = 0; cvCell = id; cvRef = refOf(v); $('#cv').classList.remove('hidden'); drawClip(); drawGrid(); }
-function closeClip(){ if (!cvCell) return; cvCell = cvRef = null; $('#cv').classList.add('hidden'); drawGrid(); }
+function closeClip(){ if (!cvCell) return; stopPlay(); cvCell = cvRef = null; $('#cv').classList.add('hidden'); drawGrid(); }
 async function bigWave(path){
   if (bigWaves[path] !== undefined) return;
   bigWaves[path] = null;
