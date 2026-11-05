@@ -2,7 +2,7 @@
 // Farben -> Spalten. "Rendern" nimmt pro Spalte einen Full-Stem unten im Projekt auf (Echtzeit).
 // "Paket" schreibt einen Song-Ordner: Full-Stems, markierte Passagen als Clips, Serum-MIDI (JSON).
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.8.2";
+var VERSION = "0.8.3";
 var PLUGIN_ID = "setmaker-prep";
 inlets = 1;
 outlets = 2; // 0 -> jweb (über s ---toweb), 1 -> prepn_pkg.js (node.script)
@@ -1074,7 +1074,9 @@ function resetroot(){ delete settings.pkgRoot; saveCfg(); lastStateJson = ""; re
 
 
 var pkgWait = null, pkgCleanup = null, pkgMsg = "";
-function markerSec(clip, m, tempo){ return n(clip, "warping") === 1 ? m * 60 / tempo : m; }
+// Nach dem Teilen (Taste 0) bleibt end_marker oft am Ende der Datei stehen. Deshalb zählt nur:
+// Anfang = start_marker, Länge = Länge im Arrangement (end_time - start_time). Song-Tempo ist fest.
+function clipStartSec(clip, tempo){ var m = n(clip, "start_marker"); return n(clip, "warping") === 1 ? m * 60 / tempo : m; }
 function pkg(songNameEnc){
   if (isBusy()) return;
   var rawName = decodeURIComponent(songNameEnc || "SONG"), songName = rawName.toUpperCase();
@@ -1115,7 +1117,7 @@ function pkg(songNameEnc){
     var file = g(clip, "file_path"), e = it.entry;
     e.files[file] = (e.files[file] || 0) + n(clip, "length");
     if (isCutClip(clip)) e.clips.push({ file: file, start_time: n(clip, "start_time"), end_time: n(clip, "end_time"),
-      start: markerSec(clip, n(clip, "start_marker"), tempo), end: markerSec(clip, n(clip, "end_marker"), tempo) });
+      start: clipStartSec(clip, tempo), end: clipStartSec(clip, tempo) + (n(clip, "end_time") - n(clip, "start_time")) * 60 / tempo });
   }, "Lese Clips", function (){
     var job = { dir: folder, stems: [], json: json };
     var cleanup = { tracks: [], move: [] };
