@@ -14,14 +14,17 @@
    "amxdType": "aaaa"
   },
   "setmaker-sort": {
-   "version": "0.2.0",
+   "version": "0.2.1",
    "dir": "SetMaker/sortn",
    "files": [
-    "sortn.amxd",
     "sortn.html",
     "LIESMICH sortn.txt",
     "sortn.js"
-   ]
+   ],
+   "amxd": [
+    "sortn.amxd"
+   ],
+   "amxdType": "aaaa"
   }
  }
 }

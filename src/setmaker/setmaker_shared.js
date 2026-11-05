@@ -116,48 +116,53 @@ var SM = (function () {
   }
 
   // ---------- Spuren aus Live lesen ----------
-  function collectTracks(LiveAPICtor, settings) {
+  function lget(a, p) { var v = a.get(p); return isArr(v) ? v.join(" ") : String(v); }
+  function lnum(a, p) { return Number(lget(a, p)); }
+  function lids(a, p) {
+    var v = a.get(p), out = [];
+    if (!isArr(v)) return out;
+    for (var i = 0; i < v.length; i++) if (v[i] !== "id" && Number(v[i]) > 0) out.push(Number(v[i]));
+    return out;
+  }
+  // Alle Spur-ids (ohne Returns/Master)
+  function trackIds(LiveAPICtor) { return lids(new LiveAPICtor("live_set"), "tracks"); }
+  // Eine Spur einlesen (so kann man in Häppchen lesen, ohne Live einzufrieren)
+  function collectOne(LiveAPICtor, id, index, settings) {
     var src = (settings && settings.sort && settings.sort.sources) || defaults().sort.sources;
-    function api(id) { return new LiveAPICtor("id " + id); }
-    function g(a, p) { var v = a.get(p); return isArr(v) ? v.join(" ") : String(v); }
-    function n(a, p) { return Number(g(a, p)); }
-    function ids(a, p) {
-      var v = a.get(p), out = [];
-      if (!isArr(v)) return out;
-      for (var i = 0; i < v.length; i++) if (v[i] !== "id" && Number(v[i]) > 0) out.push(Number(v[i]));
-      return out;
+    function api(x) { return new LiveAPICtor("id " + x); }
+    var a = api(id);
+    var t = { id: id, index: index, name: lget(a, "name"), color: lnum(a, "color_index"),
+      isGroup: lnum(a, "is_foldable") === 1, group: null, midi: lnum(a, "has_midi_input") === 1,
+      clips: [], clipIds: [], files: [], devices: [] };
+    function readClip(cid) {
+      var c = api(cid);
+      t.clips.push(lget(c, "name"));
+      t.clipIds.push(cid);
+      if (src.fileNames && lnum(c, "is_audio_clip") === 1) { var f = baseName(lget(c, "file_path")); if (f) t.files.push(f); }
     }
-    function readClip(id, t) {
-      var c = api(id);
-      t.clips.push(g(c, "name"));
-      t.clipIds.push(id);
-      if (src.fileNames && n(c, "is_audio_clip") === 1) { var f = baseName(g(c, "file_path")); if (f) t.files.push(f); }
-    }
-    var song = new LiveAPICtor("live_set"), tIds = ids(song, "tracks"), out = [];
-    for (var i = 0; i < tIds.length; i++) {
-      var a = api(tIds[i]);
-      var t = { id: tIds[i], index: i, name: g(a, "name"), color: n(a, "color_index"),
-        isGroup: n(a, "is_foldable") === 1, group: null, midi: n(a, "has_midi_input") === 1,
-        clips: [], clipIds: [], files: [], devices: [] };
-      if (n(a, "is_grouped") === 1) t.group = ids(a, "group_track")[0] || null;
-      if (!t.isGroup && (src.clipNames || src.fileNames)) {
-        var slots = ids(a, "clip_slots");
-        for (var s = 0; s < slots.length; s++) {
-          var sl = api(slots[s]);
-          if (n(sl, "has_clip") === 1) { var cid = ids(sl, "clip")[0]; if (cid) readClip(cid, t); }
-        }
-        var arr = []; try { arr = ids(a, "arrangement_clips"); } catch (e) {}
-        for (var c = 0; c < arr.length; c++) readClip(arr[c], t);
+    if (lnum(a, "is_grouped") === 1) t.group = lids(a, "group_track")[0] || null;
+    if (!t.isGroup && (src.clipNames || src.fileNames)) {
+      var slots = lids(a, "clip_slots");
+      for (var s = 0; s < slots.length; s++) {
+        var sl = api(slots[s]);
+        if (lnum(sl, "has_clip") === 1) { var cid = lids(sl, "clip")[0]; if (cid) readClip(cid); }
       }
-      if (src.devices) {
-        var dv = ids(a, "devices");
-        for (var d = 0; d < dv.length; d++) {
-          var dev = api(dv[d]);
-          if (n(dev, "type") === 1) t.devices.push(g(dev, "name"));   // nur Instrumente
-        }
-      }
-      out.push(t);
+      var arr = []; try { arr = lids(a, "arrangement_clips"); } catch (e) {}
+      for (var c = 0; c < arr.length; c++) readClip(arr[c]);
     }
+    if (src.devices) {
+      var dv = lids(a, "devices");
+      for (var d = 0; d < dv.length; d++) {
+        var dev = api(dv[d]);
+        if (lnum(dev, "type") === 1) t.devices.push(lget(dev, "name"));   // nur Instrumente
+      }
+    }
+    return t;
+  }
+  // Alles auf einmal (blockiert Live kurz; für viele Spuren lieber trackIds + collectOne in Häppchen)
+  function collectTracks(LiveAPICtor, settings) {
+    var tIds = trackIds(LiveAPICtor), out = [];
+    for (var i = 0; i < tIds.length; i++) out.push(collectOne(LiveAPICtor, tIds[i], i, settings));
     return out;
   }
 
@@ -332,7 +337,7 @@ var SM = (function () {
   }
 
   return { LANES: LANES, PALETTE: PALETTE, STEM_RE: STEM_RE, defaults: defaults, normalize: normalize,
-           isDefaultName: isDefaultName, collectTracks: collectTracks, analyze: analyze, preselect: preselect,
+           isDefaultName: isDefaultName, collectTracks: collectTracks, trackIds: trackIds, collectOne: collectOne, analyze: analyze, preselect: preselect,
            FILE: "setmaker_settings.json" };
 })();
 if (typeof exports !== "undefined") { for (var smk in SM) exports[smk] = SM[smk]; }
