@@ -2,7 +2,7 @@
 // Farben -> Spalten. "Rendern" nimmt pro Spalte einen Full-Stem unten im Projekt auf (Echtzeit).
 // "Paket" schreibt Full-Stems, graue Schnitte und Serum-MIDI als JSON neben das Live-Set.
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.6.2";
+var VERSION = "0.7.0";
 var PLUGIN_ID = "setmaker-prep";
 inlets = 1;
 outlets = 1; // -> jweb (über s ---toweb)
@@ -665,18 +665,21 @@ function forget(laneId){
 // ---------- In Häppchen arbeiten, damit Ableton nicht einfriert ----------
 // fn(item, i) wird so oft aufgerufen, wie in ~12 ms passt, dann gibt das Device Live wieder frei.
 var busy = false, worker = null, lastPct = -1;
+// Großes Overlay in der UI: zeigt deutlich, dass gearbeitet wird (Ableton darf dabei ruckeln)
+function overlay(on, title, sub){ say("overlay", { on: on ? 1 : 0, title: title || "", sub: sub || "" }); }
 function work(items, fn, label, done){
   busy = true; lastPct = -1;
+  overlay(true, label, "Kurz warten, Ableton kann dabei ruckeln.");
   var i = 0;
   worker = new Task(function (){
     var start = new Date().getTime();
     try {
       while (i < items.length && new Date().getTime() - start < 12){ fn(items[i], i); i++; }
-    } catch (e) { busy = false; worker = null; say("progress", { pct: 0 }); status("Fehler: " + e); return; }
+    } catch (e) { busy = false; worker = null; overlay(false); say("progress", { pct: 0 }); status("Fehler: " + e); return; }
     var pct = items.length ? Math.round(100 * i / items.length) : 100;
     if (pct !== lastPct){ lastPct = pct; say("progress", { pct: pct }); say("status", { text: label + " " + i + "/" + items.length + " …" }); }
     if (i < items.length) worker.schedule(8);
-    else { busy = false; worker = null; say("progress", { pct: 0 }); done(); }
+    else { busy = false; worker = null; overlay(false); say("progress", { pct: 0 }); done(); }
   });
   worker.schedule(0);
 }
@@ -780,6 +783,7 @@ function startRecording(plan, songName, endTime){
   song.call("continue_playing");
   task = new Task(tick); task.interval = 200; task.repeat(); // nur während der Aufnahme, finish() stoppt ihn
   status("Aufnahme läuft … nicht anfassen.");
+  overlay(true, "● STEMS WERDEN AUFGENOMMEN", "Nichts anfassen, einfach laufen lassen. Stopp = abbrechen.");
 }
 
 function tick(){
@@ -794,6 +798,7 @@ function tick(){
 
 function finish(aborted){
   if (task){ task.cancel(); task = null; }
+  overlay(false);
   var song = new LiveAPI("live_set");
   song.set("record_mode", 0);
   song.call("stop_playing");
