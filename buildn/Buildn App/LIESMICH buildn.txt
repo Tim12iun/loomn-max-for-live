@@ -15,9 +15,10 @@ Ablauf
    Oder "Set oeffnen": ein bestehendes Live-Set, die Bloecke erscheinen mit ihren Clips.
 2. Songs laden: oben "Songs laden" oder Ordner aus dem Finder ins Fenster ziehen. x am Song = aus der Liste nehmen.
 3. Song links aufklappen, Clips vorhoeren (Play, Klick in die Waveform springt). Zuklappen stoppt das Vorhoeren.
-   Song links auf einen Block ziehen = Block heisst wie der Song, Zeile 1/2 = Clip 1/2, letzte Zeile = Full-Stems.
-   Hat ein Stem mehr Clips (Clip 3, 4 ...), waechst der Block um weitere Zeilen, Full bleibt unten.
-   Kleines + zwischen letzter Clip-Zeile und Full = neue Clip-Zeile. Einzelne Clips gehen in beliebige Zellen.
+   Song links auf einen Block ziehen = Block heisst wie der Song, Zeile 1/2 = Clip 1/2, Zeile 3 = Full-Stems.
+   Jeder Block hat 3 Zeilen: Clip 1, Clip 2, Full. Clips, die nicht passen (Clip 3 und mehr), blinken links orange.
+   Einzelne Clips gehen in beliebige Zellen, auch auf die andere A/B-Seite: buildn merkt sich das und tauscht
+   beim Verschieben des Blocks trotzdem richtig mit.
    A/B: Song 1 liegt auf A, Song 2 auf B, Song 3 auf A ... und passt sich beim Verschieben selbst an.
    Full-Clip im Raster in eine andere Zeile ziehen = alle Full-Stems des Songs wandern mit.
    Beim Ziehen: leerer Block = orange Rahmen, zwischen belegten Bloecken oeffnet sich eine Luecke zum Einfuegen.
