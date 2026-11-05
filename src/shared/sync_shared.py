@@ -6,7 +6,7 @@ import pathlib
 root = pathlib.Path(__file__).resolve().parent.parent.parent
 shared = root / "src" / "shared"
 BLOCKS = {
-    "loomn_update": (shared / "loomn_update.js", ["prepn/prepn.js", "sortn/sortn.js"]),
+    "loomn_update": (shared / "loomn_update.js", ["prepn/prepn.js", "sortn/sortn.js", "bpmchanger/bpmchanger.js"]),
     "setmaker_shared": (shared / "setmaker_shared.js", ["sortn/sortn.js"]),
 }
 for name, (src, targets) in BLOCKS.items():
