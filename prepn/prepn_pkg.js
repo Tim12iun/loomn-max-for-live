@@ -127,5 +127,28 @@ async function handle(enc) {
   }
 }
 
-if (maxApi) maxApi.addHandler("job", handle);
-module.exports = { run, readAudio, cut, readWav, readAiff };
+// Aufräumen: Aufnahme-Dateien (+ .asd) verschieben, nie löschen. Bestehende Ziele werden nicht überschrieben.
+function move(from, to) {
+  if (!fs.existsSync(from)) return 0;
+  let dst = to, i = 2;
+  while (fs.existsSync(dst)) dst = to.replace(/(\.[^.\/]+)$/, " " + i++ + "$1");
+  try { fs.renameSync(from, dst); } catch (e) { fs.copyFileSync(from, dst); fs.unlinkSync(from); }
+  return 1;
+}
+function tidy(enc) {
+  try {
+    const list = JSON.parse(decodeURIComponent(enc));
+    let n = 0;
+    for (const m of list) {
+      fs.mkdirSync(path.dirname(m.to), { recursive: true });
+      n += move(m.from, m.to);
+      n += move(m.from + ".asd", m.to + ".asd");
+    }
+    send("tidied", n);
+  } catch (e) {
+    send("tidyerror", encodeURIComponent(String(e && e.message || e)));
+  }
+}
+
+if (maxApi) { maxApi.addHandler("job", handle); maxApi.addHandler("tidy", tidy); }
+module.exports = { run, readAudio, cut, readWav, readAiff, tidy };
