@@ -2,7 +2,7 @@
 // Farben -> Spalten. "Rendern" nimmt pro Spalte einen Full-Stem unten im Projekt auf (Echtzeit).
 // "Paket" schreibt einen Song-Ordner: Full-Stems, markierte Passagen als Clips, Serum-MIDI (JSON).
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.8.8";
+var VERSION = "0.8.9";
 var PLUGIN_ID = "setmaker-prep";
 inlets = 1;
 outlets = 2; // 0 -> jweb (über s ---toweb), 1 -> prepn_pkg.js (node.script)
