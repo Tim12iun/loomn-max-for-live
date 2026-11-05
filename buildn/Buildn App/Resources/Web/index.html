@@ -29,6 +29,13 @@ header{display:flex;align-items:center;gap:8px;padding:0 12px 10px;flex:none}
 .tpl:hover{background:var(--hi2)}
 .tpl b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
 .tpl.missing{box-shadow:inset 0 0 0 1px var(--accent)}
+.tpl .k{color:var(--muted);font-weight:500}
+.tpl .x{width:20px;height:20px;margin-right:-6px;display:flex;align-items:center;justify-content:center;border-radius:4px;color:var(--muted)}
+.tpl .x:hover{background:var(--line);color:var(--text)}
+.tpl .x svg{width:12px;height:12px}
+.old{display:flex;align-items:center;height:100%;padding:0 6px;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);border-left:3px solid}
+.block.ex .stop .lab{cursor:default;color:var(--muted)}
+.block.ex .cell{background:#1f1e1d}
 .sp{flex:1}
 .wrap{flex:1;min-height:0;display:flex;gap:8px;padding:0 8px 0}
 aside{width:250px;flex:none;background:var(--surface);border-radius:12px;display:flex;flex-direction:column;min-height:0}
@@ -125,7 +132,8 @@ main::-webkit-scrollbar-corner{background:transparent}
 </defs></svg>
 
 <header>
-  <div class="tpl" id="tpl" title="Live-Set als Vorlage wählen. Die Vorlage wird nie verändert."><svg><use href="#i-file"/></svg><b id="tplName">Vorlage wählen</b></div>
+  <div class="tpl" id="tpl"><svg><use href="#i-file"/></svg><span class="k" id="tplKind"></span><b id="tplName">Vorlage wählen</b><span class="x hidden" id="baseClose" title="Set schließen, wieder ein neues Set aus der Vorlage bauen"><svg><use href="#i-x"/></svg></span></div>
+  <button id="openSet" title="Ein bestehendes Live-Set öffnen und weitere Songs anhängen"><svg><use href="#i-file"/></svg>Set öffnen</button>
   <span class="sp"></span>
   <button id="addSongs" title="Song-Ordner von prepn laden"><svg><use href="#i-folder"/></svg>Songs laden</button>
   <button id="build" class="main" disabled title="Neues Live-Set aus Vorlage und Line-up schreiben">Set erstellen</button>
@@ -151,6 +159,11 @@ main::-webkit-scrollbar-corner{background:transparent}
       <div class="sec">Set erstellen</div>
       <div class="opt"><span>Szenen nach dem Song benennen</span><span class="tog" id="optNames" title="An/Aus"><i></i><i></i></span></div>
       <div class="opt"><span>Song-Tempo in die Szenen schreiben (Szene starten wechselt das Tempo)</span><span class="tog" id="optTempo" title="An/Aus"><i></i><i></i></span></div>
+    </div>
+    <div>
+      <div class="sec">Vorlage für neue Sets</div>
+      <div class="path" id="tplInfo"></div>
+      <div class="btns"><button id="tplPick">Andere Vorlage wählen …</button></div>
     </div>
     <div>
       <div class="sec">Datenordner</div>
@@ -191,7 +204,8 @@ let songs = [];        // {key(=Ordnerpfad), name, tempo, dir, folder, stems:[{s
 let lineup = [];       // {key, side:{bass:'A'|'B'...}, cells:[{colName: ref}, {colName: ref}]}   ref = "<key>|<stem>|<clip|F>"
 let roots = [];        // geladene Ordner (Pfade)
 let cols = DEFAULT_COLS.map(([name, color]) => colInfo(name, color));
-let tpl = null;        // {name, path}
+let tpl = null;        // {name, file (Kopie im Datenordner/Vorlage), src (Original)}
+let base = null;       // geöffnetes Set {name, path, blocks:[{name, rows:[{spalte: clipname}]}]}
 let opts = { tempo: false, names: true };
 let open = {};
 let info = { version: '', build: '' };
@@ -222,7 +236,8 @@ function clipOf(ref){
   const clip = ci === 'F' ? st.full : st.clips[+ci];
   return clip ? { song: s, stem: st, clip, full: ci === 'F' } : null;
 }
-function sideOf(b, kind, i){ return (b.side && b.side[kind]) || (i % 2 ? 'B' : 'A'); }
+function sideOf(b, kind, i){ return (b.side && b.side[kind]) || ((i + (base ? base.blocks.length : 0)) % 2 ? 'B' : 'A'); }
+function tplPath(){ return !tpl ? null : tpl.file ? info.data + '/Vorlage/' + tpl.file : tpl.path; }
 function colFor(kind, side){
   const c = cols.filter(c => c.kind === kind);
   return c.find(x => x.side === side) || c.find(x => x.side === 'AB') || c[0] || null;
@@ -252,7 +267,7 @@ function pct(p){ p = Math.round(p); if (p === lastPct) return; lastPct = p; $('#
 function hint(){
   if (!songs.length) return 'Oben „Songs laden“: einen Paket-Ordner von prepn wählen oder einen Ordner, in dem viele liegen.';
   if (!lineup.length) return 'Song von links in die Mitte ziehen.';
-  if (!tpl) return 'Oben links die Vorlage wählen (dein Live-Set).';
+  if (!tpl && !base) return 'Oben links die Vorlage wählen (dein Live-Set) oder ein bestehendes Set öffnen.';
   return 'Clips aus einem Song (aufklappen) in Zeile 1 und 2 ziehen · Song am Namen verschieben · dann „Set erstellen“.';
 }
 
@@ -261,7 +276,7 @@ let saveTimer = null;
 function save(){
   if (!inApp) return;
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => native('saveState', { json: JSON.stringify({ roots, tpl, cols, opts, lineup }) }).catch(() => {}), 150);
+  saveTimer = setTimeout(() => native('saveState', { json: JSON.stringify({ roots, tpl, base: base && { name: base.name, path: base.path }, cols, opts, lineup }) }).catch(() => {}), 150);
 }
 function change(fn){ undo.push(JSON.stringify(lineup)); if (undo.length > 100) undo.shift(); redo = []; fn(); save(); draw(); }
 
@@ -313,11 +328,61 @@ async function chooseTemplate(){
     const L = readLiveSet(await loadTemplateDoc(path));
     busy(false);
     if (!L.upper.length) throw new Error('Keine Stem-Spalten gefunden (Spuren wie „A BASS“, „A/B KICK“).');
-    cols = L.upper.map(t => colInfo(t.name, t.color));
-    tpl = { name: path.split('/').pop(), path };
+    let file = null; try { file = await native('storeTemplate', { path }); } catch (e) {}
+    tpl = file ? { name: file, file, src: path } : { name: path.split('/').pop(), path };
+    if (!base) cols = L.upper.map(t => colInfo(t.name, t.color));
     save(); draw();
-    status('Vorlage ' + tpl.name + ': ' + cols.length + ' Stem-Spalten. ' + (L.stopper ? hint() : 'Achtung: kein ==== Trenner-Clip in der Vorlage gefunden.'));
+    status('Vorlage ' + tpl.name + ' ist hinterlegt (' + L.upper.length + ' Stem-Spalten). Neue Sets starten oben leer, die Songs der Vorlage lässt buildn weg. ' + (L.stopper ? '' : 'Achtung: kein ==== Trenner-Clip in der Vorlage gefunden.'));
   } catch (e) { busy(false); status('Vorlage geht nicht: ' + (e.message || e), null, true); }
+}
+
+// ---------- Bestehendes Set öffnen ----------
+const isStop = c => !!c && /^[=\-_ ]{3,}$/.test(val(c, 'Name') || '');
+// Songs oben im Set lesen: Blöcke zwischen den ==== Trennern, nur die Clip-Namen (zum Anschauen)
+function readExisting(L){
+  const lastUpper = upperEnd(L), blocks = [];
+  let cur = null;
+  for (let r = 0; r <= lastUpper; r++){
+    const stop = L.upper.some(t => isStop(slotClip(t.slots[r])));
+    if (stop){ cur = { scene: (L.scenes[r] && val(L.scenes[r], 'Name')) || '', rows: [] }; blocks.push(cur); continue; }
+    const row = {};
+    for (const t of L.upper){ const c = slotClip(t.slots[r]); if (c) row[t.name] = val(c, 'Name') || '(ohne Namen)'; }
+    if (!cur){ cur = { scene: '', rows: [] }; blocks.push(cur); }
+    cur.rows.push(row);
+  }
+  const out = blocks.filter(b => b.rows.some(r => Object.keys(r).length));
+  out.forEach(b => { b.name = b.scene || guessName(b.rows); });
+  return out;
+}
+function guessName(rows){
+  const n = {};
+  rows.forEach(r => Object.values(r).forEach(v => {
+    const m = v.replace(/^\s*\d+\s+/, '').match(/_(.+?)(\s+\d+)?\s*$/); if (m) n[m[1].trim()] = (n[m[1].trim()] || 0) + 1;
+  }));
+  const best = Object.entries(n).sort((a, b) => b[1] - a[1])[0];
+  return best ? best[0].toUpperCase() : 'Song';
+}
+// letzte Zeile, in der oben (Stem-Spalten) noch etwas liegt
+function upperEnd(L){ let last = -1; L.upper.forEach(t => t.slots.forEach((s, r) => { if (slotClip(s) && r > last) last = r; })); return last; }
+async function loadBase(path){
+  const L = readLiveSet(await loadTemplateDoc(path));
+  if (!L.upper.length) throw new Error('Keine Stem-Spalten gefunden (Spuren wie „A BASS“, „A/B KICK“).');
+  base = { name: path.split('/').pop(), path, blocks: readExisting(L) };
+  cols = L.upper.map(t => colInfo(t.name, t.color));
+}
+async function openSet(){
+  const path = await native('pickTemplate', { open: true }); if (!path) return;
+  try {
+    busy(true, 'Set wird gelesen');
+    await loadBase(path);
+    busy(false); save(); draw();
+    status(base.name + ': ' + base.blocks.length + (base.blocks.length === 1 ? ' Song' : ' Songs') + ' im Set. Neue Songs hängt buildn darunter an.');
+  } catch (e) { busy(false); base = null; draw(); status('Set geht nicht auf: ' + (e.message || e), null, true); }
+}
+async function closeBase(){
+  base = null;
+  if (tpl){ try { cols = readLiveSet(await loadTemplateDoc(tplPath())).upper.map(t => colInfo(t.name, t.color)); } catch (e) {} }
+  save(); draw(); status('Neues Set aus der Vorlage. ' + hint());
 }
 
 // ---------- .als lesen / schreiben ----------
@@ -373,6 +438,15 @@ function growScenes(L, need){
   L.scenes = kids(scenesEl, 'Scene');
   for (const t of L.tracks) t.slots = kids(path(t.el, 'DeviceChain', 'MainSequencer', 'ClipSlotList'), 'ClipSlot');
 }
+// Weniger Szenen: hinten abschneiden (dort ist nach dem Verschieben alles leer)
+function shrinkScenes(L, need){
+  const n = L.scenes.length; if (need >= n) return;
+  const lists = [...L.doc.getElementsByTagName('ClipSlotList')].filter(l => kids(l, 'ClipSlot').length === n);
+  for (const l of lists) kids(l, 'ClipSlot').slice(need).forEach(c => l.removeChild(c));
+  L.scenes.slice(need).forEach(sc => sc.parentNode.removeChild(sc));
+  L.scenes = kids(kid(L.set, 'Scenes'), 'Scene');
+  for (const t of L.tracks) t.slots = kids(path(t.el, 'DeviceChain', 'MainSequencer', 'ClipSlotList'), 'ClipSlot');
+}
 function putClip(slot, clipEl){
   const v = slotValue(slot); if (!v) return;
   while (v.firstChild) v.removeChild(v.firstChild);
@@ -412,28 +486,40 @@ function plan(){
 }
 
 async function buildSet(){
-  if (!tpl) return chooseTemplate();
+  if (!base && !tpl) return chooseTemplate();
   if (!lineup.length){ status('Erst Songs ins Line-up ziehen.'); return; }
   const day = new Date().toISOString().slice(0, 10);
-  const outPath = await native('pickSave', { name: 'LIVESET ' + day + '.als', dir: tpl.path.substring(0, tpl.path.lastIndexOf('/')) });
+  const src = base ? base.path : (tpl.src || tpl.path), dirOf = p => p.substring(0, p.lastIndexOf('/'));
+  const outPath = await native('pickSave', { name: base ? base.name.replace(/\.als$/i, '') + ' + buildn.als' : 'LIVESET ' + day + '.als', dir: dirOf(src) });
   if (!outPath) return;
-  if (outPath === tpl.path){ status('Die Vorlage wird nie überschrieben. Bitte einen anderen Namen wählen.', null, true); return; }
+  if (outPath === tplPath()){ status('Die Vorlage wird nie überschrieben. Bitte einen anderen Namen wählen.', null, true); return; }
   busy(true, 'Set wird gebaut', 'Vorlage lesen …'); pct(0);
   try {
-    const doc = await loadTemplateDoc(tpl.path);
+    const doc = await loadTemplateDoc(base ? base.path : tplPath());
     const L = readLiveSet(doc);
     const byName = {}; L.upper.forEach(t => byName[t.name.toUpperCase()] = t);
-    // Startzeile: unter dem letzten belegten Platz oben. Ist das ein Trenner, geht es dort weiter.
-    let last = -1;
-    L.upper.forEach(t => t.slots.forEach((s, r) => { if (slotClip(s) && r > last) last = r; }));
-    let row = last + 1;
-    if (last >= 0 && L.upper.every(t => { const c = t.slots[last] && slotClip(t.slots[last]); return c && /^[=\-_ ]{3,}$/.test(val(c, 'Name') || ''); })) row = last;
-    const P = plan(), low = lowerRange(L);
+    const last = upperEnd(L), low = lowerRange(L), n = L.scenes.length;
+    const gap = low && low.start > last ? low.start - last : 6;          // Abstand wie in der Vorlage
+    const tail = n - 1 - Math.max(last, low ? low.end : -1);             // leere Szenen ganz unten
+    let row;
+    if (base){
+      // Bestehendes Set: unter dem letzten belegten Platz weiter. Ist das ein Trenner, geht es dort weiter.
+      row = last + 1;
+      if (last >= 0 && L.upper.every(t => isStop(t.slots[last] && slotClip(t.slots[last])))) row = last;
+    } else {
+      // Neues Set: die Songs, die in der Vorlage stehen, fliegen raus. Spuren, Geräte und der rechte Block bleiben.
+      const stopEnd = low ? low.start : n;
+      for (const t of L.upper) for (let r = 0; r < stopEnd; r++){ const v = slotValue(t.slots[r]); if (v) while (v.firstChild) v.removeChild(v.firstChild); }
+      for (let r = 0; r <= last; r++) if (L.scenes[r]){ setVal(L.scenes[r], ['Name'], ''); setVal(L.scenes[r], ['IsTempoEnabled'], 'false'); }
+      row = 0;
+    }
+    const P = plan();
     const endRow = row + P.length - 1;                          // letzter Trenner
-    const gap = low && low.start > last ? low.start - last : 6; // Abstand wie in der Vorlage
-    const delta = low ? Math.max(0, endRow + gap - low.start) : 0;
-    growScenes(L, Math.max(endRow + 1, low ? low.end + delta + 1 : 0));
+    const delta = low ? (base ? Math.max(0, endRow + gap - low.start) : endRow + gap - low.start) : 0;
+    const need = Math.max(endRow + 1, low ? low.end + delta + 1 : 0) + Math.max(0, tail);
+    if (need > n) growScenes(L, need);
     if (low && delta) shiftLower(L, low.start, low.end, delta);
+    if (need < n && !base) shrinkScenes(L, need);
     const missing = new Set(), lost = [], stopClip = L.stopper, outDir = outPath.substring(0, outPath.lastIndexOf('/'));
     let done = 0; const total = P.reduce((n, p) => n + (p.stop ? 0 : Object.keys(p.cells).length), 0) || 1;
     for (let i = 0; i < P.length; i++, row++){
@@ -464,7 +550,7 @@ async function buildSet(){
     await native('writeB64', { path: outPath, data: bytesToB64(gz) });
     busy(false);
     const name = outPath.split('/').pop();
-    let msg = 'Fertig: ' + name + ' mit ' + lineup.length + (lineup.length > 1 ? ' Songs.' : ' Song.');
+    let msg = 'Fertig: ' + name + (base ? ', ' + lineup.length + (lineup.length > 1 ? ' Songs' : ' Song') + ' angehängt.' : ' mit ' + lineup.length + (lineup.length > 1 ? ' Songs.' : ' Song.'));
     if (!L.stopper) msg += ' Die Vorlage hatte keinen ==== Trenner-Clip, Trenner fehlen.';
     if (missing.size) msg += ' Spalten nicht in der Vorlage: ' + [...missing].join(', ') + '.';
     if (lost.length) msg += ' Fehlende Dateien: ' + lost.length + '.';
@@ -486,9 +572,11 @@ function lowerRange(L){
 }
 function shiftLower(L, from, to, delta){
   const up = new Set(L.upper);
+  const order = []; for (let r = from; r <= to; r++) order.push(r);
+  if (delta > 0) order.reverse();                               // nach unten: von hinten, nach oben: von vorne
   for (const t of L.tracks){
     if (up.has(t)) continue;
-    for (let r = to; r >= from; r--){
+    for (const r of order){
       const src = slotValue(t.slots[r]), dst = slotValue(t.slots[r + delta]);
       if (!src || !dst) continue;
       while (dst.firstChild) dst.removeChild(dst.firstChild);
@@ -538,6 +626,15 @@ function drawSongs(){
 function drawGrid(){
   const lab = t => `<div class="lab">${t || ''}</div>`;
   let h = `<div class="row hrow">${lab('<span class="sec">Line-up</span>')}${cols.map(c => `<div style="background:${hex(c.color)}">${esc(c.name)}</div>`).join('')}</div>`;
+  // Songs, die schon im geöffneten Set stehen: nur zum Anschauen
+  if (base) base.blocks.forEach(b => {
+    h += `<div class="block ex"><div class="row stop"><div class="lab" title="Steht schon im Set ${esc(base.name)}"><span class="nm">${esc(b.name)}</span><span class="sec" style="font-size:11px">im Set</span></div>${cols.map(() => '<div></div>').join('')}</div>`;
+    b.rows.forEach((r, ri) => {
+      h += `<div class="row">${lab(ri === b.rows.length - 1 && b.rows.length > 2 ? 'Full-Stems' : 'Clips ' + (ri + 1))}`
+        + cols.map(c => { const t = r[c.name]; return `<div class="cell">${t ? `<div class="old" style="border-color:${hex(c.color)}" title="${esc(t)}">${esc(t)}</div>` : ''}</div>`; }).join('') + '</div>';
+    });
+    h += '</div>';
+  });
   lineup.forEach((b, i) => {
     const s = song(b.key);
     const kinds = ['bass', 'top', 'melo'].filter(k => cols.filter(c => c.kind === k).length > 1);
@@ -568,9 +665,15 @@ function drawGrid(){
 function setTog(el, on){ el.classList.toggle('on', !!on); }
 function draw(){
   drawSongs(); drawGrid();
-  $('#tplName').textContent = tpl ? tpl.name : 'Vorlage wählen';
-  $('#tpl').classList.toggle('missing', !tpl);
+  $('#tplKind').textContent = base ? 'Set' : tpl ? 'Neu aus' : '';
+  $('#tplName').textContent = base ? base.name : tpl ? tpl.name : 'Vorlage wählen';
+  $('#tpl').title = base ? base.path + '\nKlick = anderes Set öffnen' : 'Vorlage für neue Sets wählen. buildn legt eine Kopie im Datenordner ab, die Songs darin lässt es beim Bauen weg.';
+  $('#tpl').classList.toggle('missing', !tpl && !base);
+  $('#baseClose').classList.toggle('hidden', !base);
+  $('#openSet').classList.toggle('hidden', !!base);
   $('#build').disabled = !lineup.length;
+  $('#build').textContent = base ? 'Songs anhängen' : 'Set erstellen';
+  $('#tplInfo').textContent = tpl ? tpl.name + (tpl.src ? ' (Kopie von ' + tpl.src + ')' : '') : 'Noch keine Vorlage gewählt.';
   const v = 'Version ' + info.version + ' · Build ' + info.build;
   $('#verLine').textContent = v; $('#ver').textContent = v;
   $('#dataPath').textContent = info.data || '–';
@@ -657,7 +760,10 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape'){ $('#back').classList.add('hidden'); }
 });
 $('#addSongs').onclick = () => addSongs().catch(err => status(String(err.message || err), null, true));
-$('#tpl').onclick = () => chooseTemplate().catch(err => status(String(err.message || err), null, true));
+const fail = err => status(String(err.message || err), null, true);
+$('#tpl').onclick = e => { if (e.target.closest('#baseClose')) return closeBase().catch(fail); (base ? openSet() : chooseTemplate()).catch(fail); };
+$('#openSet').onclick = () => openSet().catch(fail);
+$('#tplPick').onclick = () => chooseTemplate().catch(fail);
 $('#build').onclick = () => buildSet();
 $('#gear').onclick = () => $('#back').classList.remove('hidden');
 $('#backBtn').onclick = () => $('#back').classList.add('hidden');
@@ -682,6 +788,10 @@ async function start(){
     roots = st.roots || []; tpl = st.tpl || null; opts = Object.assign({ tempo: false, names: true }, st.opts || {});
     lineup = st.lineup || []; if (st.cols && st.cols.length) cols = st.cols;
     if (roots.length) await rescan();
+    if (st.base && st.base.path){
+      try { await loadBase(st.base.path); }
+      catch (e) { base = null; draw(); status('Das zuletzt geöffnete Set ist nicht mehr da: ' + st.base.path, null, true); return; }
+    }
     draw();
     const gone = lineup.filter(b => !song(b.key)).length;
     status(gone ? gone + ' Song(s) im Line-up nicht gefunden: Ordner verschoben? Über „Songs laden“ neu wählen.' : hint(), null, gone > 0);

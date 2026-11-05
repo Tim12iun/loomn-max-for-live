@@ -70,9 +70,25 @@ final class WebHost: NSObject, ObservableObject, WKScriptMessageHandlerWithReply
             let p = NSOpenPanel()
             p.canChooseFiles = true; p.canChooseDirectories = false
             p.allowedContentTypes = [UTType(filenameExtension: "als") ?? .data]
-            p.prompt = "Als Vorlage nehmen"
-            p.message = "Dein Live-Set als Vorlage wählen (wird nie verändert)"
+            if b["open"] as? Bool == true {
+                p.prompt = "Öffnen"
+                p.message = "Bestehendes Live-Set öffnen: neue Songs werden unten angehängt"
+            } else {
+                p.prompt = "Als Vorlage nehmen"
+                p.message = "Dein Live-Set als Vorlage wählen. buildn legt eine Kopie ab, das Original bleibt unverändert"
+            }
             return p.runModal() == .OK ? p.url?.path : nil
+        case "storeTemplate":
+            // Vorlage als Standard in den Datenordner legen (Unterordner „Vorlage“, immer nur eine Datei)
+            guard let root = DataStore.shared.root else { throw ToolUpdater.Failure("Kein Datenordner") }
+            let fm = FileManager.default, dir = root.appendingPathComponent("Vorlage")
+            try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            let src = URL(fileURLWithPath: str("path")), dst = dir.appendingPathComponent(src.lastPathComponent)
+            if src.standardizedFileURL.path == dst.standardizedFileURL.path { return dst.lastPathComponent }
+            for f in (try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
+                where f.pathExtension.lowercased() == "als" { try? fm.removeItem(at: f) }
+            try fm.copyItem(at: src, to: dst)
+            return dst.lastPathComponent
         case "readB64": return try Data(contentsOf: URL(fileURLWithPath: str("path"))).base64EncodedString()
         case "exists": return FileManager.default.fileExists(atPath: str("path"))
         case "audioInfo":
