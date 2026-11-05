@@ -19,6 +19,9 @@ Ablauf
    Clips, die nicht passen (Clip 3 und mehr), blinken links orange. Einzelne Clips gehen in beliebige Zellen.
    A/B: Song 1 liegt auf A, Song 2 auf B, Song 3 auf A ... und passt sich beim Verschieben selbst an.
    Full-Clip im Raster in eine andere Zeile ziehen = alle Full-Stems des Songs wandern mit.
+   Beim Ziehen: leerer Block = orange Rahmen, zwischen belegten Bloecken oeffnet sich eine Luecke zum Einfuegen.
+   Vorhoeren nur ueber Play (auch im Clip-Fenster); Klick in die Waveform spult, wenn der Clip laeuft.
+   Geoeffnetes Set: Clips im Set haben Waveform, Vorhoeren und Clip-Fenster. Fehlt die Datei, steht "fehlt" am Clip.
    Clip verschieben = ziehen (auf belegten Platz = tauschen), Alt = kopieren. x am Clip oder nach links ziehen = raus.
 4. Bloecke: am Namen ziehen = verschieben, Doppelklick auf den Namen = umbenennen, x = Block raus, unten "+ Leerer Block".
 5. Doppelklick auf einen Clip im Raster oeffnet unten das Clip-Fenster: Waveform mit Takt-Raster, Loop-Klammer und
