@@ -2,7 +2,7 @@
 // Farben -> Spalten. "Rendern" nimmt pro Spalte einen Full-Stem unten im Projekt auf (Echtzeit).
 // "Paket" schreibt Full-Stems, graue Schnitte und Serum-MIDI als JSON neben das Live-Set.
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.7.4";
+var VERSION = "0.7.5";
 var PLUGIN_ID = "setmaker-prep";
 inlets = 1;
 outlets = 1; // -> jweb (über s ---toweb)
@@ -1008,7 +1008,7 @@ function finish(aborted){
     msg = (aborted ? "Abgebrochen. " : "") + ok.length + " Full-Stems liegen unten (stumm): " + ok.join(", ") + ".";
     if (empty.length) msg += " Ohne Aufnahme (gelöscht): " + empty.join(", ") + ".";
     if (late.length) msg += " ACHTUNG, Anfang fehlt: " + late.join(", ") + ".";
-    msg += aborted ? " Stem-Spuren löschen und neu rendern." : " Jetzt Passagen schneiden und grau färben, dann „Paket“.";
+    msg += aborted ? " Stem-Spuren löschen und neu rendern." : " Jetzt in den Stem-Spuren Passagen markieren und 0 drücken, dann „Paket“.";
   }
   showDevice();
   status(msg);
@@ -1035,8 +1035,9 @@ function setRoutingById(api, identifier, prop){
 
 // ---------- Paket schreiben ----------
 function isCutClip(clip){
-  // gewählte Schnitt-Farbe oder irgendein Grau
-  return (cfg.cut && n(clip, "color_index") === cfg.cut.index) || isGrey(n(clip, "color"));
+  // Markiert = deaktiviert (Bereich im Arrangement wählen, Taste 0: Live schneidet und deaktiviert das Stück).
+  // Alte Markierung per Grau/Schnitt-Farbe geht weiter.
+  return n(clip, "muted") === 1 || (cfg.cut && n(clip, "color_index") === cfg.cut.index) || isGrey(n(clip, "color"));
 }
 function pkg(songNameEnc){
   if (isBusy()) return;
@@ -1073,7 +1074,7 @@ function pkg(songNameEnc){
       var len = n(clip, "length");
       var notes = parseDict(clip.call("get_notes_extended", 0, 128, n(clip, "start_marker"), len), "notes") || [];
       it.entry.midi.push({ name: g(clip, "name"), track: it.track, start_time: n(clip, "start_time"),
-                           length: len, cut: isCutClip(clip), notes: notes });
+                           length: len, cut: isCutClip(clip), active: true, notes: notes });
       return;
     }
     var file = g(clip, "file_path");
@@ -1081,7 +1082,7 @@ function pkg(songNameEnc){
     if (isCutClip(clip)){
       it.entry.cuts.push({ name: g(clip, "name"), file: file,
         start_marker: n(clip, "start_marker"), end_marker: n(clip, "end_marker"),
-        start_time: n(clip, "start_time"), end_time: n(clip, "end_time") });
+        start_time: n(clip, "start_time"), end_time: n(clip, "end_time"), active: true }); // im Live-Set wieder aktiv
     }
   }, "Lese Clips", function (){
     var lanes = [];
