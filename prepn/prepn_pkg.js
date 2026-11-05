@@ -92,7 +92,15 @@ function cut(info, startSec, endSec) {
 const safe = s => String(s).replace(/[\/:\\]/g, "-").replace(/\s+/g, " ").trim();
 
 // Auftrag: { dir, json, stems: [{ file, name, clips: [{ name, start, end }] }] } (Zeiten in Sekunden)
+// Bestehendes Paket nie überschreiben: "<Song>-Live-Set 2", "… 3" usw.
+function freeDir(dir) {
+  let d = dir, i = 2;
+  while (fs.existsSync(d)) d = dir + " " + i++;
+  return d;
+}
+
 async function run(job) {
+  job.dir = freeDir(job.dir);
   fs.mkdirSync(job.dir, { recursive: true });
   const total = job.stems.reduce((n, s) => n + 1 + s.clips.length, 0) || 1;
   let done = 0, files = 0;
