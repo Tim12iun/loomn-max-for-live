@@ -45,6 +45,19 @@
     "LIESMICH Sort.txt",
     "setmaker_settings.json"
    ]
+  },
+  "bpmchanger": {
+   "version": "0.1.0",
+   "dir": "bpmchanger",
+   "files": [
+    "LIESMICH BPM Changer.txt",
+    "bpmchanger.js"
+   ],
+   "amxd": [
+    "BPM Changer.amxd"
+   ],
+   "amxdType": "aaaa",
+   "obsolete": []
   }
  }
 }

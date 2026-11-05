@@ -7,6 +7,7 @@ Die Plugins haben einen Update-Knopf (⟳), der hier nach neuen Versionen schaut
 |---|---|---|
 | sortn | `sortn/` | Spuren erkennen, umbenennen, einfärben |
 | prepn | `prepn/` | Stems pro Live-Set-Spalte rendern, Song-Paket schreiben |
+| BPM Changer | `bpmchanger/` | Tempo weich ändern: Knopf (MIDI-mappbar, rundet auf ganze BPM), Rampe über Takte. Gehört auf die Main-Spur |
 | buildn | `buildn/Buildn App/` | Eigene Mac-App (kein M4L): aus prepn-Paketen und einer Vorlage ein neues Live-Set (.als) bauen. Releases in `Tim12iun/loomn-tools` (`buildn-latest`), Bau mit `scripts/release-local.sh` |
 
 Installation: den Ordner des Plugins (z. B. `prepn`) nach
@@ -25,6 +26,7 @@ Neues Plugin = neuer Ordner auf oberster Ebene + Eintrag in `manifest.json`.
   die noch im Ordner liegen, nennt das Device nach dem Update zum Löschen im Finder.
 - `src/shared/`: gemeinsame Blöcke (`loomn_update.js` für alle, `setmaker_shared.js` nur für sortn),
   per `python3 src/shared/sync_shared.py` in die Device-Scripts kopiert. `src/<plugin>/`: `.maxpat`-Quellen.
+  BPM Changer: Patch wird mit `python3 src/bpmchanger/build_patch.py` erzeugt (schreibt `.maxpat`, `.amxd` und `.amxd.json`).
 - Update-URL in den Devices: `https://raw.githubusercontent.com/Tim12iun/loomn-max-for-live/main/`
 
 ## Performance-Regeln (für alle Devices)
