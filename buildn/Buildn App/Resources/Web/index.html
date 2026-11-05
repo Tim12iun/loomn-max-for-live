@@ -154,7 +154,8 @@ input.rename{flex:1;min-width:0;height:20px;background:var(--bg);color:var(--tex
 .ruler{position:relative;height:16px;flex:none}
 .ruler span{position:absolute;top:0;font-size:12px;color:var(--muted);transform:translateX(3px)}
 .lbar{position:relative;height:14px;flex:none}
-.brace{position:absolute;top:2px;bottom:2px;background:var(--accent);border-radius:3px;opacity:.9}
+.brace{position:absolute;top:2px;bottom:2px;background:var(--accent);border-radius:3px;opacity:.9;cursor:grab}
+.brace:active{cursor:grabbing}
 .brace em,.smk em{position:absolute;top:-3px;bottom:-3px;width:12px;cursor:ew-resize}
 .brace em[data-h=ls]{left:-6px}.brace em[data-h=le]{right:-6px}
 .cwave{position:relative;flex:1;min-height:40px;background:var(--hi);border-radius:4px;overflow:hidden;cursor:pointer}
@@ -1067,7 +1068,7 @@ document.addEventListener('click', e => {
 let cvCell = null, cvRef = null, cvDrag = null, cvCursor = 0;   // cvCursor: Abspielstart im Clip-Fenster (0…1), wie in Ableton
 const bigWaves = {};
 function openClip(id){ const v = cellVal(id); if (!refOf(v)) return; if (id !== cvCell) cvCursor = 0; cvCell = id; cvRef = refOf(v); $('#cv').classList.remove('hidden'); drawClip(); drawGrid(); }
-function closeClip(){ if (!cvCell) return; cvCell = cvRef = null; $('#cv').classList.add('hidden'); drawGrid(); }
+function closeClip(){ if (!cvCell) return; stopPlay(); cvCell = cvRef = null; $('#cv').classList.add('hidden'); drawGrid(); }
 async function bigWave(path){
   if (bigWaves[path] !== undefined) return;
   bigWaves[path] = null;
@@ -1095,7 +1096,7 @@ function drawClip(){
     + `<button class="icon" data-cv="play" title="${on ? 'Stopp' : 'Ab Cursor abspielen'} (Leertaste)"><svg><use href="#i-${on ? 'stop' : 'play'}"/></svg></button>`
     + `<button class="icon" data-cv="close" title="Clip-Fenster schließen (Esc)"><svg><use href="#i-x"/></svg></button></div>`
     + `<div class="cvb"><div class="ruler">${ruler}</div>`
-    + `<div class="lbar" title="Loop-Klammer: Enden ziehen"><i class="brace" style="left:${pc(L.v)};width:${pc(L.l)}"><em data-h="ls"></em><em data-h="le"></em></i></div>`
+    + `<div class="lbar" title="Loop-Klammer: Enden ziehen = Länge, Mitte ziehen = ganzen Loop verschieben"><i class="brace" data-h="lm" style="left:${pc(L.v)};width:${pc(L.l)}"><em data-h="ls"></em><em data-h="le"></em></i></div>`
     + `<div class="cwave ${on ? 'on' : ''}" data-cvseek="1" title="Klick = Cursor setzen und ab hier abspielen · Leertaste = Play/Stopp (startet am Cursor)">${grid}<svg viewBox="0 0 ${Math.max(1, w.length)} 100" preserveAspectRatio="none"><path d="${d}"/></svg>`
     + (L.v > 0 ? `<b class="pre" style="left:0;width:${pc(L.v)}"></b>` : '') + (L.v + L.l < bars - 0.01 ? `<b class="pre" style="left:${pc(L.v + L.l)};right:0"></b>` : '')
     + `<u class="cur" style="left:${cvCursor * 100}%"></u><i style="left:${on ? headPos * 100 : 0}%"></i></div>`
@@ -1116,7 +1117,8 @@ document.addEventListener('pointerdown', e => {
   e.preventDefault();
   const v = cellVal(cvCell), c = clipOf(refOf(v)); if (!c) return;
   undo.push(JSON.stringify(blocks)); redo = [];
-  cvDrag = { h: h.dataset.h, c, rect: $('#cv .cwave').getBoundingClientRect() };
+  const rect = $('#cv .cwave').getBoundingClientRect(), L0 = loopOf(v, c, durs[c.clip.path] || 0);
+  cvDrag = { h: h.dataset.h, c, rect, x0: (e.clientX - rect.left) / rect.width * L0.bars, v0: L0.v };
 });
 document.addEventListener('pointermove', e => {
   if (!cvDrag) return;
@@ -1129,6 +1131,10 @@ document.addEventListener('pointermove', e => {
   if (cvDrag.h === 'ls') ls = Math.max(0, Math.min(x, le - 0.25));
   if (cvDrag.h === 'le') le = Math.max(ls + 0.25, Math.min(x, bars));
   if (cvDrag.h === 's') s = Math.max(0, Math.min(x, bars - 0.25));
+  if (cvDrag.h === 'lm'){   // ganzen Loop verschieben, Länge bleibt, im Takt-Raster (Alt = Viertel)
+    const raw = (e.clientX - cvDrag.rect.left) / cvDrag.rect.width * bars - cvDrag.x0;
+    ls = Math.max(0, Math.min(cvDrag.v0 + Math.round(raw / step) * step, bars - l)); le = ls + l;
+  }
   setCell(cvCell, withLp(v, { s, v: ls, l: le - ls }));
   drawClip();
 });
