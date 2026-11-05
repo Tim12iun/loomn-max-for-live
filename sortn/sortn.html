@@ -117,7 +117,7 @@ input[type=checkbox]{margin:0;accent-color:var(--accent)}
 <!-- Vorderseite -->
 <section class="page front" id="front">
   <div class="head">
-    <span class="title" id="title">sortn</span><span class="vtag" id="vtag"></span>
+    <span class="title" id="title">sortn</span>
     <span class="sp"></span>
     <button class="icon ghost" id="analyze" title="Spuren neu einlesen"><svg><use href="#i-refresh"/></svg></button>
     <button class="icon ghost" id="gear" title="Spuren, Kategorien und Optionen"><svg><use href="#i-gear"/></svg></button>
@@ -327,7 +327,7 @@ function onState(enc){
   if(dirty) next.settings = S.settings; // ungespeicherte Eingaben nicht überschreiben
   S = next; setStatus(S.status || '');
   $('#title').title = 'sortn v' + (S.version || '?');
-  $('#vtag').textContent = $('#vtag2').textContent = 'v' + (S.version || '?');
+  $('#vtag2').textContent = 'v' + (S.version || '?');
   draw();
   setBusy(S.busy);
 }
