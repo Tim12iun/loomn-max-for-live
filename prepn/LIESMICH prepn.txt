@@ -41,6 +41,8 @@ Ablauf
 Oben "Alles | Loop": Alles = ganzer Song, Loop = nur der Bereich in der Loop-Klammer (z. B. eine von mehreren
 Versionen im Projekt). Die Wahl bleibt gespeichert.
 Zahnrad: Farbe je Stem, Paket-Ordner, Update.
+"+ Stem" = eigenen Stem anlegen (z. B. weiteres Hardware-Gerät): Name tippen, Enter, dann Farbe anklicken.
+Eigenen Stem entfernen: Farbe anklicken, unten „entfernen“.
 
 Bekannte Grenzen
 - Rendern laeuft in Echtzeit (Max for Live kann nicht offline rendern).

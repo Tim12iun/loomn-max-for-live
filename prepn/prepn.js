@@ -2,19 +2,20 @@
 // Farben -> Spalten. "Rendern" nimmt pro Spalte einen Full-Stem unten im Projekt auf (Echtzeit).
 // "Paket" schreibt einen Song-Ordner: Full-Stems, markierte Passagen als Clips, Serum-MIDI (JSON).
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.8.9";
+var VERSION = "0.9.0";
 var PLUGIN_ID = "setmaker-prep";
 inlets = 1;
 outlets = 2; // 0 -> jweb (über s ---toweb), 1 -> prepn_pkg.js (node.script)
 
-var LANES = [
-  { id: "bass",  short: "BASS" },  { id: "kick", short: "KICK" },
-  { id: "top",   short: "TOPS" },  { id: "vox",  short: "VOCALS" },
-  { id: "melo",  short: "MELODY" },{ id: "serum", short: "SERUM", midi: true },
-  { id: "inst1", short: "INST10" },{ id: "inst2", short: "INST11" },
-  { id: "vocal", short: "VOCALCHAIN" }, { id: "riser", short: "RISER" },
-  { id: "free1", short: "SPUR14" }
+// Feste Stems. Eigene Stems (z. B. weitere Hardware) kommen aus settings.extraLanes dazu, siehe buildLanes().
+var BASE_LANES = [
+  { id: "bass",  short: "BASS",   label: "Bass" },   { id: "kick",  short: "KICK",  label: "Kick" },
+  { id: "top",   short: "TOPS",   label: "Tops" },   { id: "vox",   short: "VOCALS", label: "Vocals" },
+  { id: "melo",  short: "MELODY", label: "Melody" }, { id: "serum", short: "SERUM", label: "Serum", midi: true },
+  { id: "riser", short: "RISER",  label: "Riser" }
 ];
+var OLD_SHORTS = ["INST10", "INST11", "VOCALCHAIN", "SPUR14"]; // alte Platzhalter: deren Stem-Spuren nie als Quelle nehmen
+var LANES = BASE_LANES.slice();
 
 // Gemeinsame Erkennung + Einstellungen (aus setmaker_shared.js, per Build eingefügt)
 // ==== BEGIN setmaker_shared (gemeinsam für SetMaker Sort + SetMaker Prep) ====
@@ -471,6 +472,39 @@ var LU = (function () {
 })();
 // ==== END loomn_update ====
 var STEM_RE = SM.STEM_RE;
+function buildLanes(){
+  LANES = BASE_LANES.slice();
+  var ex = settings.extraLanes || [], all = OLD_SHORTS.slice();
+  for (var i = 0; i < ex.length; i++) LANES.push({ id: ex[i].id, short: ex[i].short, label: ex[i].label, extra: true });
+  for (var j = 0; j < LANES.length; j++) all.push(LANES[j].short);
+  STEM_RE = new RegExp("^(" + all.join("|") + ")_.+ \\d+$");
+}
+// Eigenen Stem anlegen: Name -> Kürzel für die Stem-Spur (z. B. "Moog Sub" -> MOOGSUB_SONG 128)
+function addlane(enc){
+  loadCfg();
+  var label = String(decodeURIComponent(enc || "")).replace(/^\s+|\s+$/g, "").substring(0, 24);
+  if (!label){ return; }
+  var short = label.toUpperCase().replace(/Ä/g, "AE").replace(/Ö/g, "OE").replace(/Ü/g, "UE").replace(/ß/g, "SS").replace(/[^A-Z0-9]/g, "").substring(0, 16) || "STEM";
+  var taken = {}; for (var i = 0; i < LANES.length; i++) taken[LANES[i].short] = 1;
+  for (var o = 0; o < OLD_SHORTS.length; o++) taken[OLD_SHORTS[o]] = 1;
+  var base = short, k = 2; while (taken[short]) short = base + k++;
+  if (!settings.extraLanes) settings.extraLanes = [];
+  settings.extraLanes.push({ id: "x" + new Date().getTime().toString(36), label: label, short: short });
+  saveCfg(); refresh();
+  status("Stem „" + label + "“ angelegt. Farbe anklicken und festlegen.");
+}
+function droplane(id){
+  loadCfg();
+  var ex = settings.extraLanes || [], keep = [], gone = null;
+  for (var i = 0; i < ex.length; i++) if (ex[i].id === id) gone = ex[i]; else keep.push(ex[i]);
+  if (!gone) return;
+  if (scan().stems[gone.short]){ status("Für „" + gone.label + "“ gibt es noch eine Stem-Spur. Erst 4 Clear."); return; }
+  settings.extraLanes = keep;
+  var cats = []; for (var c = 0; c < settings.categories.length; c++) if (settings.categories[c].lane !== id) cats.push(settings.categories[c]);
+  settings.categories = cats;
+  saveCfg(); refresh();
+  status("Stem „" + gone.label + "“ entfernt.");
+}
 var settings = null;
 var cfg = { colors: {}, cut: null, rest: null }; // für die UI: Farbe pro Spalte
 var job = null;                        // laufende Aufnahme
@@ -541,6 +575,7 @@ function loadCfg(){
 }
 function saveCfg(){ writeText(cfgPath(), JSON.stringify(settings, null, 1)); deriveCfg(); }
 function deriveCfg(){
+  buildLanes();
   cfg = { colors: {}, cut: settings.cut || null, rest: settings.rest ? settings.rest.color : null };
   for (var i = 0; i < settings.categories.length; i++){
     var c = settings.categories[i];
@@ -550,6 +585,7 @@ function deriveCfg(){
 function laneOfColor(index){
   for (var i = 0; i < settings.categories.length; i++){
     var c = settings.categories[i], col = c.color || cfg.colors[c.lane];
+    if (!laneById(c.lane)) continue; // alte Platzhalter (Inst 10 …) gibt es nicht mehr
     if (col && col.index === index) return c.lane;
   }
   return null;
@@ -642,7 +678,8 @@ function refresh(){
     names[LANES[l].id] = arr.map(function (t) { return t.name; });
   }
   var stems = []; for (var k in s.stems) stems.push(k);
-  var enc = encodeURIComponent(JSON.stringify({ version: VERSION, cfg: cfg, counts: counts, names: names, stems: stems,
+  var lanes = []; for (var q = 0; q < LANES.length; q++) lanes.push([LANES[q].id, LANES[q].label, LANES[q].short, LANES[q].extra ? 1 : 0]);
+  var enc = encodeURIComponent(JSON.stringify({ version: VERSION, lanes: lanes, cfg: cfg, counts: counts, names: names, stems: stems,
                  packed: isPacked(s.stems), range: settings.range === "loop" ? "loop" : "all", pkgRoot: settings.pkgRoot || "", pkgDefault: pkgFolder(g(song, "file_path"), defaultSong(g(song, "name"))),
                  tempo: n(song, "tempo"), setName: g(song, "name"), recording: !!job }));
   if (enc === lastStateJson) return;               // nichts geändert -> UI nicht neu zeichnen
@@ -796,7 +833,7 @@ function auto(){
     var counts = {}, rest = 0, unsure = [], todo = [];
     for (var i = 0; i < plan.rows.length; i++){
       var r = plan.rows[i];
-      if (r.source === "stem" || r.source === "skip") continue;
+      if (r.source === "stem" || r.source === "skip" || STEM_RE.test(r.name || "")) continue;
       var tr = byTrack[r.id];
       if (!r.isGroup && tr && !tr.clipIds.length) continue; // leere Spuren nicht anfassen
       var cat = r.cat ? byCat[r.cat] : null;
