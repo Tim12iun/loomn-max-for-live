@@ -2,7 +2,7 @@
 // Erkennt die Rolle jeder Spur (Kick, Hi-Hat, Bass …), benennt einheitlich um und färbt nach Kategorie.
 // Einstellungen in sortn_settings.json im eigenen Ordner (unabhängig von prepn).
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.2.12";
+var VERSION = "0.2.13";
 var PLUGIN_ID = "setmaker-sort";
 inlets = 1;
 outlets = 2; // 0 -> jweb (über s ---toweb), 1 -> Neustart nach Update (deferlow -> compile + bang)
