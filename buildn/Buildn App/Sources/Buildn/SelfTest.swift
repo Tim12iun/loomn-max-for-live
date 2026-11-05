@@ -21,7 +21,7 @@ enum SelfTest {
             check(ds.readState() == "{\"x\":1}", "Zustand speichern/lesen")
             // 2. Vorhandenen verknüpfen (z. B. vom anderen Mac)
             let linked = try? ds.makeOrLink(in: a)
-            check(linked == made, "Vorhandenen Ordner verknüpfen")
+            check(linked != nil && linked?.standardizedFileURL.path == made?.standardizedFileURL.path, "Vorhandenen Ordner verknüpfen")
             // 3. Fremden Ordner nie überschreiben
             let b = tmp.appendingPathComponent("B/\(AppInfo.brand)")
             try? fm.createDirectory(at: b, withIntermediateDirectories: true)
