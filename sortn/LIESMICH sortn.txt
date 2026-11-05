@@ -1,4 +1,4 @@
-sortn v0.2.6 (Test-Version)
+sortn v0.2.7 (Test-Version)
 Erkennt, was in jeder Spur steckt (Kick, Hi-Hat, Bass, Vocals ...), benennt die Spuren einheitlich um
 (Kick 1, Kick 2 ...) und faerbt sie pro Kategorie. Alles, was nicht erkannt wird, bekommt die Rest-Farbe.
 sortn arbeitet komplett eigenstaendig, unabhaengig von prepn.
