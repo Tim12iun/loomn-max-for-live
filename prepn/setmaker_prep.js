@@ -2,7 +2,7 @@
 // Farben -> Spalten. "Rendern" nimmt pro Spalte einen Full-Stem unten im Projekt auf (Echtzeit).
 // "Paket" schreibt Full-Stems, graue Schnitte und Serum-MIDI als JSON neben das Live-Set.
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.7.1";
+var VERSION = "0.7.2";
 var PLUGIN_ID = "setmaker-prep";
 inlets = 1;
 outlets = 1; // -> jweb (über s ---toweb)
@@ -420,14 +420,22 @@ var LU = (function () {
     f.eof = f.position; f.close();
     return true;
   }
-  // install(entry, deviceDir, writeText, cb(err, count)) – Textdateien über responseText, Binärdateien (.amxd) direkt in Datei
+  function exists(path) { var f = new File(path, "read"); var ok = f.isopen; if (ok) f.close(); return ok; }
+  // Alte Dateien (entry.obsolete) kann Max nicht löschen: nur melden, welche noch im Ordner liegen
+  function leftovers(entry, deviceDir) {
+    var out = [], list = entry.obsolete || [];
+    for (var i = 0; i < list.length; i++) if (exists(deviceDir + list[i])) out.push(list[i]);
+    return out;
+  }
+  // install(entry, deviceDir, writeText, cb(err, count, left)) – Textdateien über responseText, Binärdateien (.amxd) direkt in Datei.
+  // Jede Datei wird unter genau ihrem Namen überschrieben (kein "Datei (1)"). left = alte Dateien, die von Hand weg müssen.
   function install(entry, deviceDir, writeText, cb) {
     // .amxd stehen in entry.amxd (nicht in files), damit alte Updater sie nicht doppelt anlegen
     var files = entry.files.slice(0).concat(entry.amxd || []), done = 0;
     // Script zuletzt, damit nichts mitten im Update neu geladen wird
     files.sort(function (a, b) { return (/\.js$/.test(a) ? 1 : 0) - (/\.js$/.test(b) ? 1 : 0); });
     function next() {
-      if (!files.length) return cb(null, done);
+      if (!files.length) return cb(null, done, leftovers(entry, deviceDir));
       var f = files.shift(), url = BASE + enc(entry.dir + "/" + f);
       if (/\.amxd$/.test(f)) {
         // .amxd = Binär-Header + Patcher-JSON. Max' Download legt sonst "Datei (1)" an, darum:
@@ -447,7 +455,7 @@ var LU = (function () {
     }
     next();
   }
-  return { BASE: BASE, cmp: cmp, check: check, install: install };
+  return { BASE: BASE, cmp: cmp, check: check, install: install, leftovers: leftovers };
 })();
 // ==== END loomn_update ====
 var STEM_RE = SM.STEM_RE;
@@ -483,8 +491,6 @@ function deviceDir(){
   return fp.substring(0, fp.lastIndexOf("/") + 1);
 }
 var DIR = "";
-// Einstellungen liegen im Elternordner (SetMaker/), damit Sort und Prep in eigenen Unterordnern dieselbe Datei nutzen
-function parentDir(d){ var x = d.substring(0, d.length - 1); return x.substring(0, x.lastIndexOf("/") + 1); }
 // Prep ist eigenständig: eigene Einstellungen im eigenen Ordner, nicht mit Sort geteilt
 function cfgPath(){ return DIR + "setmaker_prep_settings.json"; }
 function readText(path){
@@ -983,9 +989,11 @@ function update(){
     if (err){ status(err); return; }
     if (!info.newer){ status("Aktuell: v" + VERSION + " ist die neueste Version."); return; }
     status("Lade v" + info.latest + " …");
-    LU.install(info.entry, DIR, writeText, function (e2, count){
+    LU.install(info.entry, DIR, writeText, function (e2, count, left){
       if (e2){ status("Update fehlgeschlagen: " + e2); return; }
-      status("v" + info.latest + " geladen (" + count + " Dateien). Device löschen und neu reinziehen.");
+      var msg = "v" + info.latest + " geladen (" + count + " Dateien). Device löschen und neu reinziehen.";
+      if (left && left.length) msg += " Alte Dateien bitte im Finder löschen: " + left.join(", ");
+      status(msg);
     });
   });
 }

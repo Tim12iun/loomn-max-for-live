@@ -1,8 +1,8 @@
 {
  "plugins": {
   "setmaker-prep": {
-   "version": "0.7.1",
-   "dir": "SetMaker/prepn",
+   "version": "0.7.2",
+   "dir": "prepn",
    "files": [
     "setmaker_prep.html",
     "LIESMICH Prep.txt",
@@ -11,11 +11,18 @@
    "amxd": [
     "prepn.amxd"
    ],
-   "amxdType": "aaaa"
+   "amxdType": "aaaa",
+   "obsolete": [
+    "SetMaker Prep.amxd",
+    "SetMaker Prep.amxd (1)",
+    "SetMaker Prep.amxd.json",
+    "prepn.amxd (1)",
+    "setmaker_settings.json"
+   ]
   },
   "setmaker-sort": {
-   "version": "0.2.3",
-   "dir": "SetMaker/sortn",
+   "version": "0.2.4",
+   "dir": "sortn",
    "files": [
     "sortn.html",
     "LIESMICH sortn.txt",
@@ -24,7 +31,16 @@
    "amxd": [
     "sortn.amxd"
    ],
-   "amxdType": "aaaa"
+   "amxdType": "aaaa",
+   "obsolete": [
+    "SetMaker Sort.amxd",
+    "SetMaker Sort.amxd (1)",
+    "sortn.amxd (1)",
+    "setmaker_sort.js",
+    "setmaker_sort.html",
+    "LIESMICH Sort.txt",
+    "setmaker_settings.json"
+   ]
   }
  }
 }

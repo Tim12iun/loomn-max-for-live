@@ -2,7 +2,7 @@
 // Erkennt die Rolle jeder Spur (Kick, Hi-Hat, Bass …), benennt einheitlich um und färbt nach Kategorie.
 // Einstellungen in sortn_settings.json im eigenen Ordner (unabhängig von prepn).
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.2.3";
+var VERSION = "0.2.4";
 var PLUGIN_ID = "setmaker-sort";
 inlets = 1;
 outlets = 1; // -> jweb (über s ---toweb)
@@ -414,14 +414,22 @@ var LU = (function () {
     f.eof = f.position; f.close();
     return true;
   }
-  // install(entry, deviceDir, writeText, cb(err, count)) – Textdateien über responseText, Binärdateien (.amxd) direkt in Datei
+  function exists(path) { var f = new File(path, "read"); var ok = f.isopen; if (ok) f.close(); return ok; }
+  // Alte Dateien (entry.obsolete) kann Max nicht löschen: nur melden, welche noch im Ordner liegen
+  function leftovers(entry, deviceDir) {
+    var out = [], list = entry.obsolete || [];
+    for (var i = 0; i < list.length; i++) if (exists(deviceDir + list[i])) out.push(list[i]);
+    return out;
+  }
+  // install(entry, deviceDir, writeText, cb(err, count, left)) – Textdateien über responseText, Binärdateien (.amxd) direkt in Datei.
+  // Jede Datei wird unter genau ihrem Namen überschrieben (kein "Datei (1)"). left = alte Dateien, die von Hand weg müssen.
   function install(entry, deviceDir, writeText, cb) {
     // .amxd stehen in entry.amxd (nicht in files), damit alte Updater sie nicht doppelt anlegen
     var files = entry.files.slice(0).concat(entry.amxd || []), done = 0;
     // Script zuletzt, damit nichts mitten im Update neu geladen wird
     files.sort(function (a, b) { return (/\.js$/.test(a) ? 1 : 0) - (/\.js$/.test(b) ? 1 : 0); });
     function next() {
-      if (!files.length) return cb(null, done);
+      if (!files.length) return cb(null, done, leftovers(entry, deviceDir));
       var f = files.shift(), url = BASE + enc(entry.dir + "/" + f);
       if (/\.amxd$/.test(f)) {
         // .amxd = Binär-Header + Patcher-JSON. Max' Download legt sonst "Datei (1)" an, darum:
@@ -441,7 +449,7 @@ var LU = (function () {
     }
     next();
   }
-  return { BASE: BASE, cmp: cmp, check: check, install: install };
+  return { BASE: BASE, cmp: cmp, check: check, install: install, leftovers: leftovers };
 })();
 // ==== END loomn_update ====
 
@@ -474,7 +482,6 @@ function writeText(path, s){
   for (var i = 0; i < s.length; i += 16000) f.writestring(s.substring(i, i + 16000));
   f.eof = f.position; f.close(); return true;
 }
-function parentDir(d){ var x = d.substring(0, d.length - 1); return x.substring(0, x.lastIndexOf("/") + 1); }
 // Eigene Einstellungsdatei nur für sortn, im eigenen Ordner (unabhängig von prepn)
 var SETTINGS_FILE = "sortn_settings.json";
 function settingsPath(){ return DIR + SETTINGS_FILE; }
@@ -707,9 +714,11 @@ function update(){
     if (err){ status(err); return; }
     if (!info.newer){ status("Aktuell: v" + VERSION + " ist die neueste Version."); return; }
     status("Lade v" + info.latest + " …");
-    LU.install(info.entry, DIR, writeText, function (e2, count){
+    LU.install(info.entry, DIR, writeText, function (e2, count, left){
       if (e2){ status("Update fehlgeschlagen: " + e2); return; }
-      status("v" + info.latest + " geladen (" + count + " Dateien). Device löschen und neu reinziehen.");
+      var msg = "v" + info.latest + " geladen (" + count + " Dateien). Device löschen und neu reinziehen.";
+      if (left && left.length) msg += " Alte Dateien bitte im Finder löschen: " + left.join(", ");
+      status(msg);
     });
   });
 }
