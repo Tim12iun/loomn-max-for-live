@@ -375,7 +375,13 @@ function save(){
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => native('saveState', { json: JSON.stringify({ roots, hidden, tpl, base, cols, opts, blocks, dirty }) }).catch(() => {}), 150);
 }
-function change(fn){ undo.push(JSON.stringify(blocks)); if (undo.length > 100) undo.shift(); redo = []; fn(); dirty = true; save(); draw(); }
+function change(fn){
+  undo.push(JSON.stringify(blocks)); if (undo.length > 100) undo.shift(); redo = [];
+  const was = playing && placed().has(playing);
+  fn(); dirty = true;
+  if (was && !placed().has(playing)) stopPlay();   // Clip, der gerade läuft, aus dem Raster genommen = Stopp
+  save(); draw();
+}
 
 // ---------- Songs laden ----------
 function readSong(p){
@@ -787,7 +793,7 @@ function chip(val, o){
   const pre = c.stem.stem.replace(/_.*$/, ''), num = (c.clip.name.match(/Clip \d+$/) || ['Full'])[0];
   const label = o.list ? num : narrow ? num.replace('Clip ', '#') : pre + ' ' + num;
   const on = playing === ref;
-  return `<div class="chip ${on ? 'on' : ''} ${o.over ? 'over' : ''} ${o.cell && o.id === cvCell ? 'sel' : ''}" draggable="${o.auto ? 'false' : 'true'}" data-ref="${esc(ref)}" style="background:${bg}${o.over ? ';animation-delay:-' + (Date.now() - overAt) + 'ms' : ''}" title="${esc(c.song.name + ' · ' + c.clip.name)}\nKlick in die Waveform = ab dort vorhören">`
+  return `<div class="chip ${on ? 'on' : ''} ${o.over ? 'over' : ''} ${o.cell && o.id === cvCell ? 'sel' : ''}" draggable="${o.auto ? 'false' : 'true'}" data-ref="${esc(ref)}" style="background:${bg}${o.over ? ';animation-delay:-' + (Date.now() - overAt) + 'ms' : ''}" title="${esc(c.song.name + ' · ' + c.clip.name)}\nPlay = vorhören, dann Klick in die Waveform = spulen">`
     + `<span class="wv" data-seek="${esc(ref)}">${wavePath(c.clip.path)}${o.list ? '' : loopShade(val, c)}<i style="left:${on ? headPos * 100 : 0}%"></i></span>`
     + `<span class="pl ${on ? 'on' : ''}" data-play="${esc(ref)}" title="${on ? 'Stopp' : 'Vorhören'}"><svg><use href="#i-${on ? 'stop' : 'play'}"/></svg></span><span class="t">${esc(label)}</span>`
     + (o.cell ? rmBtn() : '') + '</div>';
@@ -979,7 +985,7 @@ const placed = () => { const u = new Set(); blocks.forEach(b => b.rows.forEach(r
 let lastClick = null, noClick = false;
 document.addEventListener('click', e => {
   if (noClick){ noClick = false; return; }
-  const gc = !e.target.closest('[data-rm]') && e.target.closest('[data-cell] .chip[data-ref]');
+  const gc = !e.target.closest('[data-rm], [data-play]') && e.target.closest('[data-cell] .chip[data-ref]');
   if (gc){
     const id = gc.closest('[data-cell]').dataset.cell, now = Date.now();
     if (lastClick && lastClick.id === id && now - lastClick.t < 450){
@@ -993,7 +999,7 @@ document.addEventListener('click', e => {
   const rm = e.target.closest('[data-rm]');
   if (rm){ const cell = rm.closest('[data-cell]'); if (cell) change(() => setCell(cell.dataset.cell, null)); return; }
   const sk = e.target.closest('[data-seek]');
-  if (sk){ const r = sk.getBoundingClientRect(); togglePlay(sk.dataset.seek, Math.min(0.999, Math.max(0, (e.clientX - r.left) / r.width))); return; }
+  if (sk){ if (playing !== sk.dataset.seek) return; const r = sk.getBoundingClientRect(); togglePlay(sk.dataset.seek, Math.min(0.999, Math.max(0, (e.clientX - r.left) / r.width))); return; }
   const un = e.target.closest('[data-unsong]'); if (un){ e.stopPropagation(); removeSong(un.dataset.unsong); return; }
   const op = e.target.closest('[data-open]');
   if (op){ const k = op.dataset.open; open[k] = !open[k]; if (!open[k] && playing && playing.startsWith(k + '|')) stopPlay(); draw(); return; }
@@ -1031,22 +1037,24 @@ function drawClip(){
   const on = playing === cvRef;
   $('#cv').innerHTML = `<div class="cvh"><b>${esc(c.stem.stem)} · ${esc((c.clip.name.match(/Clip \d+$/) || ['Full'])[0])}</b><span>${fmtBars(bars)} Takte · ${Math.round(c.song.tempo)} BPM · Start ${L.s - L.v >= 0 ? fmtBars(L.s - L.v + 1) : '−' + fmtBars(L.v - L.s)} · Loop ${fmtBars(L.l)} Takte${L.auto ? ' (automatisch)' : ''}</span><span class="sp"></span>`
     + (L.auto ? '' : `<button data-cv="auto" title="Startmarker und Loop wie von buildn erkannt">Automatisch</button>`)
+    + `<button class="icon" data-cv="play" title="${on ? 'Stopp' : 'Vorhören'} (dann in die Waveform klicken = spulen)"><svg><use href="#i-${on ? 'stop' : 'play'}"/></svg></button>`
     + `<button class="icon" data-cv="close" title="Clip-Fenster schließen (Esc)"><svg><use href="#i-x"/></svg></button></div>`
     + `<div class="cvb"><div class="ruler">${ruler}</div>`
     + `<div class="lbar" title="Loop-Klammer: Enden ziehen"><i class="brace" style="left:${pc(L.v)};width:${pc(L.l)}"><em data-h="ls"></em><em data-h="le"></em></i></div>`
-    + `<div class="cwave ${on ? 'on' : ''}" data-cvseek="1" title="Klick = ab hier vorhören">${grid}<svg viewBox="0 0 ${Math.max(1, w.length)} 100" preserveAspectRatio="none"><path d="${d}"/></svg>`
+    + `<div class="cwave ${on ? 'on' : ''}" data-cvseek="1" title="Läuft der Clip: Klick = hierhin spulen">${grid}<svg viewBox="0 0 ${Math.max(1, w.length)} 100" preserveAspectRatio="none"><path d="${d}"/></svg>`
     + (L.v > 0 ? `<b class="pre" style="left:0;width:${pc(L.v)}"></b>` : '') + (L.v + L.l < bars - 0.01 ? `<b class="pre" style="left:${pc(L.v + L.l)};right:0"></b>` : '')
     + `<i style="left:${on ? headPos * 100 : 0}%"></i></div>`
     + `<div class="smk" title="Startmarker: hier beginnt der Clip beim Starten"><em data-h="s" style="left:${pc(L.s)}"></em></div></div>`;
 }
 function cvAction(k){
+  if (k === 'play'){ togglePlay(cvRef).then(drawClip); return; }
   if (k === 'close'){ closeClip(); return; }
   if (k === 'auto'){ const v = cellVal(cvCell); change(() => setCell(cvCell, refOf(v))); drawClip(); }
 }
 document.addEventListener('pointerdown', e => {
   const h = e.target.closest('#cv [data-h]');
   const wv = !h && e.target.closest('#cv [data-cvseek]');
-  if (wv){ const r = wv.getBoundingClientRect(); togglePlay(cvRef, Math.min(0.999, Math.max(0, (e.clientX - r.left) / r.width))).then(drawClip); return; }
+  if (wv){ if (playing !== cvRef) return; const r = wv.getBoundingClientRect(); togglePlay(cvRef, Math.min(0.999, Math.max(0, (e.clientX - r.left) / r.width))).then(drawClip); return; }
   if (!h) return;
   e.preventDefault();
   const v = cellVal(cvCell), c = clipOf(refOf(v)); if (!c) return;
