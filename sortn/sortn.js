@@ -2,7 +2,7 @@
 // Erkennt die Rolle jeder Spur (Kick, Hi-Hat, Bass …), benennt einheitlich um und färbt nach Kategorie.
 // Einstellungen in sortn_settings.json im eigenen Ordner (unabhängig von prepn).
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.2.9";
+var VERSION = "0.2.10";
 var PLUGIN_ID = "setmaker-sort";
 inlets = 1;
 outlets = 2; // 0 -> jweb (über s ---toweb), 1 -> Neustart nach Update (deferlow -> compile + bang)
@@ -302,7 +302,7 @@ var SM = (function () {
         var keys = []; for (var kc in leafCats) keys.push(kc);
         if (nLeaf && nKnown === nLeaf && keys.length === 1) {
           if (gr.cat !== keys[0]) { gr.cat = keys[0]; gr.source = "auto"; gr.conf = "sicher"; gr.why = ["Alle " + nLeaf + " Spuren in der Gruppe: " + byCat[keys[0]].label]; }
-        } else if (nKnown > inherited) {
+        } else if (nLeaf) {
           // Gemischte Gruppe: Farbe = Rest (damit nichts doppelt gezählt wird), Name aber trotzdem sauber:
           // 1. eigener Name passt zu einer Kategorie (z. B. "DRUMS"), 2. alle Spuren in derselben Spalte (z. B. Snare + Clap -> Drums)
           var label3 = gr.cat ? byCat[gr.cat].label : "";
@@ -315,6 +315,21 @@ var SM = (function () {
               label3 = (pickFb || pickAny).label;
             }
           }
+          if (!label3) {
+            // 3. sonst die häufigste Kategorie der Spuren darin (z. B. Bass 2 + FX -> Bass Group)
+            var cnt3 = {}, best3 = null;
+            for (var li3 = 0; li3 < rows.length; li3++) {
+              var r3 = rows[li3]; if (r3.isGroup || !r3.cat || r3.source === "stem" || r3.source === "keep") continue;
+              var an3 = r3.group ? byId[r3.group] : null, in3 = false;
+              while (an3) { if (an3 === gr) { in3 = true; break; } an3 = an3.group ? byId[an3.group] : null; }
+              if (!in3) continue;
+              cnt3[r3.cat] = (cnt3[r3.cat] || 0) + 1;
+              if (!best3 || cnt3[r3.cat] > cnt3[best3]) best3 = r3.cat;
+            }
+            if (best3) label3 = byCat[best3].label;
+            // 4. gar nichts erkannt: Standardname ("4-Group") wird "Rest Group", eigener Name bleibt
+            else if (isDefaultName(gr.name)) label3 = s.rest.label;
+          }
           gr.cat = null; gr.source = "auto"; gr.conf = ""; gr.groupLabel = label3;
           gr.why = ["Gemischte Gruppe" + (label3 ? ", heißt " + label3 + " Group" : "")];
         }
@@ -323,11 +338,13 @@ var SM = (function () {
 
     // Neue Namen + Farben
     var count = {}, groupCount = {}, seen = {}, groupSeen = {};
+    // Unerkannte Spur: Standardname ("1-MIDI", "4 Audio") wird "Rest 1" usw., eigene Namen bleiben
+    function restRename(r) { return o.renameRest || isDefaultName(r.name); }
     function gLabel(r) { return r.cat ? byCat[r.cat].label : (r.groupLabel || ""); }
     for (var e = 0; e < rows.length; e++) {
       var rr = rows[e]; if (rr.source === "stem" || rr.source === "skip" || rr.source === "keep") continue;
       if (rr.isGroup) { var gl = gLabel(rr); if (gl) groupCount[gl] = (groupCount[gl] || 0) + 1; }
-      else { var key = rr.cat || "_rest"; count[key] = (count[key] || 0) + 1; }
+      else if (rr.cat || restRename(rr)) { var key = rr.cat || "_rest"; count[key] = (count[key] || 0) + 1; }
     }
     for (var f = 0; f < rows.length; f++) {
       var row2 = rows[f];
@@ -346,7 +363,7 @@ var SM = (function () {
         }
         continue;
       }
-      var doRename = o.rename && (c2 || o.renameRest);
+      var doRename = o.rename && (c2 || restRename(row2));
       if (doRename && o.keepCustomNames && !isDefaultName(row2.name) && !ownName(row2.name, s)) doRename = false;
       if (doRename) {
         var nr = seen[key2] = (seen[key2] || 0) + 1, total2 = count[key2];
