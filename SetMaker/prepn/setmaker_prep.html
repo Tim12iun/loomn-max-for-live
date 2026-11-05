@@ -108,8 +108,8 @@ if(window.max){
   window.max.bindInlet('state', enc => { state = JSON.parse(decodeURIComponent(enc)); render(); });
   window.max.bindInlet('status', enc => { $('#status').textContent = JSON.parse(decodeURIComponent(enc)).text; });
   window.max.bindInlet('progress', enc => { $('#bar').style.width = JSON.parse(decodeURIComponent(enc)).pct + '%'; });
-  toMax('refresh');
-  setInterval(() => toMax('refresh'), 3000);
+  // Kein Abfrage-Timer: das Device schickt neuen Stand selbst, sobald sich in Live etwas ändert.
+  toMax('hello');
 }
 </script>
 </body>

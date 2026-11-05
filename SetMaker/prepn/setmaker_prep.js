@@ -2,7 +2,7 @@
 // Farben -> Spalten. "Rendern" nimmt pro Spalte einen Full-Stem unten im Projekt auf (Echtzeit).
 // "Paket" schreibt Full-Stems, graue Schnitte und Serum-MIDI als JSON neben das Live-Set.
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.6.1";
+var VERSION = "0.6.2";
 var PLUGIN_ID = "setmaker-prep";
 inlets = 1;
 outlets = 1; // -> jweb (über s ---toweb)
@@ -533,9 +533,46 @@ function init(){
     outlet(0, "url", "file://" + encodeURI(posix) + "setmaker_prep.html");
   }
   loadCfg();
-  refresh();
+  watch(); // liest gleich einmal ein, danach nur noch bei Änderungen
 }
 function bang(){ init.call(this); }
+
+// ---------- Beobachter statt Abfragen ----------
+// Kein Timer im Leerlauf: Live meldet selbst, wenn Spuren dazukommen/wegfallen oder Farbe/Name ändern.
+// Viele Meldungen kurz hintereinander (z. B. sortn färbt 50 Spuren) werden zu EINEM Neu-Einlesen zusammengefasst.
+var songObs = null, trackObs = {}, refreshTask = null, refreshDue = 0, lastStateJson = "", rewatchTask = null;
+function watch(){
+  if (!rewatchTask) rewatchTask = new Task(rewatch);
+  if (!songObs){
+    songObs = new LiveAPI(onTracks, "live_set");
+    songObs.property = "tracks";
+  }
+  rewatch();
+}
+// Aus dem Callback nichts direkt tun, sondern kurz verschieben (Live mag keine API-Arbeit im Callback)
+function onTracks(){ rewatchTask.cancel(); rewatchTask.schedule(50); }
+function rewatch(){
+  var now = ids(new LiveAPI("live_set"), "tracks"), keep = {};
+  for (var i = 0; i < now.length; i++){
+    var id = now[i]; keep[id] = 1;
+    if (trackObs[id]) continue;
+    var c = new LiveAPI(onTrackChange, "id " + id); c.property = "color_index";
+    var nm = new LiveAPI(onTrackChange, "id " + id); nm.property = "name";
+    trackObs[id] = [c, nm];
+  }
+  for (var k in trackObs) if (!keep[k]){ trackObs[k][0].property = ""; trackObs[k][1].property = ""; delete trackObs[k]; }
+  laterRefresh();
+}
+function onTrackChange(){ laterRefresh(); }
+function laterRefresh(){
+  if (!refreshTask) refreshTask = new Task(function (){ refreshDue = 0; if (job) return; refresh(); });
+  var t = new Date().getTime();
+  if (!refreshDue) refreshDue = t + 1000;          // spätestens nach 1 s, auch bei Dauer-Änderungen
+  refreshTask.cancel();
+  refreshTask.schedule(Math.max(0, Math.min(250, refreshDue - t)));
+}
+// UI meldet sich (neu geladen / Fenster geöffnet): letzten Stand schicken, ohne Live neu einzulesen
+function hello(){ if (lastStateJson) outlet(0, "state", lastStateJson); else refresh(); }
 
 // ---------- Spuren nach Farbe einsortieren ----------
 function scan(){
@@ -570,8 +607,11 @@ function refresh(){
     names[LANES[l].id] = arr.map(function (t) { return t.name; });
   }
   var stems = []; for (var k in s.stems) stems.push(k);
-  say("state", { version: VERSION, cfg: cfg, counts: counts, names: names, stems: stems, tempo: n(song, "tempo"),
-                 setName: g(song, "name"), recording: !!job });
+  var enc = encodeURIComponent(JSON.stringify({ version: VERSION, cfg: cfg, counts: counts, names: names, stems: stems,
+                 tempo: n(song, "tempo"), setName: g(song, "name"), recording: !!job }));
+  if (enc === lastStateJson) return;               // nichts geändert -> UI nicht neu zeichnen
+  lastStateJson = enc;
+  outlet(0, "state", enc);
 }
 
 // ---------- Farbe lernen: aus ausgewählter Spur (Spalten) bzw. ausgewähltem Clip (Schnitt) ----------
@@ -706,7 +746,8 @@ function tick(){
   var song = new LiveAPI("live_set");
   var t = n(song, "current_song_time"), playing = n(song, "is_playing");
   if (playing) job.started = true;
-  say("progress", { pct: Math.min(100, Math.round(100 * t / job.endTime)) });
+  var pct = Math.min(100, Math.round(100 * t / job.endTime));
+  if (pct !== job.pct){ job.pct = pct; say("progress", { pct: pct }); } // nur bei Änderung an die UI
   if (job.started && (!playing || t >= job.endTime)) finish(!playing && t < job.endTime);
 }
 
