@@ -1,4 +1,4 @@
-BPM Changer v0.2.0 (Test-Version) – Tempo weich aendern
+BPM Changer v0.3.0 (Test-Version) – Tempo weich aendern
 Fuer Songwechsel im Set: Tempo per Knopf (auch per MIDI-Controller) oder als Rampe ueber eine Anzahl Takte.
 BPM Changer arbeitet komplett eigenstaendig, unabhaengig von prepn und sortn.
 
@@ -10,7 +10,8 @@ Installation
 - "BPM Changer.amxd" auf die Main-Spur ziehen.
 - Einstellungen: bpmchanger_settings.json im Ordner bpmchanger. Legt das Device selbst an, bleibt bei Updates erhalten.
 - Update: Zahnrad oben rechts -> Download-Pfeil neben der Versionsnummer. Laedt die neue Version direkt in diesen
-  Ordner (gleiche Dateinamen, wird ueberschrieben) und startet das Device neu.
+  Ordner (gleiche Dateinamen, wird ueberschrieben) und startet das Device neu. Hat sich das Aussehen geaendert,
+  das Device danach einmal loeschen und neu reinziehen.
 
 Tempo-Knopf
 - Drehen = das Tempo gleitet weich mit (keine Spruenge, auch bei groben MIDI-Schritten).
@@ -20,7 +21,8 @@ Tempo-Knopf
   Tipp: Bei "Takeover-Modus" in den Live-Einstellungen "Pick-Up" oder "Value Scaling" waehlen, dann springt nichts.
 
 Rampe
-- Rechts: "16 Takte" = wie lange, "140 BPM" = wohin (ziehen oder Zahl tippen). Dann "Start".
+- Im Feld RAMPE: "16 Takte" = wie lange, "140 BPM" = wohin. Zum Aendern nach oben/unten ziehen (Shift = fein).
+  Dann rechts "Start".
 - Vier Beat-Striche (wie am CDJ) zeigen die Schlaege im Takt: die verbleibenden Striche laufen ab. Grau = nichts geplant,
   orange = Start gedrueckt. So siehst du, wie viele Schlaege es noch bis zum Start sind.
 - Die Rampe beginnt immer auf der naechsten "1" und gleitet gleichmaessig ueber die Takte zum Ziel. Die duenne Linie

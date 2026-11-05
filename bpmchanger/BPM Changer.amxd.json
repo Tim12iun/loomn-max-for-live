@@ -44,6 +44,43 @@
   "boxes": [
    {
     "box": {
+     "id": "bgp",
+     "maxclass": "panel",
+     "numinlets": 1,
+     "numoutlets": 0,
+     "outlettype": [],
+     "patching_rect": [
+      700,
+      600,
+      100,
+      40
+     ],
+     "background": 1,
+     "bgcolor": [
+      0.0784,
+      0.0784,
+      0.0784,
+      1.0
+     ],
+     "bordercolor": [
+      0.0784,
+      0.0784,
+      0.0784,
+      1.0
+     ],
+     "border": 0,
+     "ignoreclick": 1,
+     "presentation": 1,
+     "presentation_rect": [
+      0,
+      0,
+      300,
+      169
+     ]
+    }
+   },
+   {
+    "box": {
      "id": "ui",
      "maxclass": "jsui",
      "numinlets": 1,
@@ -60,7 +97,7 @@
      "patching_rect": [
       400,
       300,
-      212,
+      214,
       169
      ],
      "varname": "bpmui",
@@ -70,7 +107,7 @@
      "presentation_rect": [
       0,
       0,
-      212,
+      214,
       169
      ]
     }
@@ -135,8 +172,9 @@
      "id": "tb",
      "maxclass": "newobj",
      "numinlets": 1,
-     "numoutlets": 3,
+     "numoutlets": 4,
      "outlettype": [
+      "bang",
       "bang",
       "bang",
       "bang"
@@ -144,10 +182,28 @@
      "patching_rect": [
       120,
       50,
-      60,
+      80,
       22
      ],
-     "text": "t b b b"
+     "text": "t b b b b"
+    }
+   },
+   {
+    "box": {
+     "id": "comp0",
+     "maxclass": "message",
+     "numinlets": 2,
+     "numoutlets": 1,
+     "outlettype": [
+      ""
+     ],
+     "patching_rect": [
+      200,
+      80,
+      55,
+      22
+     ],
+     "text": "compile"
     }
    },
    {
@@ -170,8 +226,8 @@
      "presentation_rect": [
       220,
       4,
-      72,
-      72
+      76,
+      112
      ],
      "varname": "Tempo",
      "activedialcolor": [
@@ -264,15 +320,7 @@
       20
      ],
      "parameter_enable": 1,
-     "presentation_rect": [
-      218,
-      82,
-      76,
-      20
-     ],
      "varname": "Takte",
-     "fontsize": 12.0,
-     "fontface": 1,
      "hint": "Takte: so lange dauert die Rampe. Ziehen oder Zahl tippen.",
      "annotation": "Takte: über so viele Takte gleitet das Tempo zum Ziel.",
      "saved_attribute_attributes": {
@@ -331,8 +379,7 @@
       0.3529,
       0.1216,
       1.0
-     ],
-     "presentation": 1
+     ]
     }
    },
    {
@@ -370,15 +417,7 @@
       20
      ],
      "parameter_enable": 1,
-     "presentation_rect": [
-      218,
-      106,
-      76,
-      20
-     ],
      "varname": "Ziel",
-     "fontsize": 12.0,
-     "fontface": 1,
      "hint": "Ziel-BPM der Rampe. Ziehen oder Zahl tippen.",
      "annotation": "Ziel: auf dieses Tempo gleitet die Rampe.",
      "saved_attribute_attributes": {
@@ -437,8 +476,7 @@
       0.3529,
       0.1216,
       1.0
-     ],
-     "presentation": 1
+     ]
     }
    },
    {
@@ -479,13 +517,14 @@
      "mode": 1,
      "text": "Start",
      "texton": "Stopp",
-     "fontsize": 13.0,
+     "fontsize": 14.0,
      "fontface": 1,
+     "rounded": 7.0,
      "presentation_rect": [
-      218,
-      132,
+      220,
+      126,
       76,
-      30
+      36
      ],
      "varname": "Start",
      "bgcolor": [
@@ -675,43 +714,6 @@
       22
      ],
      "text": "deferlow"
-    }
-   },
-   {
-    "box": {
-     "id": "rt",
-     "maxclass": "newobj",
-     "numinlets": 1,
-     "numoutlets": 2,
-     "outlettype": [
-      "bang",
-      "bang"
-     ],
-     "patching_rect": [
-      720,
-      330,
-      40,
-      22
-     ],
-     "text": "t b b"
-    }
-   },
-   {
-    "box": {
-     "id": "comp",
-     "maxclass": "message",
-     "numinlets": 2,
-     "numoutlets": 1,
-     "outlettype": [
-      ""
-     ],
-     "patching_rect": [
-      760,
-      360,
-      55,
-      22
-     ],
-     "text": "compile"
     }
    },
    {
@@ -953,6 +955,24 @@
        },
        {
         "box": {
+         "id": "w9",
+         "maxclass": "message",
+         "numinlets": 2,
+         "numoutlets": 1,
+         "outlettype": [
+          ""
+         ],
+         "patching_rect": [
+          600,
+          10,
+          55,
+          22
+         ],
+         "text": "compile"
+        }
+       },
+       {
+        "box": {
          "id": "w8",
          "maxclass": "message",
          "numinlets": 2,
@@ -1042,6 +1062,30 @@
           0
          ]
         }
+       },
+       {
+        "patchline": {
+         "source": [
+          "w5",
+          0
+         ],
+         "destination": [
+          "w9",
+          0
+         ]
+        }
+       },
+       {
+        "patchline": {
+         "source": [
+          "w9",
+          0
+         ],
+         "destination": [
+          "w3",
+          0
+         ]
+        }
        }
       ]
      }
@@ -1081,6 +1125,30 @@
      ],
      "destination": [
       "tb",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "source": [
+      "tb",
+      3
+     ],
+     "destination": [
+      "comp0",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "source": [
+      "comp0",
+      0
+     ],
+     "destination": [
+      "ui",
       0
      ]
     }
@@ -1329,42 +1397,6 @@
     "patchline": {
      "source": [
       "dl",
-      0
-     ],
-     "destination": [
-      "rt",
-      0
-     ]
-    }
-   },
-   {
-    "patchline": {
-     "source": [
-      "rt",
-      1
-     ],
-     "destination": [
-      "comp",
-      0
-     ]
-    }
-   },
-   {
-    "patchline": {
-     "source": [
-      "comp",
-      0
-     ],
-     "destination": [
-      "ui",
-      0
-     ]
-    }
-   },
-   {
-    "patchline": {
-     "source": [
-      "rt",
       0
      ],
      "destination": [

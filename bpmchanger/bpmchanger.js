@@ -1,14 +1,15 @@
-// LOOMN – BPM Changer v0.2 (Max for Live, [jsui])
+// LOOMN – BPM Changer v0.3 (Max for Live, [jsui])
 // Ändert das Song-Tempo weich: Tempo-Knopf (MIDI-mappbar) gleitet und rundet nach dem Loslassen auf ganze BPM,
 // Rampe: in N Takten auf Ziel-BPM, Start immer auf der nächsten 1. Vier Beat-Striche zählen den Takt herunter.
 // Einstellungen in bpmchanger_settings.json im eigenen Ordner (unabhängig von allen anderen Plugins).
 //
 // Zwei Instanzen derselben Datei:
 //  - im Device (ohne Argument): macht alles (Live API, Rampe, Update) und zeichnet die linke Spalte.
-//    Rechts liegen die echten Live-Regler (Tempo, Takte, Ziel, Start), damit sie MIDI-mappbar sind.
+//    Rechts liegen Tempo-Knopf und Start als echte Live-Regler (MIDI-mappbar). Takte/Ziel zeichnet die jsui selbst,
+//    gespeichert werden sie in unsichtbaren Live-Zahlenfeldern (bleiben im Set).
 //  - im Schwebe-Fenster (Argument "win"): zeichnet alles inkl. Regler und schickt Bedienung an das Device.
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.2.0";
+var VERSION = "0.3.0";
 var PLUGIN_ID = "bpmchanger";
 var WIN = jsarguments.length > 1 && jsarguments[1] === "win";
 try { if (!WIN && box && box.rect && box.rect[2] - box.rect[0] > 260) WIN = true; } catch (e) {} // Fenster ist breiter als die Device-Spalte
@@ -349,7 +350,7 @@ function update() {
       if (e2) { updMsg = "Fehler: " + e2; redraw(); return; }
       updMsg = (left && left.length) ? "Alte Dateien löschen: " + left.join(", ") : "v" + info.latest + " geladen";
       say("v" + info.latest + " geladen. Startet neu …");
-      var rt = new Task(function () { outlet(2, "bang"); }); rt.schedule(400);
+      var rt = new Task(function () { outlet(5, "compile"); outlet(2, "bang"); }); rt.schedule(400);
     });
   });
 }
@@ -415,7 +416,7 @@ function font(size, bold) {
   try { mgraphics.select_font_face(bold ? "Helvetica Neue Bold" : "Helvetica Neue Medium"); } catch (e) {}
   mgraphics.set_font_size(size);
 }
-function text(s, x, y, c, size, bold) { font(size, bold); rgba(c); mgraphics.move_to(x, y); mgraphics.show_text(String(s)); }
+function text(s, x, y, c, size, bold) { font(size, bold); rgba(c); mgraphics.move_to(x, y); mgraphics.show_text(String(s)); mgraphics.new_path(); }
 function textW(s, size, bold) { font(size, bold); return mgraphics.text_measure(String(s))[0]; }
 function textC(s, x, w, y, c, size, bold) { text(s, x + (w - textW(s, size, bold)) / 2, y, c, size, bold); }
 function rrect(x, y, w, h, r, c) { rgba(c); mgraphics.rectangle_rounded(x, y, w, h, r, r); mgraphics.fill(); }
@@ -423,11 +424,11 @@ function rstroke(x, y, w, h, r, c) { rgba(c); mgraphics.set_line_width(1); mgrap
 function fit(s, w, size, bold) { s = String(s); if (textW(s, size, bold) <= w) return s; while (s.length > 1 && textW(s + "…", size, bold) > w) s = s.substring(0, s.length - 1); return s + "…"; }
 
 // Bereiche (in 300 x 169, Fenster wird skaliert)
-var LW = 212; // linke Spalte (Device: rechts davon liegen die Live-Regler)
-var GEAR = { x: 186, y: 4, w: 22, h: 20 }, POP = { x: 160, y: 4, w: 22, h: 20 };
-var PILL = { x: 112, y: 30, w: 34, h: 16 }, SEG = { x: 112, y: 52, w: 92, h: 18 }, UPD = { x: 0, y: 72, w: 20, h: 16 };
-var R_DIAL = { x: 220, y: 4, w: 72, h: 72 }, R_BARS = { x: 218, y: 82, w: 76, h: 20 },
-    R_ZIEL = { x: 218, y: 106, w: 76, h: 20 }, R_START = { x: 218, y: 132, w: 76, h: 30 };
+var LW = 214; // linke Spalte (Device: rechts davon liegen nur Tempo-Knopf und Start als echte Live-Regler)
+var GEAR = { x: 188, y: 4, w: 22, h: 20 }, POP = { x: 162, y: 4, w: 22, h: 20 };
+var PILL = { x: 112, y: 27, w: 34, h: 16 }, SEG = { x: 112, y: 47, w: 92, h: 18 }, UPD = { x: 0, y: 69, w: 20, h: 16 };
+var R_BARS = { x: 62, y: 98, w: 68, h: 18 }, R_ZIEL = { x: 136, y: 98, w: 68, h: 18 };
+var R_DIAL = { x: 220, y: 4, w: 76, h: 112 }, R_START = { x: 220, y: 126, w: 76, h: 36 };
 
 function scale() { var r = box.rect; var w = r[2] - r[0]; return WIN ? Math.max(0.5, w / 300) : 1; }
 
@@ -452,22 +453,22 @@ function paintMain(m) {
   var t = m.tempo, whole = Math.floor(t + 0.00001), frac = Math.round((t - whole) * 100);
   if (frac >= 100) { whole += 1; frac = 0; }
   var a = String(whole), b = "." + (frac < 10 ? "0" : "") + frac;
-  text(a, 9, 70, C.text, 44, true);
-  var aw = textW(a, 44, true);
-  text(b, 9 + aw + 1, 70, frac ? C.text : C.dim, 20, true);
-  text("BPM", 9 + aw + textW(b, 20, true) + 6, 70, C.muted, 11, true);
-  text(fit(m.status, LW - 18, 11, false), 10, 90, C.muted, 11, false);
+  text(a, 9, 64, C.text, 40, true);
+  var aw = textW(a, 40, true);
+  text(b, 9 + aw + 1, 64, frac ? C.text : C.dim, 18, true);
+  text("BPM", 9 + aw + textW(b, 18, true) + 6, 64, C.muted, 11, true);
+  text(fit(m.status, LW - 18, 11, false), 10, 83, C.muted, 11, false);
 }
 function paintRamp(m) {
-  rrect(8, 100, LW - 14, 62, 10, C.surface);
-  text("RAMPE", 18, 115, C.muted, 8.5, true);
-  var rl = fit(m.rline, 120, 11, true);
-  text(rl, LW - 16 - textW(rl, 11, true), 115, m.hot ? C.text : C.muted, 11, true);
+  rrect(8, 91, LW - 14, 71, 10, C.surface);
+  text("RAMPE", 18, 111, C.muted, 8.5, true);
+  field(R_BARS, plural(m.bars, "Takt", "Takte"), m.hot);
+  field(R_ZIEL, m.to + " BPM", m.hot);
   // Beat-Striche (wie am CDJ): verbleibende Schläge im Takt leuchten, grau = nichts geplant, orange = Start gedrückt
   var n = Math.max(1, Math.min(16, m.beatNum)), x0 = 18, x1 = LW - 16, gap = 5, w = (x1 - x0 - gap * (n - 1)) / n;
   for (var i = 0; i < n; i++) {
     var lit = m.beatIdx >= 0 && i >= m.beatIdx;
-    rrect(x0 + i * (w + gap), 122, w, 10, 3, lit ? (m.hot ? C.fill : C.dim) : C.raised2);
+    rrect(x0 + i * (w + gap), 123, w, 9, 3, lit ? (m.hot ? C.fill : C.dim) : C.raised2);
   }
   // Fortschritt der Rampe
   rrect(x0, 137, x1 - x0, 3, 1.5, C.line);
@@ -497,12 +498,12 @@ function drawPop() { // Fenster ausklappen: Quadrat mit Pfeil nach oben rechts
   mgraphics.stroke();
 }
 function paintSettings(m) {
-  text("Ganze BPM", 10, 42, C.text, 12, false);
+  text("Ganze BPM", 10, 39, C.text, 12, false);
   rrect(PILL.x, PILL.y, PILL.w, PILL.h, 8, C.raised2);
   rgba(m.snap ? C.dim : C.text); mgraphics.ellipse(PILL.x + 4, PILL.y + 4, 8, 8); mgraphics.fill();
   rgba(m.snap ? C.orange : C.dim); mgraphics.ellipse(PILL.x + PILL.w - 12, PILL.y + 4, 8, 8); mgraphics.fill();
-  text(m.snap ? "an" : "aus", PILL.x + PILL.w + 6, 42, C.muted, 11, false);
-  text("Nach Loslassen", 10, 65, m.snap ? C.text : C.dim, 12, false);
+  text(m.snap ? "an" : "aus", PILL.x + PILL.w + 6, 39, C.muted, 11, false);
+  text("Nach Loslassen", 10, 60, m.snap ? C.text : C.dim, 12, false);
   rrect(SEG.x, SEG.y, SEG.w, SEG.h, 6, C.raised);
   var opts = [1, 2, 4], sw = SEG.w / 3;
   for (var i = 0; i < 3; i++) {
@@ -512,8 +513,8 @@ function paintSettings(m) {
   }
   // Version + Download-Pfeil, daneben Ergebnis
   var vt = "v" + VERSION;
-  text(vt, 10, 86, C.muted, 11, false);
-  var ax = 10 + textW(vt, 11, false) + 8, ay = 74;
+  text(vt, 10, 81, C.muted, 11, false);
+  var ax = 10 + textW(vt, 11, false) + 8, ay = 69;
   UPD.x = ax; UPD.y = ay;
   rrect(ax, ay, UPD.w, UPD.h, 5, C.raised2);
   rgba(m.updating ? C.orange : C.text); mgraphics.set_line_width(1.6);
@@ -521,29 +522,28 @@ function paintSettings(m) {
   mgraphics.move_to(ax + 6.5, ay + 7); mgraphics.line_to(ax + 10, ay + 10.5); mgraphics.line_to(ax + 13.5, ay + 7);
   mgraphics.move_to(ax + 5.5, ay + 13); mgraphics.line_to(ax + 14.5, ay + 13);
   mgraphics.stroke();
-  text(fit(m.upd || "Update", LW - ax - 30, 11, false), ax + 26, 86, C.muted, 11, false);
+  text(fit(m.upd || "Update", LW - ax - 30, 11, false), ax + 26, 81, C.muted, 11, false);
 }
 // Nur im Fenster: Regler selbst zeichnen
 function paintControls(m) {
-  var d = R_DIAL, cx = d.x + d.w / 2, cy = d.y + 36, rad = 22;
+  var d = R_DIAL, cx = d.x + d.w / 2, cy = d.y + 56, rad = 26;
   var a0 = Math.PI * 0.75, a1 = Math.PI * 2.25, p = Math.max(0, Math.min(1, (m.dial - 60) / 140));
-  textC("Tempo", d.x, d.w, d.y + 10, C.muted, 10, true);
+  textC("Tempo", d.x, d.w, d.y + 14, C.muted, 10, true);
   mgraphics.set_line_width(4);
-  rgba(C.line); mgraphics.arc(cx, cy, rad, a0, a1); mgraphics.stroke();
-  if (p > 0.002) { rgba(C.orange); mgraphics.arc(cx, cy, rad, a0, a0 + (a1 - a0) * p); mgraphics.stroke(); }
+  rgba(C.line); mgraphics.new_path(); mgraphics.arc(cx, cy, rad, a0, a1); mgraphics.stroke();
+  if (p > 0.002) { rgba(C.orange); mgraphics.new_path(); mgraphics.arc(cx, cy, rad, a0, a0 + (a1 - a0) * p); mgraphics.stroke(); }
   var an = a0 + (a1 - a0) * p;
   rgba(C.text); mgraphics.set_line_width(2);
-  mgraphics.move_to(cx + Math.cos(an) * 8, cy + Math.sin(an) * 8); mgraphics.line_to(cx + Math.cos(an) * (rad - 2), cy + Math.sin(an) * (rad - 2)); mgraphics.stroke();
-  textC(fmt1(m.dial), d.x, d.w, d.y + 70, C.text, 11, true);
-  field(R_BARS, plural(m.bars, "Takt", "Takte"));
-  field(R_ZIEL, m.to + " BPM");
+  mgraphics.move_to(cx + Math.cos(an) * 9, cy + Math.sin(an) * 9); mgraphics.line_to(cx + Math.cos(an) * (rad - 3), cy + Math.sin(an) * (rad - 3)); mgraphics.stroke();
+  textC(m.dial.toFixed(2), d.x, d.w, d.y + 104, C.text, 12, true);
   var s = R_START;
-  if (m.on) { rrect(s.x, s.y, s.w, s.h, 7, C.raised2); rstroke(s.x, s.y, s.w, s.h, 7, C.orange); textC("Stopp", s.x, s.w, s.y + 20, C.orange, 13, true); }
-  else { rrect(s.x, s.y, s.w, s.h, 7, C.fill); textC("Start", s.x, s.w, s.y + 20, C.text, 13, true); }
+  if (m.on) { rrect(s.x, s.y, s.w, s.h, 7, C.raised2); rstroke(s.x, s.y, s.w, s.h, 7, C.orange); textC("Stopp", s.x, s.w, s.y + 23, C.orange, 14, true); }
+  else { rrect(s.x, s.y, s.w, s.h, 7, C.fill); textC("Start", s.x, s.w, s.y + 23, C.text, 14, true); }
 }
-function field(b, s) {
+function field(b, s, hot) {
   rrect(b.x, b.y, b.w, b.h, 6, C.raised2);
-  textC(s, b.x, b.w, b.y + 14, C.text, 12, true);
+  if (hot) rstroke(b.x, b.y, b.w, b.h, 6, C.orange);
+  textC(s, b.x, b.w, b.y + 13, C.text, 11, true);
 }
 
 // ---------- Maus ----------
@@ -556,10 +556,11 @@ function onclick(x, y, but, cmdk, shift) {
   drag = null;
   if (inside(GEAR, x, y)) { view = view === "set" ? "main" : "set"; mgraphics.redraw(); return; }
   if (!WIN && inside(POP, x, y)) { openwin(); return; }
+  // Takte / Ziel: nach oben/unten ziehen (Shift = fein)
+  if (inside(R_BARS, x, y)) { drag = { k: "wbars", y: y, v: m.bars, step: shift ? 0.05 : 0.15 }; return; }
+  if (inside(R_ZIEL, x, y)) { drag = { k: "wtarget", y: y, v: m.to, step: shift ? 0.08 : 0.3 }; return; }
   if (WIN) {
     if (inside(R_DIAL, x, y)) { drag = { k: "wdial", y: y, v: m.dial, step: shift ? 0.02 : 0.2 }; return; }
-    if (inside(R_BARS, x, y)) { drag = { k: "wbars", y: y, v: m.bars, step: 0.15 }; return; }
-    if (inside(R_ZIEL, x, y)) { drag = { k: "wtarget", y: y, v: m.to, step: 0.25 }; return; }
     if (inside(R_START, x, y)) { cmd("wstart"); return; }
   }
   if (view !== "set") return;

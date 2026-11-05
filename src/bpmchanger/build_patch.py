@@ -27,8 +27,11 @@ def obj(id, text, rect, nin=1, nout=1, otype=None, **kw):
     box(id, "newobj", rect, text, nin, nout, otype, **kw)
 
 # Linke Spalte: jsui (Anzeige + Logik). Rechts daneben, ohne Überlappung, die echten Live-Regler (MIDI-mappbar).
-box("ui", "jsui", [400, 300, 212, 169], None, 1, 7, [""] * 7, varname="bpmui",
-    filename="bpmchanger.js", parameter_enable=0, presentation=1, presentation_rect=[0, 0, 212, 169])
+# Dunkler Hintergrund für das ganze Device (Hintergrund-Ebene, liegt immer hinter allem)
+box("bgp", "panel", [700, 600, 100, 40], None, 1, 0, [], background=1, bgcolor=BG, bordercolor=BG, border=0,
+    ignoreclick=1, presentation=1, presentation_rect=[0, 0, 300, 169])
+box("ui", "jsui", [400, 300, 214, 169], None, 1, 7, [""] * 7, varname="bpmui",
+    filename="bpmchanger.js", parameter_enable=0, presentation=1, presentation_rect=[0, 0, 214, 169])
 
 obj("in", "plugin~", [20, 20, 60, 22], 2, 2, ["signal", "signal"])
 obj("out", "plugout~", [20, 60, 60, 22], 2, 0, [])
@@ -36,8 +39,10 @@ line("in", 0, "out", 0); line("in", 1, "out", 1)
 
 # Start: live.thisdevice -> Zahlenfelder ausgeben, dann jsui initialisieren
 obj("dev", "live.thisdevice", [120, 20, 100, 22], 1, 3, ["bang", "int", "int"])
-obj("tb", "t b b b", [120, 50, 60, 22], 1, 3, ["bang", "bang", "bang"])
-line("dev", 0, "tb", 0)
+# Erst compile (Script frisch von der Platte lesen, auch wenn Max noch eine alte Version im Speicher hat)
+obj("tb", "t b b b b", [120, 50, 80, 22], 1, 4, ["bang", "bang", "bang", "bang"])
+box("comp0", "message", [200, 80, 55, 22], "compile", 2, 1, [""])
+line("dev", 0, "tb", 0); line("tb", 3, "comp0", 0); line("comp0", 0, "ui", 0)
 
 common = {"presentation": 1}
 
@@ -50,7 +55,7 @@ def valueof(longname, short, ptype, mn, mx, initial, unitstyle, **extra):
 
 # Tempo-Knopf (MIDI-mappbar)
 box("dial", "live.dial", [20, 120, 60, 72], None, 1, 2, ["", "float"], parameter_enable=1,
-    presentation_rect=[220, 4, 72, 72], varname="Tempo",
+    presentation_rect=[220, 4, 76, 112], varname="Tempo",
     activedialcolor=ORANGE, dialcolor=LINE, needlecolor=TEXT, activeneedlecolor=TEXT,
     textcolor=TEXT, focusbordercolor=ORANGE,
     hint="Tempo: drehen gleitet weich, nach dem Loslassen auf ganze BPM.",
@@ -63,26 +68,26 @@ line("ui", 0, "dial", 0)
 numcol = dict(activebgcolor=RAISED2, bordercolor=RAISED2, focusbordercolor=ORANGE, textcolor=TEXT,
               tricolor=MUTED, trioncolor=ORANGE, activeslidercolor=ORANGE)
 box("bars", "live.numbox", [120, 120, 76, 20], None, 1, 2, ["", "float"], parameter_enable=1,
-    presentation_rect=[218, 82, 76, 20], varname="Takte", fontsize=12.0, fontface=1,
+    varname="Takte",
     hint="Takte: so lange dauert die Rampe. Ziehen oder Zahl tippen.",
     annotation="Takte: über so viele Takte gleitet das Tempo zum Ziel.",
-    saved_attribute_attributes=valueof("Takte", "Takte", 1, 1, 64, 16, 9, parameter_units="%d Takte"), **numcol, **common)
+    saved_attribute_attributes=valueof("Takte", "Takte", 1, 1, 64, 16, 9, parameter_units="%d Takte"), **numcol)
 obj("pbars", "prepend bars", [120, 200, 80, 22])
 line("bars", 0, "pbars", 0); line("pbars", 0, "ui", 0)
 line("ui", 3, "bars", 0)
 
 box("ziel", "live.numbox", [220, 120, 76, 20], None, 1, 2, ["", "float"], parameter_enable=1,
-    presentation_rect=[218, 106, 76, 20], varname="Ziel", fontsize=12.0, fontface=1,
+    varname="Ziel",
     hint="Ziel-BPM der Rampe. Ziehen oder Zahl tippen.",
     annotation="Ziel: auf dieses Tempo gleitet die Rampe.",
-    saved_attribute_attributes=valueof("Ziel", "Ziel", 1, 60, 200, 128, 9, parameter_units="%d BPM"), **numcol, **common)
+    saved_attribute_attributes=valueof("Ziel", "Ziel", 1, 60, 200, 128, 9, parameter_units="%d BPM"), **numcol)
 obj("pziel", "prepend target", [220, 200, 90, 22])
 line("ziel", 0, "pziel", 0); line("pziel", 0, "ui", 0)
 line("ui", 4, "ziel", 0)
 
 box("start", "live.text", [320, 120, 76, 30], None, 1, 2, ["", ""], parameter_enable=1, mode=1,
-    text="Start", texton="Stopp", fontsize=13.0, fontface=1,
-    presentation_rect=[218, 132, 76, 30], varname="Start",
+    text="Start", texton="Stopp", fontsize=14.0, fontface=1, rounded=7.0,
+    presentation_rect=[220, 126, 76, 36], varname="Start",
     bgcolor=FILL, activebgcolor=FILL, bgoncolor=RAISED2, activebgoncolor=RAISED2,
     textcolor=TEXT, activetextcolor=TEXT, textoncolor=ORANGE, activetextoncolor=ORANGE,
     bordercolor=FILL, focusbordercolor=ORANGE,
@@ -104,11 +109,9 @@ obj("met", "metro 4n @quantize 4n", [500, 80, 140, 22], 2, 1, ["bang"])
 box("tick", "message", [500, 110, 40, 22], "tick", 2, 1, [""])
 line("lb", 0, "one", 0); line("one", 0, "met", 0); line("met", 0, "tick", 0); line("tick", 0, "ui", 0)
 
-# Neustart nach Update: compile, dann wie beim Laden
+# Neustart nach Update: wie beim Laden (compile, Zahlenfelder, init)
 obj("dl", "deferlow", [720, 300, 60, 22])
-obj("rt", "t b b", [720, 330, 40, 22], 1, 2, ["bang", "bang"])
-box("comp", "message", [760, 360, 55, 22], "compile", 2, 1, [""])
-line("ui", 2, "dl", 0); line("dl", 0, "rt", 0); line("rt", 1, "comp", 0); line("comp", 0, "ui", 0); line("rt", 0, "tb", 0)
+line("ui", 2, "dl", 0); line("dl", 0, "tb", 0)  # t b b b b: compile, Zahlenfelder, init
 
 # Schwebe-Fenster: eigene jsui-Instanz (Argument "win"), Zustand über ---bpmstate, Bedienung über ---bpmcmd
 obj("sst", "s ---bpmstate", [420, 500, 100, 22], 1, 0, [])
@@ -128,11 +131,12 @@ win_boxes = [
     {"box": {"id": "w6", "maxclass": "message", "numinlets": 2, "numoutlets": 1, "outlettype": [""], "patching_rect": [500, 40, 420, 22],
              "text": "window flags float, window flags nogrow, window flags nozoom, window size 200 200 %d %d, window exec, title BPM Changer" % (200 + SW, 200 + SH)}},
     {"box": {"id": "w7", "maxclass": "newobj", "text": "thispatcher", "numinlets": 1, "numoutlets": 2, "outlettype": ["", ""], "patching_rect": [500, 80, 80, 22]}},
+    {"box": {"id": "w9", "maxclass": "message", "numinlets": 2, "numoutlets": 1, "outlettype": [""], "patching_rect": [600, 10, 55, 22], "text": "compile"}},
     {"box": {"id": "w8", "maxclass": "message", "numinlets": 2, "numoutlets": 1, "outlettype": [""], "patching_rect": [120, 10, 60, 22], "text": "wopen"}},
 ]
 win_lines = [{"patchline": {"source": a, "destination": b}} for a, b in [
     (["w2", 0], ["w3", 0]), (["w3", 0], ["w4", 0]), (["w5", 0], ["w6", 0]), (["w6", 0], ["w7", 0]),
-    (["w1", 0], ["w8", 0]), (["w8", 0], ["w4", 0])]]
+    (["w1", 0], ["w8", 0]), (["w8", 0], ["w4", 0]), (["w5", 0], ["w9", 0]), (["w9", 0], ["w3", 0])]]
 boxes.append({"box": {"id": "win", "maxclass": "newobj", "text": "p window", "varname": "window", "numinlets": 1, "numoutlets": 0,
     "outlettype": [], "patching_rect": [560, 570, 70, 22],
     "patcher": {"fileversion": 1, "appversion": {"major": 8, "minor": 6, "revision": 0, "architecture": "x64", "modernui": 1},
