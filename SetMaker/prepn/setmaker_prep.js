@@ -2,7 +2,7 @@
 // Farben -> Spalten. "Rendern" nimmt pro Spalte einen Full-Stem unten im Projekt auf (Echtzeit).
 // "Paket" schreibt Full-Stems, graue Schnitte und Serum-MIDI als JSON neben das Live-Set.
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.4.0";
+var VERSION = "0.5.0";
 var PLUGIN_ID = "setmaker-prep";
 inlets = 1;
 outlets = 1; // -> jweb (über s ---toweb)
@@ -447,7 +447,8 @@ function deviceDir(){
 var DIR = "";
 // Einstellungen liegen im Elternordner (SetMaker/), damit Sort und Prep in eigenen Unterordnern dieselbe Datei nutzen
 function parentDir(d){ var x = d.substring(0, d.length - 1); return x.substring(0, x.lastIndexOf("/") + 1); }
-function cfgPath(){ return parentDir(DIR) + SM.FILE; }
+// Prep ist eigenständig: eigene Einstellungen im eigenen Ordner, nicht mit Sort geteilt
+function cfgPath(){ return DIR + "setmaker_prep_settings.json"; }
 function readText(path){
   var f = new File(path, "read", "TEXT"); if (!f.isopen) return null;
   var s = "", line; while ((line = f.readline(32767)) !== null && line !== undefined) { s += line + "\n"; if (f.position >= f.eof) break; }
@@ -463,7 +464,15 @@ function loadCfg(){
   var raw = readText(cfgPath()), parsed = null;
   if (raw){ try { parsed = JSON.parse(raw); } catch (e) {} }
   settings = SM.normalize(parsed);
-  if (!parsed) writeText(cfgPath(), JSON.stringify(settings, null, 1)); // Defaults einmal anlegen
+  if (!parsed){ // Defaults einmal anlegen: eine Farbe pro Spalte
+    var first = {};
+    for (var i = 0; i < settings.categories.length; i++){
+      var c = settings.categories[i];
+      if (!first[c.lane]) first[c.lane] = c.color; else c.color = first[c.lane];
+    }
+    settings.cut = { index: 41, rgb: SM.PALETTE[41] };
+    writeText(cfgPath(), JSON.stringify(settings, null, 1));
+  }
   deriveCfg();
 }
 function saveCfg(){ writeText(cfgPath(), JSON.stringify(settings, null, 1)); deriveCfg(); }
@@ -534,7 +543,7 @@ function refresh(){
 
 // ---------- Farbe lernen: aus ausgewählter Spur (Spalten) bzw. ausgewähltem Clip (Schnitt) ----------
 function learn(laneId){
-  loadCfg(); // vor dem Ändern neu lesen, damit Änderungen des Umbenenn-Tools erhalten bleiben
+  loadCfg();
   if (laneId === "cut"){
     var clip = new LiveAPI("live_set view detail_clip");
     if (!clip.id || Number(clip.id) === 0){ status("Erst einen grau gefärbten Clip anklicken."); return; }
@@ -545,12 +554,26 @@ function learn(laneId){
     var col = { index: n(t, "color_index"), rgb: n(t, "color") };
     if (laneId === "rest") settings.rest = { label: "Rest", color: col };
     else {
-      // Farbe gilt für die erste (Haupt-)Kategorie dieser Spalte
-      for (var i = 0; i < settings.categories.length; i++) if (settings.categories[i].lane === laneId) { settings.categories[i].color = col; break; }
-      if (!cfg.colors[laneId] && !hasLaneCat(laneId)) settings.categories.push({ id: laneId, label: laneId, lane: laneId, keywords: [], color: col });
+      applyLaneColor(laneId, col);
     }
   }
   saveCfg(); refresh();
+}
+// Farbe aus der Palette wählen (Index 0..69 wie in Ableton)
+function setcolor(laneId, index){
+  loadCfg();
+  var col = { index: Number(index), rgb: SM.PALETTE[Number(index)] };
+  if (laneId === "cut") settings.cut = col;
+  else if (laneId === "rest") settings.rest = { label: "Rest", color: col };
+  else applyLaneColor(laneId, col);
+  saveCfg(); refresh();
+}
+// Eine Farbe pro Spalte: gilt für alle Kategorien dieser Spalte (Kick, Hi-Hat, Snare … -> Tops)
+function applyLaneColor(laneId, col){
+  var found = false;
+  for (var i = 0; i < settings.categories.length; i++)
+    if (settings.categories[i].lane === laneId){ settings.categories[i].color = col; found = true; }
+  if (!found) settings.categories.push({ id: laneId, label: laneId, lane: laneId, keywords: [], color: col });
 }
 function hasLaneCat(laneId){ for (var i = 0; i < settings.categories.length; i++) if (settings.categories[i].lane === laneId) return true; return false; }
 function forget(laneId){
@@ -694,8 +717,8 @@ function setRoutingById(api, identifier, prop){
 
 // ---------- Paket schreiben ----------
 function isCutClip(clip){
-  if (cfg.cut) return n(clip, "color_index") === cfg.cut.index;
-  return isGrey(n(clip, "color"));
+  // gewählte Schnitt-Farbe oder irgendein Grau
+  return (cfg.cut && n(clip, "color_index") === cfg.cut.index) || isGrey(n(clip, "color"));
 }
 function pkg(songNameEnc){
   var songName = decodeURIComponent(songNameEnc || "SONG").toUpperCase();

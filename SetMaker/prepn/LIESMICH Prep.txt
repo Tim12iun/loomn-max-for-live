@@ -1,4 +1,4 @@
-SET MAKER LIVE - Song-Prep v0.3 (Test-Version)
+SET MAKER LIVE - Song-Prep v0.5 (Test-Version)
 
 Installation
 - Alle Dateien im selben Ordner lassen ("SetMaker Prep.amxd", "setmaker_prep.js", "setmaker_prep.html").
@@ -9,8 +9,10 @@ Ablauf
 0. "Auto": erkennt die Spuren ueber Spurnamen, Clipnamen und Sample-Dateinamen (Kick, Hi-Hat, Snare, Bass, Vocals ...)
    und faerbt sie in der Farbe ihrer Spalte ein. Unbekanntes bekommt die "Rest"-Farbe. Danach in Ableton pruefen und
    falsch erkannte Spuren einfach umfaerben. Alt+Klick auf "Auto" = Einfaerben rueckgaengig.
-   Farben und Keywords sind schon voreingestellt (gleiche wie im Sort-Device, Datei setmaker_settings.json).
-   Eigene Farbe fuer eine Spalte: Spur anklicken, dann Feld klicken (Schritt 1, optional).
+   Farben sind voreingestellt, eine Farbe pro Spalte. Prep ist eigenstaendig und teilt nichts mit Sort
+   (eigene Datei setmaker_prep_settings.json im Ordner prepn, bleibt bei Updates erhalten).
+   Farbe aendern: Feld klicken -> Farbe aus der Ableton-Palette waehlen.
+   Shift+Klick auf ein Feld = Farbe der gerade ausgewaehlten Spur uebernehmen.
 1. Farben lernen: Spur in Ableton anklicken (z. B. eine Tops-Spur), dann im Device das Feld "Tops" klicken.
    Die Farbe wird gespeichert und gilt fuer alle Songs. Alt+Klick auf ein Feld = Farbe vergessen.
    Danach einfach alle Spuren im Song passend einfaerben. Die Zahl im Feld zeigt, wie viele Spuren erkannt wurden.

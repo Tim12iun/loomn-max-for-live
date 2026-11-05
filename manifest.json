@@ -1,6 +1,6 @@
 {
  "plugins": {
-  "setmaker-prep": {"version": "0.4.0", "dir": "SetMaker/prepn",
+  "setmaker-prep": {"version": "0.5.0", "dir": "SetMaker/prepn",
    "files": ["SetMaker Prep.amxd", "setmaker_prep.html", "LIESMICH Prep.txt", "setmaker_prep.js"]},
   "setmaker-sort": {"version": "0.1.0", "dir": "SetMaker/sortn",
    "files": ["SetMaker Sort.amxd", "setmaker_sort.html", "LIESMICH Sort.txt", "setmaker_sort.js"]}
