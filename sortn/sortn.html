@@ -22,6 +22,7 @@ button.go:hover{background:#ff8c4a}
 .page.front{justify-content:space-between;padding:6px 8px 4px}
 .page.front .head{height:20px}
 .head{display:flex;align-items:center;gap:4px;height:24px;flex:none}
+.vtag{font-size:9px;color:var(--muted);margin-left:5px;opacity:.7}
 .title{font-weight:700;letter-spacing:.03em;color:var(--accent);font-size:12px}
 .sp{flex:1}
 .muted{color:var(--muted)}
@@ -116,7 +117,7 @@ input[type=checkbox]{margin:0;accent-color:var(--accent)}
 <!-- Vorderseite -->
 <section class="page front" id="front">
   <div class="head">
-    <span class="title" id="title">sortn</span>
+    <span class="title" id="title">sortn</span><span class="vtag" id="vtag"></span>
     <span class="sp"></span>
     <button class="icon ghost" id="analyze" title="Spuren neu einlesen"><svg><use href="#i-refresh"/></svg></button>
     <button class="icon ghost" id="gear" title="Spuren, Kategorien und Optionen"><svg><use href="#i-gear"/></svg></button>
@@ -325,6 +326,7 @@ function onState(enc){
   if(dirty) next.settings = S.settings; // ungespeicherte Eingaben nicht überschreiben
   S = next; setStatus(S.status || '');
   $('#title').title = 'sortn v' + (S.version || '?');
+  $('#vtag').textContent = 'v' + (S.version || '?');
   draw();
   setBusy(S.busy);
 }
