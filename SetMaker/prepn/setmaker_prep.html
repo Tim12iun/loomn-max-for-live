@@ -2,82 +2,87 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<title>Set Maker – Song-Prep</title>
+<title>prepn</title>
 <style>
-:root{--bg:#1b1b1b;--panel:#262626;--line:#3a3a3a;--text:#e6e6e6;--muted:#8d8d8d;--accent:#ff7a2f}
+:root{--bg:#1e1e1e;--panel:#2a2a2a;--line:#3c3c3c;--text:#e6e6e6;--muted:#8d8d8d;--accent:#ff7a2f}
 *{box-sizing:border-box;margin:0}
 html,body{height:100%;overflow:hidden}
-body{background:var(--bg);color:var(--text);font:11px/1.3 -apple-system,"Helvetica Neue",sans-serif;padding:6px 8px;display:flex;flex-direction:column;gap:6px;user-select:none}
-.top{display:flex;gap:6px;align-items:center}
-.title{font-weight:700;letter-spacing:.04em;font-size:11px;color:var(--accent)}
-input{font:inherit;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:3px;padding:2px 5px;width:120px}
-button{font:inherit;font-weight:600;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:3px;padding:3px 9px;cursor:pointer}
-button:hover{border-color:#666}
-button.go{background:var(--accent);border-color:var(--accent);color:#111}
-.meta{color:var(--muted);margin-left:auto}
-.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
-.chip{display:flex;align-items:center;gap:5px;background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:3px 5px;cursor:pointer;min-width:0}
-.chip:hover{border-color:#777}
-.sw{flex:none;width:14px;height:14px;border-radius:2px;border:1px dashed #666}
-.sw.set{border:none}
-.lbl{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body{background:var(--bg);color:var(--text);font:10.5px/1.25 -apple-system,"Helvetica Neue",sans-serif;padding:5px 6px;display:flex;flex-direction:column;gap:4px;user-select:none}
+.row{display:flex;gap:4px;align-items:center}
+input{font:inherit;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:3px;padding:2px 5px;flex:1;min-width:0}
+button{font:inherit;font-weight:600;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:3px;padding:3px 6px;cursor:pointer;white-space:nowrap}
+button:hover{border-color:#777}
+button:disabled{opacity:.4;cursor:default}
+.ico{padding:2px 5px;color:var(--muted)}
+.steps button{flex:1}
+.steps .n{display:inline-block;width:13px;height:13px;line-height:13px;border-radius:50%;background:#444;color:#fff;font-size:9px;text-align:center;margin-right:4px}
+.steps .go{background:var(--accent);border-color:var(--accent);color:#111}
+.steps .go .n{background:#111;color:var(--accent)}
+.meta{color:var(--muted);font-size:9.5px}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:3px}
+.chip{display:flex;align-items:center;gap:4px;background:var(--panel);border:1px solid transparent;border-radius:3px;padding:2px 4px;cursor:pointer;min-width:0;height:18px}
+.chip:hover{border-color:#666}
+.sw{flex:none;width:10px;height:10px;border-radius:2px}
+.lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cnt{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums}
-.chip.has .cnt{color:var(--text)}
+.chip.has .lbl{font-weight:600}.chip.has .cnt{color:var(--text)}
 .chip.stem{box-shadow:inset 0 -2px 0 var(--accent)}
-.status{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
-.bar{height:3px;background:var(--panel);border-radius:2px;overflow:hidden}
-.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
-.foot{display:flex;gap:6px;align-items:center}
-#pal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center}
+.chip.more{justify-content:center;color:var(--muted)}
+.status{position:relative;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:1px 3px;border-radius:2px;margin-top:auto}
+.status i{position:absolute;inset:0;width:0;background:rgba(255,122,47,.25);z-index:-1}
+#pal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center}
 #pal.on{display:flex}
-#pal .box{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:6px}
-#pal .t{color:var(--muted);margin-bottom:4px}
-#pal .sw14{display:grid;grid-template-columns:repeat(14,16px);gap:2px}
-#pal .sw14 i{width:16px;height:16px;border-radius:2px;cursor:pointer;display:block}
-#pal .sw14 i:hover{outline:2px solid #fff}
+#pal .box{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:5px}
+#pal .t{color:var(--muted);margin-bottom:3px}
+#pal .g{display:grid;grid-template-columns:repeat(14,15px);gap:2px}
+#pal .g i{width:15px;height:15px;border-radius:2px;cursor:pointer;display:block}
+#pal .g i:hover{outline:2px solid #fff}
 </style>
 </head>
 <body>
-<div class="top">
-  <span class="title">SET MAKER</span>
-  <input id="song" placeholder="Song-Name">
-  <button id="auto" title="Erkennt Spuren über Namen/Clips/Samples und färbt sie ein. Alt+Klick = rückgängig">✦ Auto</button>
-  <button class="go" id="render" title="Nimmt pro Farbe einen Full-Stem unten im Projekt auf (Echtzeit)">● Rendern</button>
-  <button id="pkg" title="Schreibt Full-Stems, graue Schnitte und Serum-MIDI als Song-Paket">Paket</button>
+<div class="row">
+  <input id="song" placeholder="Song-Name" title="Name für die Stem-Spuren, z. B. BASS_IMSOLOST 132">
   <span class="meta" id="meta"></span>
-  <button id="upd" title="Prüft auf GitHub, ob es eine neue Version gibt">⟳</button>
-  <button id="float" title="Öffnet die Oberfläche als schwebendes Fenster über Ableton">⧉ Schweben</button>
+  <button class="ico" id="upd" title="Nach Updates suchen">⟳</button>
+  <button class="ico" id="float" title="Als schwebendes Fenster öffnen">⧉</button>
+</div>
+<div class="row steps">
+  <button id="auto" title="Erkennt die Spuren und färbt sie in der Farbe ihres Stems. Danach in Ableton prüfen und ggf. umfärben. Alt+Klick = rückgängig"><span class="n">1</span>Färben</button>
+  <button class="go" id="render" title="Nimmt pro Farbe einen Stem unten im Projekt auf (läuft in Echtzeit)"><span class="n">2</span>Stems rendern</button>
+  <button id="pkg" title="Optional: grau gefärbte Passagen + Serum-MIDI als Song-Paket speichern"><span class="n">3</span>Paket</button>
 </div>
 <div class="grid" id="grid"></div>
-<div class="bar"><i id="bar"></i></div>
-<div class="foot"><span class="status" id="status">„Auto“ färbt die Spuren vor. Prüfen, dann „Rendern“. Feld klicken = Farbe wählen. Shift+Klick = Farbe der ausgewählten Spur übernehmen.</span></div>
-
-<div id="pal"><div class="box"><div class="t" id="palT"></div><div class="sw14" id="palG"></div></div></div>
+<div class="status"><i id="bar"></i><span id="status">Farbe = Stem. Feld klicken = Farbe ändern.</span></div>
+<div id="pal"><div class="box"><div class="t" id="palT"></div><div class="g" id="palG"></div></div></div>
 <script>
 const PALETTE = [16749734, 16753961, 13408551, 16249980, 12581632, 1769263, 2490280, 6094824, 9160191, 5538020, 9611263, 14183652, 15029152, 16777215, 16725558, 16149507, 10056267, 16773172, 8912743, 4047616, 49071, 1698303, 1090798, 32192, 8940772, 11958214, 16726484, 13684944, 14837594, 16753524, 13872497, 15597486, 13821080, 12243060, 10208397, 13958625, 13496824, 12173795, 13482980, 11442405, 15064289, 11119017, 13013643, 12026454, 10060650, 12565097, 10927616, 8237133, 8962746, 10204100, 8758722, 8623052, 10851765, 12558270, 12349846, 8092539, 11481907, 11096369, 7491393, 14402304, 8754719, 5480241, 695438, 2319236, 1716118, 3101346, 6441901, 10701741, 13381230, 3947580];
-const LANES = [
-  ['bass','Bass'],['kick','Kick'],['top','Tops'],['vox','Vox'],['melo','Melody'],['serum','Serum'],
-  ['inst1','Inst 10'],['inst2','Inst 11'],['vocal','Vocal Chain'],['riser','Riser'],['free1','Spur 14'],['rest','Rest'],['cut','Schnitt']
-];
+const MAIN = [['bass','Bass'],['kick','Kick'],['top','Tops'],['vox','Vox'],['melo','Melody'],['serum','Serum'],['riser','Riser'],['rest','Rest'],['cut','Schnitt']];
+const EXTRA = [['inst1','Inst 10'],['inst2','Inst 11'],['vocal','Vocal Chain'],['free1','Spur 14']];
 const SHORT = {bass:'BASS',kick:'KICK',top:'TOPS',vox:'VOCALS',melo:'MELODY',inst1:'INST10',inst2:'INST11',vocal:'VOCALCHAIN',riser:'RISER',free1:'SPUR14'};
+const TIP = {rest:'Rest: wird nicht gerendert', cut:'Schnitt: Clips in dieser Farbe (oder grau) werden im Paket als einzelne Clips gespeichert'};
 const $ = s => document.querySelector(s);
 const toMax = (...a) => window.max ? window.max.outlet(...a) : console.log('max', a);
 const hex = rgb => '#' + (rgb >>> 0).toString(16).padStart(6, '0');
-let state = null;
+let state = null, showExtra = false;
 
+function chip(id, label){
+  const c = id==='cut' ? state.cfg.cut : id==='rest' ? state.cfg.rest : state.cfg.colors[id];
+  const cnt = (id==='cut'||id==='rest') ? '' : (state.counts[id] || 0);
+  const d = document.createElement('div');
+  d.className = 'chip' + (cnt ? ' has' : '') + (state.stems.includes(SHORT[id]) ? ' stem' : '');
+  d.title = TIP[id] || ((state.names[id]||[]).join(', ') || 'Keine Spur in dieser Farbe') + '\nKlick = Farbe ändern · Shift+Klick = Farbe der ausgewählten Spur';
+  d.innerHTML = `<span class="sw" style="background:${c?hex(c.rgb):'transparent'};${c?'':'border:1px dashed #666'}"></span><span class="lbl">${label}</span><span class="cnt">${cnt||''}</span>`;
+  d.onclick = e => e.shiftKey ? toMax('learn', id) : openPal(id, label);
+  return d;
+}
 function render(){
   const g = $('#grid'); g.innerHTML = '';
-  for(const [id, label] of LANES){
-    const c = id==='cut' ? state.cfg.cut : id==='rest' ? state.cfg.rest : state.cfg.colors[id];
-    const cnt = (id==='cut'||id==='rest') ? '' : (state.counts[id] || 0);
-    const d = document.createElement('div');
-    d.className = 'chip' + (cnt ? ' has' : '') + (state.stems.includes(SHORT[id]) ? ' stem' : '');
-    d.title = id==='cut' ? 'Clip-Farbe für Passagen (Standard: grau). Clip anklicken, dann hier klicken.'
-      : (state.names[id]||[]).join(', ') || 'Spur mit dieser Farbe anklicken, dann hier klicken';
-    d.innerHTML = `<span class="sw ${c?'set':''}" style="${c?`background:${hex(c.rgb)}`:(id==='cut'?'background:#8a8a8a;border:none':'')}"></span>
-      <span class="lbl">${label}</span><span class="cnt">${cnt===''?'':cnt}</span>`;
-    d.onclick = e => e.altKey ? toMax('forget', id) : e.shiftKey ? toMax('learn', id) : openPal(id, label);
-    g.appendChild(d);
+  const extraUsed = EXTRA.some(([id]) => state.counts[id]);
+  const list = (showExtra || extraUsed) ? MAIN.slice(0,7).concat(EXTRA, MAIN.slice(7)) : MAIN;
+  list.forEach(([id,l]) => g.appendChild(chip(id,l)));
+  if(!showExtra && !extraUsed){
+    const m = document.createElement('div'); m.className = 'chip more'; m.textContent = '+4 Spalten';
+    m.title = 'Inst 10, Inst 11, Vocal Chain, Spur 14'; m.onclick = () => { showExtra = true; render(); }; g.appendChild(m);
   }
   $('#meta').textContent = `${Math.round(state.tempo)} BPM · v${state.version||'?'}`;
   if(!$('#song').value && state.setName) $('#song').value = state.setName.replace(/\.als$/i,'').replace(/[_ ]\d{6}.*$/,'').replace(/[_ ]v\d+$/i,'');
@@ -85,11 +90,11 @@ function render(){
 }
 let palLane = null;
 function openPal(id, label){
-  palLane = id; $('#palT').textContent = `Farbe für ${label} wählen (Esc = abbrechen)`;
+  palLane = id; $('#palT').textContent = `Farbe für ${label}`;
   $('#palG').innerHTML = PALETTE.map((c,i)=>`<i data-i="${i}" style="background:${hex(c)}"></i>`).join('');
   $('#pal').classList.add('on');
 }
-$('#palG').onclick = e => { const i = e.target.dataset.i; if(i!==undefined){ toMax('setcolor', palLane, Number(i)); } $('#pal').classList.remove('on'); };
+$('#palG').onclick = e => { const i = e.target.dataset.i; if(i!==undefined) toMax('setcolor', palLane, Number(i)); $('#pal').classList.remove('on'); };
 $('#pal').onclick = e => { if(e.target.id==='pal') $('#pal').classList.remove('on'); };
 document.addEventListener('keydown', e => { if(e.key==='Escape') $('#pal').classList.remove('on'); });
 const songName = () => encodeURIComponent($('#song').value.trim() || 'SONG');
@@ -104,7 +109,7 @@ if(window.max){
   window.max.bindInlet('status', enc => { $('#status').textContent = JSON.parse(decodeURIComponent(enc)).text; });
   window.max.bindInlet('progress', enc => { $('#bar').style.width = JSON.parse(decodeURIComponent(enc)).pct + '%'; });
   toMax('refresh');
-  setInterval(() => toMax('refresh'), 3000); // Farben/Spuren aktuell halten
+  setInterval(() => toMax('refresh'), 3000);
 }
 </script>
 </body>

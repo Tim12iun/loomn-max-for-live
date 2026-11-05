@@ -224,7 +224,7 @@
       "rect": [
        200,
        200,
-       660,
+       400,
        165
       ],
       "bglocked": 0,
@@ -320,7 +320,7 @@
          "patching_rect": [
           0,
           0,
-          660,
+          400,
           165
          ],
          "outlettype": [
@@ -331,7 +331,7 @@
          "presentation_rect": [
           0,
           0,
-          660,
+          400,
           165
          ],
          "rendermode": 1
@@ -368,7 +368,7 @@
          "outlettype": [
           ""
          ],
-         "text": "window flags float, window flags nogrow, window size 200 200 860 365, window exec"
+         "text": "window flags float, window flags nogrow, window size 200 200 600 365, window exec"
         }
        },
        {
@@ -531,7 +531,7 @@
      "patching_rect": [
       500,
       200,
-      660,
+      400,
       165
      ],
      "outlettype": [
@@ -542,7 +542,7 @@
      "presentation_rect": [
       0,
       0,
-      660,
+      400,
       165
      ],
      "rendermode": 1
@@ -723,7 +723,7 @@
     }
    }
   ],
-  "devicewidth": 660.0,
+  "devicewidth": 400.0,
   "description": "Set Maker Live – Song-Prep",
   "project": {
    "version": 1,

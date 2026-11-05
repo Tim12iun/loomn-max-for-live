@@ -2,7 +2,7 @@
 // Farben -> Spalten. "Rendern" nimmt pro Spalte einen Full-Stem unten im Projekt auf (Echtzeit).
 // "Paket" schreibt Full-Stems, graue Schnitte und Serum-MIDI als JSON neben das Live-Set.
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.5.0";
+var VERSION = "0.6.0";
 var PLUGIN_ID = "setmaker-prep";
 inlets = 1;
 outlets = 1; // -> jweb (über s ---toweb)
