@@ -120,6 +120,7 @@ async function run(job) {
     }
   }
   if (job.json) {
+    job.json.dir = job.dir; // endgültiger absoluter Ordner (auch "… 2"), für buildn
     job.json.files = job.stems.map(s => ({ stem: s.out, clips: s.clips.map(c => c.out) }));
     fs.writeFileSync(path.join(job.dir, "SETMAKER.json"), JSON.stringify(job.json, null, 1));
   }
