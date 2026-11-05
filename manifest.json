@@ -1,7 +1,7 @@
 {
  "plugins": {
   "setmaker-prep": {
-   "version": "0.6.2",
+   "version": "0.7.1",
    "dir": "SetMaker/prepn",
    "files": [
     "setmaker_prep.html",
@@ -9,7 +9,7 @@
     "setmaker_prep.js"
    ],
    "amxd": [
-    "SetMaker Prep.amxd"
+    "prepn.amxd"
    ],
    "amxdType": "aaaa"
   },

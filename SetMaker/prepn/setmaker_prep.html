@@ -37,6 +37,15 @@ button:disabled{opacity:.4;cursor:default}
 #pal .g{display:grid;grid-template-columns:repeat(14,15px);gap:2px}
 #pal .g i{width:15px;height:15px;border-radius:2px;cursor:pointer;display:block}
 #pal .g i:hover{outline:2px solid #fff}
+#ov{position:fixed;inset:0;background:rgba(20,20,20,.94);display:none;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px;text-align:center}
+#ov.on{display:flex}
+#ov .t{font-size:15px;font-weight:800;color:var(--accent);letter-spacing:.03em}
+#ov .s{color:var(--text);font-size:11px}
+#ov .b{width:90%;height:8px;background:#333;border-radius:4px;overflow:hidden}
+#ov .b i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+#ov .p{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+#ov.rec .t::first-letter{animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
 </style>
 </head>
 <body>
@@ -53,6 +62,7 @@ button:disabled{opacity:.4;cursor:default}
 </div>
 <div class="grid" id="grid"></div>
 <div class="status"><i id="bar"></i><span id="status">Farbe = Stem. Feld klicken = Farbe ändern.</span></div>
+<div id="ov"><div class="t" id="ovT"></div><div class="p" id="ovP">0 %</div><div class="b"><i id="ovB"></i></div><div class="s" id="ovS"></div></div>
 <div id="pal"><div class="box"><div class="t" id="palT"></div><div class="g" id="palG"></div></div></div>
 <script>
 const PALETTE = [16749734, 16753961, 13408551, 16249980, 12581632, 1769263, 2490280, 6094824, 9160191, 5538020, 9611263, 14183652, 15029152, 16777215, 16725558, 16149507, 10056267, 16773172, 8912743, 4047616, 49071, 1698303, 1090798, 32192, 8940772, 11958214, 16726484, 13684944, 14837594, 16753524, 13872497, 15597486, 13821080, 12243060, 10208397, 13958625, 13496824, 12173795, 13482980, 11442405, 15064289, 11119017, 13013643, 12026454, 10060650, 12565097, 10927616, 8237133, 8962746, 10204100, 8758722, 8623052, 10851765, 12558270, 12349846, 8092539, 11481907, 11096369, 7491393, 14402304, 8754719, 5480241, 695438, 2319236, 1716118, 3101346, 6441901, 10701741, 13381230, 3947580];
@@ -107,7 +117,10 @@ $('#float').onclick = () => toMax('popout');
 if(window.max){
   window.max.bindInlet('state', enc => { state = JSON.parse(decodeURIComponent(enc)); render(); });
   window.max.bindInlet('status', enc => { $('#status').textContent = JSON.parse(decodeURIComponent(enc)).text; });
-  window.max.bindInlet('progress', enc => { $('#bar').style.width = JSON.parse(decodeURIComponent(enc)).pct + '%'; });
+  window.max.bindInlet('progress', enc => { const p = JSON.parse(decodeURIComponent(enc)).pct; $('#bar').style.width = p + '%'; $('#ovB').style.width = p + '%'; $('#ovP').textContent = p + ' %'; });
+  window.max.bindInlet('overlay', enc => { const o = JSON.parse(decodeURIComponent(enc));
+    $('#ov').classList.toggle('on', !!o.on); $('#ov').classList.toggle('rec', /AUFGENOMMEN/.test(o.title));
+    if(o.on){ $('#ovT').textContent = o.title; $('#ovS').textContent = o.sub; $('#ovB').style.width = '0%'; $('#ovP').textContent = '0 %'; } });
   // Kein Abfrage-Timer: das Device schickt neuen Stand selbst, sobald sich in Live etwas ändert.
   toMax('hello');
 }

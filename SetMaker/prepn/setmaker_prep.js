@@ -2,7 +2,7 @@
 // Farben -> Spalten. "Rendern" nimmt pro Spalte einen Full-Stem unten im Projekt auf (Echtzeit).
 // "Paket" schreibt Full-Stems, graue Schnitte und Serum-MIDI als JSON neben das Live-Set.
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.6.2";
+var VERSION = "0.7.1";
 var PLUGIN_ID = "setmaker-prep";
 inlets = 1;
 outlets = 1; // -> jweb (über s ---toweb)
@@ -665,18 +665,21 @@ function forget(laneId){
 // ---------- In Häppchen arbeiten, damit Ableton nicht einfriert ----------
 // fn(item, i) wird so oft aufgerufen, wie in ~12 ms passt, dann gibt das Device Live wieder frei.
 var busy = false, worker = null, lastPct = -1;
+// Großes Overlay in der UI: zeigt deutlich, dass gearbeitet wird (Ableton darf dabei ruckeln)
+function overlay(on, title, sub){ say("overlay", { on: on ? 1 : 0, title: title || "", sub: sub || "" }); }
 function work(items, fn, label, done){
   busy = true; lastPct = -1;
+  overlay(true, label, "Kurz warten, Ableton kann dabei ruckeln.");
   var i = 0;
   worker = new Task(function (){
     var start = new Date().getTime();
     try {
       while (i < items.length && new Date().getTime() - start < 12){ fn(items[i], i); i++; }
-    } catch (e) { busy = false; worker = null; say("progress", { pct: 0 }); status("Fehler: " + e); return; }
+    } catch (e) { busy = false; worker = null; overlay(false); say("progress", { pct: 0 }); status("Fehler: " + e); return; }
     var pct = items.length ? Math.round(100 * i / items.length) : 100;
     if (pct !== lastPct){ lastPct = pct; say("progress", { pct: pct }); say("status", { text: label + " " + i + "/" + items.length + " …" }); }
     if (i < items.length) worker.schedule(8);
-    else { busy = false; worker = null; say("progress", { pct: 0 }); done(); }
+    else { busy = false; worker = null; overlay(false); say("progress", { pct: 0 }); done(); }
   });
   worker.schedule(0);
 }
@@ -749,28 +752,94 @@ function render(songNameEnc){
     startRecording(plan, songName, endTime);
   });
 }
+// Aufnahme-Kette pro Stem:
+//  - eine Quellspur:   Stem "Audio From" = diese Spur (Post Mixer)
+//  - mehrere Quellen:  Quellen "Audio To" = Hilfs-Bus, Stem "Audio From" = Bus (Post Mixer)
+// Stem: scharf, Monitor Aus (sonst doppelt laut). Bus-Spuren werden danach gelöscht.
+var NO_INPUT = ["No Input", "Kein Eingang"];
+var POST_MIXER = ["Post Mixer"];
+function newAudioTrack(song, name, colorIndex){
+  song.call("create_audio_track", -1);
+  var all = ids(song, "tracks"), t = byId(all[all.length - 1]);
+  t.set("name", name);
+  if (colorIndex !== undefined && colorIndex !== null) t.set("color_index", colorIndex);
+  return t;
+}
+function trackIndex(id){
+  var all = ids(new LiveAPI("live_set"), "tracks");
+  for (var i = 0; i < all.length; i++) if (Number(all[i]) === Number(id)) return i;
+  return -1;
+}
+function deleteTrack(id){
+  var i = trackIndex(id);
+  if (i >= 0) try { new LiveAPI("live_set").call("delete_track", i); } catch (e) {}
+}
+// Live zeigt Spuren in der Routing-Liste je nach Version als "Name" oder "3-Name".
+// Erst exakt "<Nummer>-<Name>" suchen (eindeutig, auch bei doppelten Namen), dann "Name".
+function setRoutingToTrack(api, prop, availProp, trackId, trackName){
+  var avail = dictProp(api, availProp) || [], nr = trackIndex(trackId) + 1;
+  var tries = [function (d){ return d === nr + "-" + trackName; },
+               function (d){ return d === trackName; },
+               function (d){ return d.replace(/^\d+-/, "") === trackName; }];
+  for (var t = 0; t < tries.length; t++)
+    for (var a = 0; a < avail.length; a++)
+      if (tries[t](String(avail[a].display_name))) return setRoutingById(api, avail[a].identifier, prop);
+  return false;
+}
+function setInputFromTrack(st, trackId, trackName){
+  if (!setRoutingToTrack(st, "input_routing_type", "available_input_routing_types", trackId, trackName)) return false;
+  setRoutingByName(st, "input_routing_channel", "available_input_routing_channels", POST_MIXER); // sonst Live-Standard
+  return true;
+}
+function cleanupJob(j){
+  for (var i = 0; i < j.rerouted.length; i++){ var r = j.rerouted[i]; setRoutingById(byId(r.id), r.identifier); }
+  for (var b = j.buses.length - 1; b >= 0; b--) deleteTrack(j.buses[b]);
+  for (var k = 0; k < j.stems.length; k++){
+    var st = byId(j.stems[k].id);
+    if (!Number(st.id)) continue;
+    st.set("arm", 0);
+    setRoutingByName(st, "input_routing_type", "available_input_routing_types", NO_INPUT);
+  }
+}
 function startRecording(plan, songName, endTime){
   var song = new LiveAPI("live_set");
   var tempo = Math.round(n(song, "tempo"));
+  var fails = [];
 
-  job = { stems: [], rerouted: [], endTime: endTime + 4, started: false };
+  job = { stems: [], buses: [], rerouted: [], endTime: endTime + 4, started: false };
   for (var p = 0; p < plan.length; p++){
-    song.call("create_audio_track", -1);
-    var all = ids(song, "tracks"), st = byId(all[all.length - 1]);
-    var stemName = plan[p].lane.short + "_" + songName + " " + tempo;
-    st.set("name", stemName);
-    if (cfg.colors[plan[p].lane.id]) st.set("color_index", cfg.colors[plan[p].lane.id].index);
-    setRoutingByName(st, "input_routing_type", "available_input_routing_types", ["No Input", "Kein Eingang"]);
-    st.set("current_monitoring_state", 1); // Auto
-    st.set("arm", 1);
-    job.stems.push(st.id);
-    for (var q = 0; q < plan[p].src.length; q++){
-      var sa = plan[p].src[q].api;
-      var before = dictProp(sa, "output_routing_type");
-      if (before) job.rerouted.push({ id: sa.id, identifier: before.identifier });
-      if (!setRoutingByName(sa, "output_routing_type", "available_output_routing_types", [stemName]))
-        status("Routing fehlgeschlagen: " + plan[p].src[q].name + " -> " + stemName);
+    var lane = plan[p].lane, src = plan[p].src;
+    var stemName = lane.short + "_" + songName + " " + tempo;
+    var col = cfg.colors[lane.id] ? cfg.colors[lane.id].index : null;
+    var st = newAudioTrack(song, stemName, col);
+    job.stems.push({ id: st.id, name: stemName });
+    var feedName, feedId;
+    if (src.length === 1){
+      feedName = src[0].name; feedId = src[0].api.id;
+    } else {
+      feedName = "SETMAKER BUS " + lane.short;
+      var bus = newAudioTrack(song, feedName, col);
+      job.buses.push(bus.id); feedId = bus.id;
+      bus.set("current_monitoring_state", 0); // In: Bus spielt, was reinkommt
+      for (var q = 0; q < src.length; q++){
+        var sa = src[q].api, before = dictProp(sa, "output_routing_type");
+        if (before) job.rerouted.push({ id: sa.id, identifier: before.identifier });
+        if (!setRoutingToTrack(sa, "output_routing_type", "available_output_routing_types", bus.id, feedName))
+          fails.push(src[q].name + " → Bus");
+      }
     }
+    if (!setInputFromTrack(st, feedId, feedName)) fails.push(stemName + ": Eingang „" + feedName + "“ nicht wählbar");
+    st.set("current_monitoring_state", 2); // Aus: Stem nimmt nur auf, klingt nicht doppelt
+    st.set("arm", 1);
+    if (n(st, "arm") !== 1) fails.push(stemName + ": lässt sich nicht scharf schalten");
+  }
+  if (fails.length){
+    var j = job; job = null;
+    cleanupJob(j);
+    for (var d = j.stems.length - 1; d >= 0; d--) deleteTrack(j.stems[d].id);
+    status("Aufnahme nicht gestartet: " + fails.join("; ") + ". Nichts wurde verändert.");
+    refresh();
+    return;
   }
   song.set("loop", 0);
   song.set("arrangement_overdub", 0);
@@ -780,6 +849,7 @@ function startRecording(plan, songName, endTime){
   song.call("continue_playing");
   task = new Task(tick); task.interval = 200; task.repeat(); // nur während der Aufnahme, finish() stoppt ihn
   status("Aufnahme läuft … nicht anfassen.");
+  overlay(true, "● STEMS WERDEN AUFGENOMMEN", "Nichts anfassen, einfach laufen lassen. Stopp = abbrechen.");
 }
 
 function tick(){
@@ -794,21 +864,27 @@ function tick(){
 
 function finish(aborted){
   if (task){ task.cancel(); task = null; }
+  overlay(false);
   var song = new LiveAPI("live_set");
   song.set("record_mode", 0);
   song.call("stop_playing");
-  for (var i = 0; i < job.rerouted.length; i++){
-    var r = job.rerouted[i]; setRoutingById(byId(r.id), r.identifier);
+  var j = job; job = null;
+  cleanupJob(j);
+  // Nur melden, was wirklich aufgenommen wurde. Leere Stem-Spuren wieder löschen.
+  var ok = [], empty = [];
+  for (var k = 0; k < j.stems.length; k++){
+    var st = byId(j.stems[k].id);
+    if (ids(st, "arrangement_clips").length){ st.set("mute", 1); ok.push(j.stems[k].name.split("_")[0]); }
+    else { empty.push(j.stems[k].name.split("_")[0]); deleteTrack(j.stems[k].id); }
   }
-  for (var j = 0; j < job.stems.length; j++){
-    var st = byId(job.stems[j]);
-    st.set("arm", 0);
-    st.set("mute", 1); // Original spielt wieder normal, Stems würden sonst doppelt klingen
+  var msg;
+  if (!ok.length) msg = "Es wurde nichts aufgenommen. Leere Stem-Spuren wieder gelöscht. Prüfe: Aufnahme in den Live-Einstellungen erlaubt, Quellspuren nicht stumm.";
+  else {
+    msg = (aborted ? "Abgebrochen. " : "") + ok.length + " Full-Stems liegen unten (stumm): " + ok.join(", ") + ".";
+    if (empty.length) msg += " Ohne Aufnahme (gelöscht): " + empty.join(", ") + ".";
+    msg += aborted ? " Stem-Spuren löschen und neu rendern." : " Jetzt Passagen schneiden und grau färben, dann „Paket“.";
   }
-  var count = job.stems.length;
-  job = null;
-  status(aborted ? "Aufnahme abgebrochen. Stem-Spuren bitte löschen und neu rendern."
-                 : count + " Full-Stems liegen unten (stumm geschaltet). Jetzt Passagen schneiden und grau färben, dann „Paket“.");
+  status(msg);
   refresh();
 }
 

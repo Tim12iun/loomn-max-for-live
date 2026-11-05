@@ -6,7 +6,7 @@ Die Plugins haben einen Update-Knopf (⟳), der hier nach neuen Versionen schaut
 | Plugin | Ordner | Zweck |
 |---|---|---|
 | sortn | `SetMaker/sortn` | Spuren erkennen, umbenennen, einfärben |
-| SetMaker Prep | `SetMaker/prepn` | Stems pro Live-Set-Spalte rendern, Song-Paket schreiben |
+| prepn | `SetMaker/prepn` | Stems pro Live-Set-Spalte rendern, Song-Paket schreiben |
 
 Installation: Ordner `SetMaker` nach `~/Music/Ableton/User Library/Presets/Audio Effects/Max Audio Effect/LOOMN Max for Live/` legen.
 Einstellungen: jedes Plugin legt seine eigene Datei im eigenen Ordner an (nicht im Repo).
