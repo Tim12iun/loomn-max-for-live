@@ -509,9 +509,9 @@
          "fontname": "Arial Bold",
          "fontsize": 17.0,
          "textcolor": [
-          1.0,
-          0.478,
-          0.184,
+          0.941,
+          0.933,
+          0.914,
           1.0
          ],
          "textjustification": 1
@@ -543,8 +543,8 @@
          "fontsize": 32.0,
          "textcolor": [
           1.0,
-          0.478,
-          0.184,
+          0.353,
+          0.122,
           1.0
          ],
          "textjustification": 1
@@ -576,8 +576,8 @@
          "fontsize": 12.0,
          "textcolor": [
           1.0,
-          0.478,
-          0.184,
+          0.353,
+          0.122,
           1.0
          ],
          "textjustification": 1
@@ -608,9 +608,9 @@
          "fontname": "Arial",
          "fontsize": 11.0,
          "textcolor": [
-          1.0,
-          0.478,
-          0.184,
+          0.561,
+          0.549,
+          0.525,
           1.0
          ],
          "textjustification": 1,
@@ -894,9 +894,9 @@
      "fontname": "Arial Bold",
      "fontsize": 17.0,
      "textcolor": [
-      1.0,
-      0.478,
-      0.184,
+      0.941,
+      0.933,
+      0.914,
       1.0
      ],
      "textjustification": 1
@@ -928,8 +928,8 @@
      "fontsize": 32.0,
      "textcolor": [
       1.0,
-      0.478,
-      0.184,
+      0.353,
+      0.122,
       1.0
      ],
      "textjustification": 1
@@ -961,8 +961,8 @@
      "fontsize": 12.0,
      "textcolor": [
       1.0,
-      0.478,
-      0.184,
+      0.353,
+      0.122,
       1.0
      ],
      "textjustification": 1
@@ -993,9 +993,9 @@
      "fontname": "Arial",
      "fontsize": 11.0,
      "textcolor": [
-      1.0,
-      0.478,
-      0.184,
+      0.561,
+      0.549,
+      0.525,
       1.0
      ],
      "textjustification": 1,
