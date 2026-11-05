@@ -2,7 +2,7 @@
 // Erkennt die Rolle jeder Spur (Kick, Hi-Hat, Bass …), benennt einheitlich um und färbt nach Kategorie.
 // Einstellungen in sortn_settings.json im eigenen Ordner (unabhängig von prepn).
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.2.1";
+var VERSION = "0.2.2";
 var PLUGIN_ID = "setmaker-sort";
 inlets = 1;
 outlets = 1; // -> jweb (über s ---toweb)
@@ -505,7 +505,11 @@ function init(){
   analyze();
 }
 function bang(){ init.call(this); }
-function hello(){ if (busy) return; if (!plan) analyze(); else send(); }
+function hello(){
+  // Großes Fenster wird erst beim ersten Öffnen geladen: ⚙ davor soll trotzdem die Einstellungen zeigen
+  if (wantTab && new Date().getTime() - wantTab < 5000) say("tab", { tab: "set" });
+  if (busy) return; if (!plan) analyze(); else send();
+}
 
 // Große Nachrichten in Stücken an die Oberfläche (lange Max-Symbole kommen sonst nicht an)
 var msgSeq = 0;
@@ -529,12 +533,17 @@ function send(){
   sayBig("state", { version: VERSION, settings: settings, plan: slimPlan(), overrides: overrides, lanes: SM.LANES,
                     palette: SM.PALETTE, canUndo: !!undoStack, busy: busy, status: lastStatus });
 }
-function progress(text, done, total){ say("progress", { text: text, pct: total ? Math.round(100 * done / total) : 100 }); }
+var lastPct = -1;
+function progress(text, done, total){
+  var pct = total ? Math.round(100 * done / total) : 100;
+  if (pct === lastPct && pct < 100) return; // UI nur bei sichtbarer Änderung neu zeichnen
+  lastPct = pct; say("progress", { text: text, pct: pct });
+}
 
 // ---------- In Häppchen arbeiten, damit Ableton nicht einfriert ----------
 var busy = false, worker = null;
 function work(items, fn, label, done){
-  busy = true;
+  busy = true; lastPct = -1;
   var i = 0;
   worker = new Task(function (){
     var start = new Date().getTime();
@@ -647,7 +656,8 @@ function undo(){
     send();
   });
 }
-function showsettings(){ say("tab", { tab: "set" }); }
+var wantTab = 0;
+function showsettings(){ wantTab = new Date().getTime(); say("tab", { tab: "set" }); }
 
 // ---------- Einstellungen aus der UI ----------
 function setsettings(enc){

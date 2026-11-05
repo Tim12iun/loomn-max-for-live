@@ -234,7 +234,7 @@ if(window.max){
     if(p.got === n){ delete parts[id]; if(kind === 'state') onState(p.s.join('')); }
   });
   window.max.bindInlet('progress', enc => { const p = JSON.parse(decodeURIComponent(enc)); setBusy(p.pct < 100); $('#bar').style.width = p.pct + '%'; $('#status').textContent = p.text + ' …'; });
-  window.max.bindInlet('tab', enc => { if(innerWidth > 520 && S){ tab = JSON.parse(decodeURIComponent(enc)).tab; drawSettings(); draw(); } });
+  window.max.bindInlet('tab', enc => { if(innerWidth > 520){ tab = JSON.parse(decodeURIComponent(enc)).tab; if(S){ drawSettings(); draw(); } } });
   window.max.bindInlet('status', enc => { $('#status').textContent = JSON.parse(decodeURIComponent(enc)).text; });
   toMax('hello');
 } else window.SM_onState = onState; // Test im Browser

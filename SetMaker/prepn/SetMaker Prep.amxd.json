@@ -389,33 +389,100 @@
          ],
          "text": "thispatcher"
         }
+       },
+       {
+        "box": {
+         "id": "u9",
+         "maxclass": "newobj",
+         "numinlets": 2,
+         "numoutlets": 1,
+         "patching_rect": [
+          10,
+          230,
+          60,
+          22
+         ],
+         "outlettype": [
+          ""
+         ],
+         "text": "gate 1 0"
+        }
+       },
+       {
+        "box": {
+         "id": "u10",
+         "maxclass": "newobj",
+         "numinlets": 0,
+         "numoutlets": 1,
+         "patching_rect": [
+          400,
+          10,
+          90,
+          22
+         ],
+         "outlettype": [
+          ""
+         ],
+         "text": "r ---popopen"
+        }
+       },
+       {
+        "box": {
+         "id": "u11",
+         "maxclass": "newobj",
+         "numinlets": 2,
+         "numoutlets": 1,
+         "patching_rect": [
+          400,
+          40,
+          70,
+          22
+         ],
+         "outlettype": [
+          "bang"
+         ],
+         "text": "onebang 1"
+        }
+       },
+       {
+        "box": {
+         "id": "u12",
+         "maxclass": "newobj",
+         "numinlets": 1,
+         "numoutlets": 2,
+         "patching_rect": [
+          400,
+          70,
+          40,
+          22
+         ],
+         "outlettype": [
+          "bang",
+          "bang"
+         ],
+         "text": "t b b"
+        }
+       },
+       {
+        "box": {
+         "id": "u13",
+         "maxclass": "message",
+         "numinlets": 2,
+         "numoutlets": 1,
+         "patching_rect": [
+          440,
+          100,
+          30,
+          22
+         ],
+         "outlettype": [
+          ""
+         ],
+         "text": "1"
+        }
        }
       ],
       "lines": [
-       {
-        "patchline": {
-         "source": [
-          "u2",
-          0
-         ],
-         "destination": [
-          "u5",
-          0
-         ]
-        }
-       },
-       {
-        "patchline": {
-         "source": [
-          "u3",
-          0
-         ],
-         "destination": [
-          "u4",
-          0
-         ]
-        }
-       },
        {
         "patchline": {
          "source": [
@@ -460,6 +527,90 @@
          ],
          "destination": [
           "u8",
+          0
+         ]
+        }
+       },
+       {
+        "patchline": {
+         "source": [
+          "u2",
+          0
+         ],
+         "destination": [
+          "u9",
+          1
+         ]
+        }
+       },
+       {
+        "patchline": {
+         "source": [
+          "u9",
+          0
+         ],
+         "destination": [
+          "u5",
+          0
+         ]
+        }
+       },
+       {
+        "patchline": {
+         "source": [
+          "u10",
+          0
+         ],
+         "destination": [
+          "u11",
+          0
+         ]
+        }
+       },
+       {
+        "patchline": {
+         "source": [
+          "u11",
+          0
+         ],
+         "destination": [
+          "u12",
+          0
+         ]
+        }
+       },
+       {
+        "patchline": {
+         "source": [
+          "u12",
+          1
+         ],
+         "destination": [
+          "u13",
+          0
+         ]
+        }
+       },
+       {
+        "patchline": {
+         "source": [
+          "u13",
+          0
+         ],
+         "destination": [
+          "u9",
+          0
+         ]
+        }
+       },
+       {
+        "patchline": {
+         "source": [
+          "u12",
+          0
+         ],
+         "destination": [
+          "u4",
           0
          ]
         }
@@ -562,6 +713,22 @@
      ],
      "outlettype": [],
      "text": "s ---fromweb"
+    }
+   },
+   {
+    "box": {
+     "id": "o14",
+     "maxclass": "newobj",
+     "numinlets": 1,
+     "numoutlets": 0,
+     "patching_rect": [
+      520,
+      150,
+      90,
+      22
+     ],
+     "outlettype": [],
+     "text": "s ---popopen"
     }
    }
   ],
@@ -721,10 +888,22 @@
       0
      ]
     }
+   },
+   {
+    "patchline": {
+     "source": [
+      "o13",
+      0
+     ],
+     "destination": [
+      "o14",
+      0
+     ]
+    }
    }
   ],
   "devicewidth": 400.0,
-  "description": "Set Maker Live – Song-Prep",
+  "description": "Set Maker Live \u2013 Song-Prep",
   "project": {
    "version": 1,
    "creationdate": 3590052786,
