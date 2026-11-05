@@ -10,8 +10,12 @@ Installation (einmalig)
   Die App wird an Ort und Stelle ersetzt, es entstehen keine Kopien.
 
 Ablauf
-1. Oben links "Vorlage waehlen": dein Live-Set als Vorlage (z. B. SELF_LIVESET_V3.als). Wird gemerkt.
+1. Oben links "Vorlage waehlen": dein Live-Set als Vorlage (z. B. SELF_LIVESET_V3.als). buildn legt eine Kopie
+   im Datenordner ab (Unterordner "Vorlage"), das Original bleibt unveraendert. Songs, die in der Vorlage stehen,
+   laesst buildn beim Bauen weg: Spuren, Geraete und der rechte Block bleiben, oben startet das Set leer.
    Spalten = Spuren, die mit "A ", "B " oder "A/B " anfangen (A BASS, A/B KICK ...).
+   Oder "Set oeffnen": ein bestehendes Live-Set. Seine Songs stehen dann oben im Raster (nur Namen, zum Anschauen),
+   neue Songs haengt buildn darunter an und speichert als neue Datei. Das x am Set-Namen schliesst es wieder.
 2. "Songs laden": einen Paket-Ordner von prepn ("<Song>-Live-Set") waehlen oder einen Ordner, in dem viele liegen.
 3. Song von links in die Mitte ziehen. Jeder Song = Trenner-Zeile + 3 Zeilen:
    Zeile 1 und 2 = deine Clips, Zeile 3 = Full-Stems (macht buildn automatisch).
