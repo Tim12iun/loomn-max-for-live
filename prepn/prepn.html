@@ -78,7 +78,7 @@ h4{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;le
 <section class="page front" id="front">
   <div class="head">
     <span class="title">prepn</span>
-    <input id="song" placeholder="Song-Name" title="Name für Stems und Paket, z. B. IMSOLOST">
+    <input id="song" placeholder="Song-Name" title="Song-Name für Stems und Paket. Standard: Projektname bis zum ersten _">
     <span class="bpm" id="bpm"></span>
     <button class="icon ghost" id="gear" title="Farben, Paket-Ordner, Update"><svg><use href="#i-gear"/></svg></button>
   </div>
@@ -104,7 +104,7 @@ h4{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;le
     <div><h4>Farbe je Stem</h4><div class="grid" id="colors"></div></div>
     <div><h4>Paket speichern in</h4>
       <div class="dest">
-        <div class="seg"><button id="dProj" title="Im Projektordner wird der Ordner Live-Set angelegt">Projekt › Live-Set</button><button id="dOwn" title="Fester Ordner für alle Projekte, je Song ein Unterordner">Eigener Ordner</button></div>
+        <div class="seg"><button id="dProj" title="Im Projektordner wird der Ordner <Song>-Live-Set angelegt">Projektordner</button><button id="dOwn" title="Fester Ordner für alle Projekte, darin je Song ein Ordner <Song>-Live-Set">Eigener Ordner</button></div>
         <span class="p" id="dPath" title="Klick = anderen Ordner wählen"></span>
       </div>
     </div>
@@ -142,12 +142,13 @@ function draw(){
   $('#lanes').innerHTML = (used.length ? used : LANES.slice(0, 5)).map(([id, l]) => lane(id, l, true)).join('');
   $('#bpm').textContent = Math.round(S.tempo) + ' BPM';
   $('#ver').textContent = 'v' + (S.version || '?');
-  if(!$('#song').value && S.setName) $('#song').value = S.setName.replace(/\.als$/i,'').replace(/[_ ]\d{6}.*$/,'').replace(/[_ ]v\d+$/i,'');
+  if(!$('#song').value && S.setName) $('#song').value = S.setName.replace(/\.als$/i,'').split('_')[0];
+  const folder = (S.pkgRoot ? S.pkgRoot + '/' : (S.pkgDefault || '').replace(/[^\/]*$/, '')) + ($('#song').value.trim() || 'Song') + '-Live-Set';
   $('#render').disabled = !!S.recording;
   $('#colors').innerHTML = LANES.concat([['rest','Rest']]).map(([id, l]) => lane(id, l, false)).join('');
   $('#dProj').classList.toggle('on', !S.pkgRoot); $('#dOwn').classList.toggle('on', !!S.pkgRoot);
-  $('#dPath').textContent = '\u200E' + (S.pkgRoot || S.pkgDefault || 'Live-Set erst speichern');
-  $('#dPath').title = (S.pkgRoot || S.pkgDefault || '') + (S.pkgRoot ? '\nKlick = anderen Ordner wählen' : '');
+  $('#dPath').textContent = '\u200E' + (S.pkgRoot || S.pkgDefault ? folder : 'Live-Set erst speichern');
+  $('#dPath').title = folder + (S.pkgRoot ? '\nKlick = anderen Ordner wählen' : '');
 }
 function openPal(id, label){
   palLane = id;
@@ -166,6 +167,7 @@ const songName = () => encodeURIComponent($('#song').value.trim() || 'SONG');
 $('#auto').onclick = e => toMax(e.altKey ? 'autoundo' : 'auto');
 $('#render').onclick = () => toMax('render', songName());
 $('#pkg').onclick = () => toMax('pkg', songName());
+$('#song').oninput = () => draw();
 $('#gear').onclick = () => { page = 'back'; draw(); };
 $('#backBtn').onclick = () => { page = 'front'; draw(); };
 $('#upd').onclick = () => toMax('update');
