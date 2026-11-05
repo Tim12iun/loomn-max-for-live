@@ -92,11 +92,14 @@ main::-webkit-scrollbar-corner{background:transparent}
 .cell.drop{box-shadow:inset 0 0 0 2px var(--accent)}
 .cell .chip{height:100%;margin:0;border-radius:0}
 .cell.auto .chip{cursor:default;opacity:.8}
-.ab{display:inline-flex;gap:3px;flex:none}
-.ab button{height:20px;width:42px;padding:0;font-size:12px;border-radius:5px;color:var(--muted);background:var(--hi)}
-.ab button:hover{color:var(--text)}
-.block.dragging{opacity:.35}
-.block.dropbefore{box-shadow:0 -3px 0 var(--accent)}
+.chip.over{box-shadow:0 0 0 2px var(--accent);animation:blink .5s ease-in-out 5 alternate}
+@keyframes blink{from{box-shadow:0 0 0 2px var(--accent)}to{box-shadow:0 0 0 2px transparent,0 0 0 0 transparent}}
+.cell.off{background:repeating-linear-gradient(135deg,#1d1c1b 0 6px,#211f1e 6px 12px)}
+.row.drop>.cell{box-shadow:inset 0 2px 0 var(--accent),inset 0 -2px 0 var(--accent)}
+.block{position:relative;background:var(--surface)}
+body.bdrag,body.bdrag *{cursor:grabbing!important}
+body.bdrag .block{transition:transform .16s cubic-bezier(.2,.7,.3,1)}
+body.bdrag .block.lift{transition:none;z-index:5;box-shadow:0 10px 28px rgba(0,0,0,.55);outline:1.5px solid var(--accent);border-radius:4px}
 .endrow{height:56px;display:flex;align-items:center;justify-content:center;margin:10px 12px 0 calc(var(--lab) + 12px);border:1.5px dashed var(--line);border-radius:10px;color:var(--muted);position:sticky;left:0;max-width:600px}
 .endrow.drop{border-color:var(--accent);color:var(--text)}
 .empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--muted);text-align:center;padding:24px;font-size:17px;border:1.5px dashed transparent;border-radius:12px}
@@ -303,14 +306,40 @@ function loopOf(v, c, secs){
   return { s: Math.max(0, Math.min(lp.s || 0, bars - 0.25)), v: vv, l, bars, auto: false };
 }
 const fmtBars = x => (Math.round(x * 4) / 4).toLocaleString('de-DE');
-function sideOf(b, kind, i){ return (b.side && b.side[kind]) || (i % 2 ? 'B' : 'A'); }
+// A/B wechselt streng von Block zu Block: Block 1 = A, Block 2 = B, Block 3 = A … (auch nach dem Verschieben)
+function sideOf(b, kind, i){ return i % 2 ? 'B' : 'A'; }
+// Spalten-Paare (A BASS / B BASS …) speichern den Clip unter „@bass“; welche Spalte, ergibt sich aus der Position des Blocks
+const isPair = kind => !!kind && cols.filter(c => c.kind === kind).length > 1;
+const colKey = c => isPair(c.kind) ? '@' + c.kind : c.name;
+function colOfKey(key, i){ return key[0] === '@' ? colFor(key.slice(1), i % 2 ? 'B' : 'A') : cols.find(c => c.name === key) || null; }
+// Ist die Spalte in diesem Block die aktive Seite des Paares (oder gar kein Paar)?
+const activeCol = (c, i) => !isPair(c.kind) || colFor(c.kind, i % 2 ? 'B' : 'A') === c;
+// Alte Stände und geöffnete Sets: Clips in A/B-Spalten auf „@art“ umstellen
+function normalizeBlocks(list){
+  for (const b of list){
+    delete b.side;
+    const rows = [];
+    for (const row of b.rows){
+      const extra = {};
+      for (const k of Object.keys(row)){
+        const c = cols.find(x => x.name === k);
+        if (c && isPair(c.kind)){ const nk = '@' + c.kind; if (row[nk] === undefined) row[nk] = row[k]; else extra[nk] = row[k]; delete row[k]; }
+      }
+      rows.push(row); if (Object.keys(extra).length) rows.push(extra);   // A und B in einer Zeile: nichts verlieren, zweite Zeile
+    }
+    if (rows.length > b.rows.length && b.full != null) b.full += rows.length - b.rows.length;
+    b.rows = rows;
+  }
+  return list;
+}
+const fullRow = b => b.full != null && b.full < b.rows.length ? b.full : b.rows.length - 1;
 function tplPath(){ return !tpl ? null : tpl.file ? info.data + '/Vorlage/' + tpl.file : tpl.path; }
 function colFor(kind, side){
   const c = cols.filter(c => c.kind === kind);
   return c.find(x => x.side === side) || c.find(x => x.side === 'AB') || c[0] || null;
 }
 const blockName = (b, i) => b.name || (song(b.key) ? song(b.key).name : 'Song ' + (i + 1));
-const emptyBlock = () => ({ name: '', key: null, side: {}, rows: [{}, {}, {}] });
+const emptyBlock = () => ({ name: '', key: null, rows: [{}, {}, {}] });
 // Letzte Zeile eines Song-Blocks: Full-Stems landen automatisch in der Spalte ihres Stems (A/B je Song), wo noch nichts liegt
 function autoRow(b, i){
   const s = song(b.key), out = {};
@@ -318,7 +347,7 @@ function autoRow(b, i){
   s.stems.forEach((st, si) => {
     if (!st.full) return;
     const c = colFor(st.kind, sideOf(b, st.kind, i));
-    if (c && !out[c.name]) out[c.name] = s.key + '|' + si + '|F';
+    if (c && !out[colKey(c)]) out[colKey(c)] = s.key + '|' + si + '|F';
   });
   return out;
 }
@@ -455,11 +484,12 @@ async function loadBase(path, keep){
   const { doc, sig } = await readDoc(path);
   const L = readLiveSet(doc);
   if (!L.upper.length) throw new Error('Keine Stem-Spalten gefunden (Spuren wie „A BASS“, „A/B KICK“).');
-  const r = readBlocks(L, true);
-  olds = r.olds;
   cols = L.upper.map(t => colInfo(t.name, t.color));
+  const r = readBlocks(L, true);
+  normalizeBlocks(r.blocks);
+  olds = r.olds;
   const same = keep && keep.sig === sig && keep.blocks;
-  blocks = same ? keep.blocks : r.blocks;
+  blocks = same ? normalizeBlocks(keep.blocks) : r.blocks;
   dirty = same ? !!keep.dirty : false;
   base = { name: path.split('/').pop(), path, sig };
   undo = []; redo = [];
@@ -633,9 +663,9 @@ async function buildSet(){
       const auto = autoRow(b, bi);
       for (let ri = 0; ri < b.rows.length; ri++, row++){
         if (opts.tempo && s && L.scenes[row]){ setVal(L.scenes[row], ['Tempo'], s.tempo); setVal(L.scenes[row], ['IsTempoEnabled'], 'true'); }
-        const cells = Object.assign({}, ri === b.rows.length - 1 ? auto : {}, b.rows[ri]);
+        const cells = Object.assign({}, ri === fullRow(b) ? auto : {}, b.rows[ri]);
         for (const [colName, cell] of Object.entries(cells)){
-          const t = byName[colName.toUpperCase()];
+          const col = colOfKey(colName, bi), t = col && byName[col.name.toUpperCase()];
           if (!t){ missing.add(colName); continue; }
           if (cell && cell.old){
             const el = oldEl[cell.old]; if (!el) continue;
@@ -757,7 +787,7 @@ function chip(val, o){
   const pre = c.stem.stem.replace(/_.*$/, ''), num = (c.clip.name.match(/Clip \d+$/) || ['Full'])[0];
   const label = o.list ? num : narrow ? num.replace('Clip ', '#') : pre + ' ' + num;
   const on = playing === ref;
-  return `<div class="chip ${on ? 'on' : ''} ${o.cell && o.id === cvCell ? 'sel' : ''}" draggable="${o.auto ? 'false' : 'true'}" data-ref="${esc(ref)}" style="background:${bg}" title="${esc(c.song.name + ' · ' + c.clip.name)}\nKlick in die Waveform = ab dort vorhören">`
+  return `<div class="chip ${on ? 'on' : ''} ${o.over ? 'over' : ''} ${o.cell && o.id === cvCell ? 'sel' : ''}" draggable="${o.auto ? 'false' : 'true'}" data-ref="${esc(ref)}" style="background:${bg}${o.over ? ';animation-delay:-' + (Date.now() - overAt) + 'ms' : ''}" title="${esc(c.song.name + ' · ' + c.clip.name)}\nKlick in die Waveform = ab dort vorhören">`
     + `<span class="wv" data-seek="${esc(ref)}">${wavePath(c.clip.path)}${o.list ? '' : loopShade(val, c)}<i style="left:${on ? headPos * 100 : 0}%"></i></span>`
     + `<span class="pl ${on ? 'on' : ''}" data-play="${esc(ref)}" title="${on ? 'Stopp' : 'Vorhören'}"><svg><use href="#i-${on ? 'stop' : 'play'}"/></svg></span><span class="t">${esc(label)}</span>`
     + (o.cell ? rmBtn() : '') + '</div>';
@@ -775,13 +805,13 @@ function oldChip(id, color){
   return `<div class="chip old" draggable="true" style="border-color:${hex(color)}" title="${esc(t)} (steht schon im Set)"><span class="t">${esc(t)}</span>${rmBtn()}</div>`;
 }
 function drawSongs(){
-  const used = new Set(blocks.map(b => b.key));
+  const used = new Set(blocks.map(b => b.key)), inGrid = over.size ? placed() : new Set();
   const dup = {}; songs.forEach(s => dup[s.name] = (dup[s.name] || 0) + 1);
   $('#songCount').textContent = songs.length || '';
   $('#songs').innerHTML = songs.length ? songs.map(s => {
     const o = open[s.key];
     const body = o ? s.stems.map((st, si) => {
-      const clips = st.clips.map((c, ci) => chip(s.key + '|' + si + '|' + ci, { list: true })).join('') + (st.full ? chip(s.key + '|' + si + '|F', { list: true }) : '');
+      const clips = st.clips.map((c, ci) => { const ref = s.key + '|' + si + '|' + ci; return chip(ref, { list: true, over: over.has(ref) && !inGrid.has(ref) }); }).join('');
       return `<div class="stem"><div class="sn"><span>${esc(st.stem.replace(/_.*$/, ''))}</span><span class="num">${st.clips.length ? st.clips.length + ' Clips' : 'nur Full'}</span></div>${clips}</div>`;
     }).join('') : '';
     const sub = dup[s.name] > 1 ? `<span class="fold" title="${esc(s.dir)}">${esc(s.folder)}</span>` : '';
@@ -793,22 +823,20 @@ function drawSongs(){
 function drawGrid(){
   const lab = t => `<div class="lab">${t || ''}</div>`;
   let h = `<div class="row hrow">${lab('<span class="sec">Line-up</span>')}${cols.map(c => `<div style="background:${hex(c.color)}" title="${esc(c.name)}">${esc(c.name)}</div>`).join('')}</div>`;
-  const kinds = ['bass', 'top', 'melo'].filter(k => cols.filter(c => c.kind === k).length > 1);
-  const kn = { bass: 'Bass', top: 'Tops', melo: 'Melo' };
   blocks.forEach((b, i) => {
     const s = song(b.key);
-    const abBtns = s ? kinds.map(k => `<button data-ab="${i}|${k}" title="Full-Stem ${kn[k]} in die andere Spalte (A/B)">${kn[k]} ${sideOf(b, k, i)}</button>`).join('') : '';
     const sub = s ? `<span class="sg" title="${esc(s.dir)}">${esc(s.name)} ${Math.round(s.tempo)}</span>` : '';
     h += `<div class="block" data-block="${i}">`;
-    h += `<div class="row stop"><div class="lab" draggable="true" data-blk="${i}" title="Ziehen = Block verschieben · Doppelklick auf den Namen = umbenennen"><span class="nm" data-name="${i}">${esc(blockName(b, i))}</span>${b.name && s ? sub : ''}<button class="icon x" data-del="${i}" title="Block aus dem Line-up nehmen (⌘Z holt ihn zurück)"><svg><use href="#i-x"/></svg></button></div>${cols.map(() => '<div></div>').join('')}</div>`;
-    const auto = autoRow(b, i), lastR = b.rows.length - 1;
+    h += `<div class="row stop"><div class="lab" data-blk="${i}" title="Ziehen = Block verschieben · Doppelklick auf den Namen = umbenennen"><span class="nm" data-name="${i}">${esc(blockName(b, i))}</span>${b.name && s ? sub : ''}<button class="icon x" data-del="${i}" title="Block aus dem Line-up nehmen (⌘Z holt ihn zurück)"><svg><use href="#i-x"/></svg></button></div>${cols.map(() => '<div></div>').join('')}</div>`;
+    const auto = autoRow(b, i), fr = fullRow(b), side = i % 2 ? 'B' : 'A';
     b.rows.forEach((row, r) => {
-      const isLast = r === lastR && b.rows.length > 1;
-      h += `<div class="row">${lab(isLast ? (abBtns ? `<span style="flex:1">Full</span><span class="ab">${abBtns}</span>` : 'Full') : 'Clips ' + (r + 1))}`;
+      const isFull = r === fr && (s || b.rows.length > 1);
+      h += `<div class="row" data-row="${i}|${r}">${lab(isFull ? (s ? 'Full · ' + side : 'Full') : 'Clips ' + (r + 1))}`;
       h += cols.map(c => {
-        const v = row[c.name], a = isLast && !v ? auto[c.name] : null;
-        const inner = v ? (v.old ? oldChip(v.old, c.color) : chip(v, { cell: true, id: i + '|' + r + '|' + c.name })) : a ? chip(a, { auto: true }) : '';
-        return `<div class="cell ${a ? 'auto' : ''}" data-cell="${i}|${r}|${esc(c.name)}">${inner}</div>`;
+        const k = colKey(c), act = activeCol(c, i), id = i + '|' + r + '|' + k;
+        const v = act ? row[k] : null, a = act && isFull && !v ? auto[k] : null;
+        const inner = v ? (v.old ? oldChip(v.old, c.color) : chip(v, { cell: true, id })) : a ? chip(a, { auto: true }) : '';
+        return `<div class="cell ${a ? 'auto' : ''} ${act ? '' : 'off'}" data-cell="${esc(id)}"${act ? '' : ` title="Song ${i + 1} liegt auf ${side}: Clips hier landen in ${esc(colFor(c.kind, side).name)}"`}>${inner}</div>`;
       }).join('') + '</div>';
     });
     h += '</div>';
@@ -861,9 +889,8 @@ const cellVal = id => { const [b, r, c] = id.split('|'); return blocks[+b] && bl
 function setCell(id, v){ const [b, r, c] = id.split('|'); const row = blocks[+b].rows[+r]; if (v == null) delete row[c]; else row[c] = v; }
 document.addEventListener('dragstart', e => {
   const t = e.target.closest ? e.target : e.target.parentElement;
-  const bl = t.closest('[data-blk]'), ch = t.closest('.chip[draggable="true"]'), sh = t.closest('[data-song]');
-  if (bl) drag = { type: 'block', index: +bl.dataset.blk };
-  else if (ch){
+  const ch = t.closest('.chip[draggable="true"]'), sh = t.closest('[data-song]');
+  if (ch){
     const cell = ch.closest('[data-cell]');
     const from = cell && !cell.classList.contains('auto') ? cell.dataset.cell : null;
     drag = { type: 'clip', val: from ? cellVal(from) : ch.dataset.ref, from };
@@ -872,10 +899,9 @@ document.addEventListener('dragstart', e => {
   else return;
   e.dataTransfer.effectAllowed = 'copyMove';
   e.dataTransfer.setData('text/plain', 'buildn');
-  if (drag.type === 'block') document.querySelector(`[data-block="${drag.index}"]`)?.classList.add('dragging');
 });
 document.addEventListener('dragend', () => { drag = null; clearDrop(); document.querySelectorAll('.dragging').forEach(x => x.classList.remove('dragging')); if (pendingDraw) draw(); });
-function clearDrop(){ document.querySelectorAll('.drop,.dropbefore').forEach(x => x.classList.remove('drop', 'dropbefore')); lastTgt = null; }
+function clearDrop(){ document.querySelectorAll('.drop').forEach(x => x.classList.remove('drop')); lastTgt = null; }
 function target(e){
   if (!drag) return null;
   const end = e.target.closest('#endrow, #empty');
@@ -887,10 +913,6 @@ function target(e){
     if (end) return { el: end, cls: 'drop', add: true };
     const blk = e.target.closest('[data-block]'); if (blk) return { el: blk, cls: 'drop', assign: +blk.dataset.block };
     if (e.target.closest('#main')) return { el: blocks.length ? $('#endrow') : $('#empty'), cls: 'drop', add: true };
-  }
-  if (drag.type === 'block'){
-    const blk = e.target.closest('[data-block]'); if (blk) return { el: blk, cls: 'dropbefore', before: +blk.dataset.block };
-    if (e.target.closest('#main')) return { el: $('#endrow'), cls: 'drop', before: blocks.length };
   }
   return null;
 }
@@ -911,20 +933,62 @@ document.addEventListener('drop', e => {
       if (t.remove){ setCell(d.from, null); return; }
       const to = t.el.dataset.cell, prev = cellVal(to);
       if (d.from === to) return;
+      const fr = refOf(d.val);
+      if (typeof fr === 'string' && fr.endsWith('|F')){                 // Full-Clip in eine Zeile = alle Full-Stems dorthin
+        const [bi, ri] = to.split('|').map(Number), b = blocks[bi], k = parseRef(fr)[0];
+        if (d.from) setCell(d.from, null);
+        if (!b.key || b.key === k){ b.key = k; b.full = ri; return; }
+      }
       if (d.from && !e.altKey){ setCell(d.from, prev); }      // verschieben, auf belegtem Platz = tauschen
       setCell(to, d.val);
     } else if (d.type === 'song'){
-      if (t.add){ const b = emptyBlock(); b.key = d.key; blocks.push(b); }
-      else { const b = blocks[t.assign]; b.key = d.key; b.side = {}; }
-    } else if (d.type === 'block'){
-      const [b] = blocks.splice(d.index, 1);
-      blocks.splice(t.before > d.index ? t.before - 1 : t.before, 0, b);
+      if (t.add){ blocks.push(emptyBlock()); fillBlock(blocks.length - 1, d.key); }
+      else fillBlock(t.assign, d.key, t.row);
     }
   });
 });
 
+// Song auf einen Block: Name vom Song, Full-Stems in die Full-Zeile (sonst Zeile 3), Clip 1 und 2 in die Zeilen darüber, A/B nach Block-Position.
+// Was nicht passt (Clip 3 und mehr), wird links orange markiert und blinkt kurz.
+let over = new Set(), overAt = 0;
+function fillBlock(bi, key, fullAt){
+  const b = blocks[bi], s = song(key); if (!b || !s) return;
+  const prev = b.key;
+  b.key = key; b.name = '';
+  while (b.rows.length < 3) b.rows.push({});
+  // Clips des vorigen Songs in diesem Block herausnehmen, alles andere bleibt
+  if (prev) b.rows.forEach(row => Object.keys(row).forEach(k => { const r = refOf(row[k]); if (typeof r === 'string' && r.startsWith(prev + '|')) delete row[k]; }));
+  b.full = fullAt != null && fullAt < b.rows.length ? fullAt : Math.min(2, b.rows.length - 1);
+  const clipRows = b.rows.map((_, r) => r).filter(r => r !== b.full);
+  const side = bi % 2 ? 'B' : 'A';
+  over = new Set(); overAt = Date.now();
+  s.stems.forEach((st, si) => {
+    const c = colFor(st.kind, side);
+    st.clips.forEach((cl, ci) => {
+      const ref = key + '|' + si + '|' + ci, r = clipRows[ci];
+      if (!c || r == null || b.rows[r][colKey(c)] !== undefined){ over.add(ref); return; }
+      b.rows[r][colKey(c)] = ref;
+    });
+  });
+  if (over.size){ open[key] = true; status(over.size + (over.size === 1 ? ' Clip passte' : ' Clips passten') + ' nicht in den Block, links orange markiert. Bei Bedarf von Hand hineinziehen.'); }
+}
+const placed = () => { const u = new Set(); blocks.forEach(b => b.rows.forEach(r => Object.values(r).forEach(v => u.add(refOf(v))))); return u; };
+
 // ---------- Klicks und Tasten ----------
+// Doppelklick selbst erkennen: der erste Klick startet das Vorhören und zeichnet neu, dann käme kein dblclick an
+let lastClick = null, noClick = false;
 document.addEventListener('click', e => {
+  if (noClick){ noClick = false; return; }
+  const gc = !e.target.closest('[data-rm]') && e.target.closest('[data-cell] .chip[data-ref]');
+  if (gc){
+    const id = gc.closest('[data-cell]').dataset.cell, now = Date.now();
+    if (lastClick && lastClick.id === id && now - lastClick.t < 450){
+      lastClick = null;
+      if (gc.closest('.cell.auto')) change(() => setCell(id, gc.dataset.ref));
+      openClip(id); return;
+    }
+    lastClick = { id, t: now };
+  } else lastClick = null;
   const pl = e.target.closest('[data-play]'); if (pl){ e.stopPropagation(); togglePlay(pl.dataset.play); return; }
   const rm = e.target.closest('[data-rm]');
   if (rm){ const cell = rm.closest('[data-cell]'); if (cell) change(() => setCell(cell.dataset.cell, null)); return; }
@@ -936,8 +1000,6 @@ document.addEventListener('click', e => {
   const del = e.target.closest('[data-del]'); if (del){ change(() => blocks.splice(+del.dataset.del, 1)); status('Block aus dem Line-up genommen. ⌘Z holt ihn zurück.'); return; }
   const add = e.target.closest('[data-addblk]'); if (add){ change(() => blocks.push(emptyBlock())); return; }
   const cv = e.target.closest('[data-cv]'); if (cv){ cvAction(cv.dataset.cv); return; }
-  const ab = e.target.closest('[data-ab]');
-  if (ab){ const [i, k] = ab.dataset.ab.split('|'); change(() => { const b = blocks[+i]; b.side = b.side || {}; b.side[k] = sideOf(b, k, +i) === 'A' ? 'B' : 'A'; }); return; }
 });
 // ---------- Clip-Fenster (Doppelklick auf einen Clip im Raster) ----------
 // Startmarker und Loop-Klammer einstellen, auf dem Takt-Raster des Songs. Alt beim Ziehen = in Vierteln.
@@ -1006,10 +1068,63 @@ document.addEventListener('pointermove', e => {
   drawClip();
 });
 document.addEventListener('pointerup', () => { if (!cvDrag) return; cvDrag = null; dirty = true; save(); draw(); });
+// ---------- Block verschieben: Block hebt sich, nur senkrecht, die anderen rücken zur Seite ----------
+let bd = null;
+document.addEventListener('pointerdown', e => {
+  noClick = false;
+  if (e.button !== 0) return;
+  const lab = e.target.closest('[data-blk]'); if (!lab || e.target.closest('[data-del], input')) return;
+  bd = { i: +lab.dataset.blk, y0: e.clientY, y: e.clientY, on: false };
+});
+function bdStart(){
+  const m = $('#main');
+  bd.els = [...document.querySelectorAll('#grid .block')];
+  bd.r = bd.els.map(el => el.getBoundingClientRect());
+  bd.s0 = m.scrollTop; bd.to = bd.i; bd.on = true; drag = { type: 'blockp' };
+  bd.h = bd.r[bd.i].height;
+  document.body.classList.add('bdrag'); bd.els[bd.i].classList.add('lift');
+  const loop = () => { if (!bd || !bd.on) return; const mr = m.getBoundingClientRect();
+    const sp = bd.y < mr.top + 50 ? -(mr.top + 50 - bd.y) / 3 : bd.y > mr.bottom - 50 ? (bd.y - mr.bottom + 50) / 3 : 0;
+    if (sp){ m.scrollTop += sp; bdMove(); } requestAnimationFrame(loop); };
+  requestAnimationFrame(loop);
+}
+function bdMove(){
+  const r = bd.r, i = bd.i, dy = bd.y - bd.y0 + ($('#main').scrollTop - bd.s0);
+  const lo = r[0].top - r[i].top, hi = r[r.length - 1].bottom - r[i].bottom;
+  const d = Math.max(lo - 20, Math.min(hi + 20, dy));
+  const mid = r[i].top + r[i].height / 2 + d;
+  let to = i;
+  for (let j = 0; j < r.length; j++){
+    if (j < i && mid < r[j].top + r[j].height / 2) { to = j; break; }
+    if (j > i && mid > r[j].top + r[j].height / 2) to = j;
+  }
+  bd.to = to;
+  bd.els.forEach((el, j) => {
+    if (j === i){ el.style.transform = `translateY(${d}px) scale(1.01)`; return; }
+    const sh = to < i && j >= to && j < i ? bd.h : to > i && j > i && j <= to ? -bd.h : 0;
+    el.style.transform = sh ? `translateY(${sh}px)` : '';
+  });
+}
+document.addEventListener('pointermove', e => {
+  if (!bd) return;
+  bd.y = e.clientY;
+  if (!bd.on){ if (Math.abs(e.clientY - bd.y0) < 4) return; bdStart(); }
+  e.preventDefault(); bdMove();
+});
+function bdEnd(){
+  if (!bd) return;
+  const b0 = bd; bd = null;
+  if (!b0.on) return;
+  noClick = true;
+  drag = null; document.body.classList.remove('bdrag');
+  b0.els.forEach(el => { el.style.transform = ''; el.classList.remove('lift'); });
+  if (b0.to !== b0.i) change(() => { const [b] = blocks.splice(b0.i, 1); blocks.splice(b0.to, 0, b); });
+  else if (pendingDraw) draw();
+}
+document.addEventListener('pointerup', bdEnd);
+document.addEventListener('pointercancel', bdEnd);
 // Block umbenennen: Doppelklick auf den Namen
 document.addEventListener('dblclick', e => {
-  const ch = e.target.closest('[data-cell] .chip[data-ref]');
-  if (ch && !ch.closest('.cell.auto')){ openClip(ch.closest('[data-cell]').dataset.cell); return; }
   const nm = e.target.closest('[data-name]'); if (!nm) return;
   const i = +nm.dataset.name, b = blocks[i];
   const inp = document.createElement('input');
@@ -1064,7 +1179,7 @@ async function start(){
     roots = st.roots || []; hidden = st.hidden || []; tpl = st.tpl || null; opts = Object.assign({ tempo: false, names: true }, st.opts || {});
     if (st.cols && st.cols.length) cols = st.cols;
     // älterer Stand (nur Line-up mit Songs) wird zu Blöcken
-    let saved = st.blocks || (st.lineup || []).map(b => ({ name: '', key: b.key, side: b.side || {}, rows: [(b.cells || [])[0] || {}, (b.cells || [])[1] || {}, {}] }));
+    let saved = st.blocks || (st.lineup || []).map(b => ({ name: '', key: b.key, rows: [(b.cells || [])[0] || {}, (b.cells || [])[1] || {}, {}] }));
     if (roots.length) await rescan();
     if (st.base && st.base.path){
       try {
@@ -1075,7 +1190,7 @@ async function start(){
         return;
       } catch (e) { base = null; status('Das zuletzt geöffnete Set ist nicht mehr da: ' + st.base.path, null, true); }
     }
-    blocks = saved;
+    blocks = normalizeBlocks(saved);
     if (!blocks.length && tpl){ try { blocks = readBlocks(readLiveSet((await readDoc(tplPath())).doc), false).blocks; } catch (e) {} }
     draw();
     const gone = blocks.filter(b => b.key && !song(b.key)).length;
