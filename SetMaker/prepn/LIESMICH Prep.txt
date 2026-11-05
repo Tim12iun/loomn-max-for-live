@@ -1,0 +1,31 @@
+SET MAKER LIVE - Song-Prep v0.3 (Test-Version)
+
+Installation
+- Alle Dateien im selben Ordner lassen ("SetMaker Prep.amxd", "setmaker_prep.js", "setmaker_prep.html").
+- Song-Projekt oeffnen, "SetMaker Prep.amxd" auf die Main-Spur ziehen.
+- Altes v0.1-Device vorher loeschen.
+
+Ablauf
+0. "Auto": erkennt die Spuren ueber Spurnamen, Clipnamen und Sample-Dateinamen (Kick, Hi-Hat, Snare, Bass, Vocals ...)
+   und faerbt sie in der Farbe ihrer Spalte ein. Unbekanntes bekommt die "Rest"-Farbe. Danach in Ableton pruefen und
+   falsch erkannte Spuren einfach umfaerben. Alt+Klick auf "Auto" = Einfaerben rueckgaengig.
+   Farben und Keywords sind schon voreingestellt (gleiche wie im Sort-Device, Datei setmaker_settings.json).
+   Eigene Farbe fuer eine Spalte: Spur anklicken, dann Feld klicken (Schritt 1, optional).
+1. Farben lernen: Spur in Ableton anklicken (z. B. eine Tops-Spur), dann im Device das Feld "Tops" klicken.
+   Die Farbe wird gespeichert und gilt fuer alle Songs. Alt+Klick auf ein Feld = Farbe vergessen.
+   Danach einfach alle Spuren im Song passend einfaerben. Die Zahl im Feld zeigt, wie viele Spuren erkannt wurden.
+   Gruppen: Ist eine Gruppe eingefaerbt, wird die ganze Gruppe genommen.
+2. Song-Name pruefen, "Rendern" klicken. Das Device legt unten pro Farbe eine Stem-Spur an
+   (z. B. TOPS_IMSOLOST 132) und nimmt den Song einmal in Echtzeit auf. Waehrenddessen nichts anfassen.
+   Danach sind die Stem-Spuren stumm geschaltet, damit nichts doppelt klingt.
+3. Passagen: In den Stem-Spuren mit Cmd+E schneiden und die gewuenschten Stuecke grau faerben
+   (oder eigene Farbe: Clip anklicken, dann Feld "Schnitt"). Clip-Namen werden uebernommen.
+4. Set speichern, dann "Paket". Es entsteht "SETMAKER - <SONG>.json" neben der .als:
+   Full-Stems, graue Schnitte (Positionen im Full-Stem) und Serum-MIDI-Noten. Das liest spaeter der Set-Builder.
+
+"Schweben" oeffnet die Oberflaeche als Fenster, das ueber Ableton schwebt.
+
+Bekannte Grenzen
+- Rendern laeuft in Echtzeit (Max for Live kann nicht offline rendern).
+- Hall/Delay ueber Return-Spuren landet nicht in den Stems.
+- Bei Problemen: Rechtsklick aufs Device -> Max-Fenster oeffnen und Screenshot schicken.

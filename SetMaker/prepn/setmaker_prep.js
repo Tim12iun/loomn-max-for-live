@@ -1,0 +1,764 @@
+// SET MAKER LIVE – Song-Prep v0.2 (Max for Live, [js])
+// Farben -> Spalten. "Rendern" nimmt pro Spalte einen Full-Stem unten im Projekt auf (Echtzeit).
+// "Paket" schreibt Full-Stems, graue Schnitte und Serum-MIDI als JSON neben das Live-Set.
+autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
+var VERSION = "0.4.0";
+var PLUGIN_ID = "setmaker-prep";
+inlets = 1;
+outlets = 1; // -> jweb (über s ---toweb)
+
+var LANES = [
+  { id: "bass",  short: "BASS" },  { id: "kick", short: "KICK" },
+  { id: "top",   short: "TOPS" },  { id: "vox",  short: "VOCALS" },
+  { id: "melo",  short: "MELODY" },{ id: "serum", short: "SERUM", midi: true },
+  { id: "inst1", short: "INST10" },{ id: "inst2", short: "INST11" },
+  { id: "vocal", short: "VOCALCHAIN" }, { id: "riser", short: "RISER" },
+  { id: "free1", short: "SPUR14" }
+];
+
+// Gemeinsame Erkennung + Einstellungen (aus setmaker_shared.js, per Build eingefügt)
+// ==== BEGIN setmaker_shared (gemeinsam für SetMaker Sort + SetMaker Prep) ====
+// Rollen-Erkennung aus Spur-, Clip-, Sample- und Instrument-Namen. ES5 (Max [js]).
+// Einstellungen: setmaker_settings.json im Device-Ordner (Format v1, siehe defaults()).
+var SM = (function () {
+  function isArr(v) { return !!v && typeof v === "object" && typeof v.length === "number"; }
+  var LANES = [
+    { id: "bass", label: "Bass" }, { id: "kick", label: "Kick" }, { id: "top", label: "Tops" },
+    { id: "vox", label: "Vocals" }, { id: "melo", label: "Melody" }, { id: "serum", label: "Serum" },
+    { id: "inst1", label: "Inst 10" }, { id: "inst2", label: "Inst 11" }, { id: "vocal", label: "Vocal Chain" },
+    { id: "riser", label: "Riser" }, { id: "free1", label: "Spur 14" }
+  ];
+  // Live 12 Farbpalette (color_index 0..69 -> RGB)
+  var PALETTE = [
+    0xFF94A6,0xFFA529,0xCC9927,0xF7F47C,0xBFFB00,0x1AFF2F,0x25FFA8,0x5CFFE8,0x8BC5FF,0x5480E4,0x92A7FF,0xD86CE4,0xE553A0,0xFFFFFF,
+    0xFF3636,0xF66C03,0x99724B,0xFFF034,0x87FF67,0x3DC300,0x00BFAF,0x19E9FF,0x10A4EE,0x007DC0,0x886CE4,0xB677C6,0xFF39D4,0xD0D0D0,
+    0xE2675A,0xFFA374,0xD3AD71,0xEDFFAE,0xD2E498,0xBAD074,0x9BC48D,0xD4FDE1,0xCDF1F8,0xB9C1E3,0xCDBBE4,0xAE98E5,0xE5DCE1,0xA9A9A9,
+    0xC6928B,0xB78256,0x99836A,0xBFBA69,0xA6BE00,0x7DB04D,0x88C2BA,0x9BB3C4,0x85A5C2,0x8393CC,0xA595B5,0xBF9FBE,0xBC7196,0x7B7B7B,
+    0xAF3333,0xA95131,0x724F41,0xDBC300,0x85961F,0x539F31,0x0A9C8E,0x236384,0x1A2F96,0x2F52A2,0x624BAD,0xA34BAD,0xCC2E6E,0x3C3C3C
+  ];
+  // Stem-Spuren, die SetMaker Prep anlegt (z. B. "TOPS_IMSOLOST 132") – nie anfassen
+  var STEM_RE = /^(BASS|KICK|TOPS|VOCALS|MELODY|SERUM|INST10|INST11|VOCALCHAIN|RISER|SPUR14)_.+ \d+$/;
+
+  function col(i) { return { index: i, rgb: PALETTE[i] }; }
+  function cat(id, label, lane, color, keywords, extra) {
+    var c = { id: id, label: label, lane: lane, keywords: keywords, caseSensitive: false, color: col(color) };
+    if (extra) for (var k in extra) c[k] = extra[k];
+    return c;
+  }
+  function defaults() {
+    return {
+      version: 1,
+      categories: [
+        cat("kick", "Kick", "kick", 14, ["kick", "bd", "bassdrum", "kik"]),
+        cat("snare", "Snare", "top", 18, ["snare", "clap", "rim", "rimshot", "sd", "snap"]),
+        cat("hihat", "Hi-Hat", "top", 19, ["hihat", "hat", "hats", "hh", "oh", "ch"]),
+        cat("tops", "Tops", "top", 61, ["tops", "top", "perc", "shaker", "ride", "crash", "cymbal", "conga", "bongo", "toms", "tom", "tamb", "cowbell"]),
+        cat("bass", "Bass", "bass", 22, ["bass", "sub", "808", "reese"]),
+        cat("vocalchop", "Vocal Chop", "vox", 25, ["chop", "vocal chop", "vox chop"]),
+        cat("vocal", "Vocals", "vox", 26, ["vocal", "vocals", "vox", "voc", "acapella", "acappella", "voice", "chant", "adlib", "choir"]),
+        cat("melody", "Melody", "melo", 17, ["melody", "melodie", "lead", "synth", "pluck", "pad", "chord", "chords", "piano", "keys", "arp", "guitar", "gitarre", "strings", "bell", "organ"]),
+        cat("fx", "FX", "riser", 24, ["fx", "sfx", "riser", "uplifter", "downlifter", "sweep", "swoosh", "whoosh", "impact", "noise", "reverse"]),
+        cat("serum", "Serum", "serum", 15, ["serum"], { midiOnly: true }),
+        cat("drums", "Drums", "top", 1, ["drum", "drums", "loop", "break", "beat", "groove", "drum rack"], { fallback: true })
+      ],
+      rest: { label: "Rest", color: col(55) },
+      sort: {
+        rename: true, colorize: true, colorClips: false, numberSingle: false,
+        pattern: "{name} {n}", keepCustomNames: false, renameRest: false, groups: true,
+        sources: { trackName: true, clipNames: true, fileNames: true, devices: true }
+      }
+    };
+  }
+  // Fehlende Felder aus den Defaults ergänzen, unbekannte Keys (z. B. "cut") behalten
+  function normalize(s) {
+    var d = defaults();
+    if (!s || typeof s !== "object") return d;
+    if (!isArr(s.categories) || !s.categories.length) s.categories = d.categories;
+    for (var i = 0; i < s.categories.length; i++) {
+      var c = s.categories[i];
+      if (!c.id) c.id = "cat" + i;
+      if (!c.label) c.label = c.id;
+      if (!isArr(c.keywords)) c.keywords = String(c.keywords || "").split(",");
+      var kw = [];
+      for (var k = 0; k < c.keywords.length; k++) { var w = String(c.keywords[k]).replace(/^\s+|\s+$/g, ""); if (w) kw.push(w); }
+      c.keywords = kw;
+      if (c.lane === undefined) c.lane = "";
+      if (!c.color || typeof c.color.index !== "number") c.color = col(55);
+      if (typeof c.color.rgb !== "number") c.color.rgb = PALETTE[c.color.index] || 0x7B7B7B;
+    }
+    if (!s.rest || !s.rest.color) s.rest = d.rest;
+    if (!s.rest.label) s.rest.label = "Rest";
+    if (!s.sort) s.sort = d.sort;
+    for (var o in d.sort) if (s.sort[o] === undefined) s.sort[o] = d.sort[o];
+    for (var q in d.sort.sources) if (s.sort.sources[q] === undefined) s.sort.sources[q] = d.sort.sources[q];
+    s.version = 1;
+    return s;
+  }
+
+  // ---------- Text-Matching ----------
+  var SEP = /[\s_\-\.]+/g;
+  var NOT_LETTER = "[^A-Za-zÄÖÜäöüß]";
+  function escapeRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+  // Ein Keyword -> Testfunktion. ≤3 Zeichen: ganzes Wort. Sonst Teilstring, Trennzeichen egal.
+  function makeTest(word, caseSensitive) {
+    var core = word.replace(SEP, "");
+    if (!core) return null;
+    if (core.length <= 3) {
+      var re = new RegExp("(^|" + NOT_LETTER + ")" + escapeRe(word).replace(/[\s_\-]+/g, "[\\s_\\-.]*") + "(?=$|" + NOT_LETTER + ")", caseSensitive ? "" : "i");
+      return function (text) { return re.test(text); };
+    }
+    var needle = caseSensitive ? core : core.toLowerCase();
+    return function (text) {
+      var t = text.replace(SEP, "");
+      return (caseSensitive ? t : t.toLowerCase()).indexOf(needle) >= 0;
+    };
+  }
+  function isDefaultName(name) {
+    var s = String(name || "").replace(/^\s+|\s+$/g, "");
+    return !s || /^\d+$/.test(s) || /^\d+[\s\-]*(audio|midi)(\s*\d+)?$/i.test(s) || /^(audio|midi)(\s*\d+)?$/i.test(s);
+  }
+  function baseName(path) {
+    var b = String(path || "").split(/[\/:\\]/).pop();
+    return b.replace(/\.[A-Za-z0-9]{2,5}$/, "");
+  }
+  // Ist der Name schon von uns vergeben (z. B. "Kick 2")? -> Kategorie-id oder null
+  function ownName(name, s) {
+    var pat = s.sort.pattern || "{name} {n}";
+    for (var i = 0; i < s.categories.length; i++) {
+      var c = s.categories[i];
+      var re = new RegExp("^" + escapeRe(pat).replace("\\{name\\}", escapeRe(c.label)).replace("\\{n\\}", "\\d+") + "$");
+      if (name === c.label || re.test(name)) return c.id;
+    }
+    var rp = new RegExp("^" + escapeRe(pat).replace("\\{name\\}", escapeRe(s.rest.label)).replace("\\{n\\}", "\\d+") + "$");
+    if (name === s.rest.label || rp.test(name)) return "_rest";
+    return null;
+  }
+
+  // ---------- Spuren aus Live lesen ----------
+  function collectTracks(LiveAPICtor, settings) {
+    var src = (settings && settings.sort && settings.sort.sources) || defaults().sort.sources;
+    function api(id) { return new LiveAPICtor("id " + id); }
+    function g(a, p) { var v = a.get(p); return isArr(v) ? v.join(" ") : String(v); }
+    function n(a, p) { return Number(g(a, p)); }
+    function ids(a, p) {
+      var v = a.get(p), out = [];
+      if (!isArr(v)) return out;
+      for (var i = 0; i < v.length; i++) if (v[i] !== "id" && Number(v[i]) > 0) out.push(Number(v[i]));
+      return out;
+    }
+    function readClip(id, t) {
+      var c = api(id);
+      t.clips.push(g(c, "name"));
+      t.clipIds.push(id);
+      if (src.fileNames && n(c, "is_audio_clip") === 1) { var f = baseName(g(c, "file_path")); if (f) t.files.push(f); }
+    }
+    var song = new LiveAPICtor("live_set"), tIds = ids(song, "tracks"), out = [];
+    for (var i = 0; i < tIds.length; i++) {
+      var a = api(tIds[i]);
+      var t = { id: tIds[i], index: i, name: g(a, "name"), color: n(a, "color_index"),
+        isGroup: n(a, "is_foldable") === 1, group: null, midi: n(a, "has_midi_input") === 1,
+        clips: [], clipIds: [], files: [], devices: [] };
+      if (n(a, "is_grouped") === 1) t.group = ids(a, "group_track")[0] || null;
+      if (!t.isGroup && (src.clipNames || src.fileNames)) {
+        var slots = ids(a, "clip_slots");
+        for (var s = 0; s < slots.length; s++) {
+          var sl = api(slots[s]);
+          if (n(sl, "has_clip") === 1) { var cid = ids(sl, "clip")[0]; if (cid) readClip(cid, t); }
+        }
+        var arr = []; try { arr = ids(a, "arrangement_clips"); } catch (e) {}
+        for (var c = 0; c < arr.length; c++) readClip(arr[c], t);
+      }
+      if (src.devices) {
+        var dv = ids(a, "devices");
+        for (var d = 0; d < dv.length; d++) {
+          var dev = api(dv[d]);
+          if (n(dev, "type") === 1) t.devices.push(g(dev, "name"));   // nur Instrumente
+        }
+      }
+      out.push(t);
+    }
+    return out;
+  }
+
+  // ---------- Erkennung ----------
+  // tracks: von collectTracks (oder gleich aufgebaut). overrides: {trackId: categoryId | "_rest" | "_skip"}
+  function analyze(tracks, settings, overrides) {
+    var s = normalize(settings), o = s.sort, src = o.sources;
+    overrides = overrides || {};
+    var cats = s.categories, byCat = {};
+    for (var ci = 0; ci < cats.length; ci++) byCat[cats[ci].id] = cats[ci];
+
+    // Keyword-Tests bauen
+    var tests = [];
+    for (var i = 0; i < cats.length; i++) {
+      var list = [];
+      for (var k = 0; k < cats[i].keywords.length; k++) {
+        var fn = makeTest(cats[i].keywords[k], !!cats[i].caseSensitive);
+        if (fn) list.push({ word: cats[i].keywords[k], fn: fn });
+      }
+      tests.push(list);
+    }
+    // Keywords, die in den Clipnamen fast aller Spuren vorkommen (Songtitel o. ä.), ignorieren
+    var withClips = [], ignored = [];
+    for (var t0 = 0; t0 < tracks.length; t0++) if (!tracks[t0].isGroup && tracks[t0].clips.length && !STEM_RE.test(tracks[t0].name)) withClips.push(tracks[t0]);
+    if (withClips.length >= 4) {
+      for (var a = 0; a < tests.length; a++) for (var b = 0; b < tests[a].length; b++) {
+        var hit = 0;
+        for (var w = 0; w < withClips.length; w++) {
+          var all = withClips[w].clips.concat(withClips[w].files), any = false;
+          for (var x = 0; x < all.length && !any; x++) if (tests[a][b].fn(all[x])) any = true;
+          if (any) hit++;
+        }
+        if (hit / withClips.length >= 0.7) { tests[a][b].ignored = true; ignored.push(tests[a][b].word); }
+      }
+    }
+    function matchWord(ci, text) {
+      for (var q = 0; q < tests[ci].length; q++) if (!tests[ci][q].ignored && tests[ci][q].fn(text)) return tests[ci][q].word;
+      return null;
+    }
+    function frac(ci, texts) {
+      if (!texts.length) return { m: 0, word: null };
+      var m = 0, word = null;
+      for (var q = 0; q < texts.length; q++) { var hw = matchWord(ci, texts[q]); if (hw) { m++; word = word || hw; } }
+      return { m: m, word: word };
+    }
+
+    function score(t, nameOnly) {
+      var best = null, bestFb = null, total = 0, res = [];
+      var nameUsable = src.trackName && !isDefaultName(t.name);
+      var own = ownName(t.name, s);
+      for (var c = 0; c < cats.length; c++) {
+        var cc = cats[c];
+        if (cc.midiOnly && !t.midi) continue;
+        var sc = 0, why = [];
+        if (own === cc.id) { sc += 3; why.push("Name schon vergeben"); }
+        else if (nameUsable) { var nw = matchWord(c, t.name); if (nw) { sc += 3; why.push("Spurname: " + nw); } }
+        if (!nameOnly) {
+          if (src.clipNames) { var f1 = frac(c, t.clips); if (f1.m) { sc += 3 * f1.m / t.clips.length; why.push(f1.m + "/" + t.clips.length + " Clips: " + f1.word); } }
+          if (src.fileNames) { var f2 = frac(c, t.files); if (f2.m) { sc += 2 * f2.m / t.files.length; why.push(f2.m + "/" + t.files.length + " Samples: " + f2.word); } }
+          if (src.devices) { var f3 = frac(c, t.devices); if (f3.m) { sc += 2; why.push("Instrument: " + f3.word); } }
+        }
+        if (sc <= 0) continue;
+        total += sc;
+        var r = { cat: cc.id, score: sc, why: why };
+        res.push(r);
+        if (cc.fallback) { if (!bestFb || sc > bestFb.score) bestFb = r; }
+        else if (!best || sc > best.score) best = r;
+      }
+      // Allgemeine Kategorie (z. B. Drums) nur, wenn nichts Genaueres passt oder sie klar überwiegt
+      var pick = (best && !(bestFb && bestFb.score >= 2 * best.score)) ? best : (bestFb || best);
+      if (!pick) return null;
+      var share = pick.score / total;
+      return { cat: pick.cat, score: pick.score, why: pick.why,
+               conf: (share >= 0.7 && pick.score >= 1.5) ? "sicher" : "unsicher",
+               alt: res.length > 1 ? res.sort(function (p, q) { return q.score - p.score; })[1].cat : null };
+    }
+
+    var rows = [], byId = {};
+    for (var r = 0; r < tracks.length; r++) {
+      var tr = tracks[r];
+      var row = { id: tr.id, index: tr.index !== undefined ? tr.index : r, name: tr.name, color: tr.color, isGroup: !!tr.isGroup,
+                  group: tr.group, depth: 0, cat: null, source: "", conf: "", why: [], alt: null };
+      if (STEM_RE.test(tr.name)) { row.source = "stem"; }
+      else {
+        var sres = score(tr, tr.isGroup);
+        if (sres) { row.cat = sres.cat; row.source = "auto"; row.conf = sres.conf; row.why = sres.why; row.alt = sres.alt; }
+      }
+      rows.push(row); byId[tr.id] = row;
+    }
+    for (var d = 0; d < rows.length; d++) { var p = rows[d], dep = 0; while (p.group && byId[p.group] && dep < 20) { p = byId[p.group]; dep++; } rows[d].depth = dep; }
+
+    // Unbekannte Spur in einer erkannten Gruppe (z. B. Gruppe "Vocals") -> erbt die Kategorie
+    for (var u = 0; u < rows.length; u++) {
+      var ru = rows[u];
+      if (ru.cat || ru.isGroup || ru.source === "stem") continue;
+      var pg = ru.group ? byId[ru.group] : null;
+      while (pg && !pg.cat) pg = pg.group ? byId[pg.group] : null;
+      if (pg && pg.cat) { ru.cat = pg.cat; ru.source = "group"; ru.conf = "unsicher"; ru.why = ["Gruppe: " + pg.name]; }
+    }
+    // Overrides für normale Spuren
+    for (var v = 0; v < rows.length; v++) applyOverride(rows[v]);
+    function applyOverride(rw) {
+      var ov = overrides[rw.id];
+      if (ov === undefined) return;
+      if (ov === "_skip") { rw.cat = null; rw.source = "skip"; rw.conf = ""; rw.why = ["Von Hand: unverändert"]; }
+      else if (ov === "_rest") { rw.cat = null; rw.source = "manual"; rw.conf = ""; rw.why = ["Von Hand: Rest"]; }
+      else if (byCat[ov]) { rw.cat = ov; rw.source = "manual"; rw.conf = ""; rw.why = ["Von Hand"]; }
+    }
+    // Gruppen: alle Spuren darin gleiche Kategorie -> Gruppe bekommt sie; gemischt -> Rest
+    if (o.groups) {
+      for (var gi = rows.length - 1; gi >= 0; gi--) {
+        var gr = rows[gi];
+        if (!gr.isGroup || gr.source === "stem" || overrides[gr.id] !== undefined) continue;
+        var leafCats = {}, nLeaf = 0, nKnown = 0, inherited = 0;
+        for (var li = 0; li < rows.length; li++) {
+          var lr = rows[li]; if (lr.isGroup || lr.source === "stem") continue;
+          var anc = lr.group ? byId[lr.group] : null, inside = false;
+          while (anc) { if (anc === gr) { inside = true; break; } anc = anc.group ? byId[anc.group] : null; }
+          if (!inside) continue;
+          nLeaf++;
+          if (lr.cat) { nKnown++; leafCats[lr.cat] = 1; if (lr.source === "group") inherited++; }
+        }
+        var keys = []; for (var kc in leafCats) keys.push(kc);
+        if (nLeaf && nKnown === nLeaf && keys.length === 1) {
+          if (gr.cat !== keys[0]) { gr.cat = keys[0]; gr.source = "auto"; gr.conf = "sicher"; gr.why = ["Alle " + nLeaf + " Spuren in der Gruppe: " + byCat[keys[0]].label]; }
+        } else if (nKnown > inherited) {
+          gr.cat = null; gr.source = "auto"; gr.conf = ""; gr.why = ["Gemischte Gruppe"];
+        }
+      }
+    }
+
+    // Neue Namen + Farben
+    var count = {}, groupCount = {}, seen = {}, groupSeen = {};
+    for (var e = 0; e < rows.length; e++) {
+      var rr = rows[e]; if (rr.source === "stem" || rr.source === "skip") continue;
+      var key = rr.cat || "_rest";
+      if (rr.isGroup) groupCount[key] = (groupCount[key] || 0) + 1; else count[key] = (count[key] || 0) + 1;
+    }
+    for (var f = 0; f < rows.length; f++) {
+      var row2 = rows[f];
+      row2.newName = row2.name; row2.newColor = row2.color; row2.lane = "";
+      if (row2.source === "stem" || row2.source === "skip") continue;
+      var c2 = row2.cat ? byCat[row2.cat] : null, key2 = row2.cat || "_rest";
+      row2.lane = c2 ? (c2.lane || "") : "";
+      if (o.colorize) row2.newColor = c2 ? c2.color.index : s.rest.color.index;
+      var label = c2 ? c2.label : s.rest.label;
+      var doRename = o.rename && (c2 || o.renameRest);
+      if (doRename && o.keepCustomNames && !isDefaultName(row2.name) && !ownName(row2.name, s)) doRename = false;
+      if (doRename) {
+        var nr, total2;
+        if (row2.isGroup) { nr = groupSeen[key2] = (groupSeen[key2] || 0) + 1; total2 = groupCount[key2]; }
+        else { nr = seen[key2] = (seen[key2] || 0) + 1; total2 = count[key2]; }
+        row2.newName = (total2 > 1 || o.numberSingle) ? (o.pattern || "{name} {n}").replace("{name}", label).replace("{n}", nr) : label;
+      }
+    }
+    return { rows: rows, ignored: ignored };
+  }
+
+  // Für Prep: Vorauswahl je Spalte. Kinder fallen weg, wenn ihre Gruppe schon dieselbe Spalte hat.
+  function preselect(plan) {
+    var byId = {}, out = {};
+    for (var i = 0; i < plan.rows.length; i++) byId[plan.rows[i].id] = plan.rows[i];
+    for (var j = 0; j < plan.rows.length; j++) {
+      var r = plan.rows[j];
+      if (!r.lane) continue;
+      var p = r.group ? byId[r.group] : null, covered = false;
+      while (p) { if (p.lane === r.lane) { covered = true; break; } p = p.group ? byId[p.group] : null; }
+      if (covered) continue;
+      (out[r.lane] = out[r.lane] || []).push(r.id);
+    }
+    return out;
+  }
+
+  return { LANES: LANES, PALETTE: PALETTE, STEM_RE: STEM_RE, defaults: defaults, normalize: normalize,
+           isDefaultName: isDefaultName, collectTracks: collectTracks, analyze: analyze, preselect: preselect,
+           FILE: "setmaker_settings.json" };
+})();
+if (typeof exports !== "undefined") { for (var smk in SM) exports[smk] = SM[smk]; }
+// ==== END setmaker_shared ====
+// ==== BEGIN loomn_update (gemeinsamer Update-Mechanismus für alle LOOMN-Max-for-Live-Plugins) ====
+// Liest manifest.json aus dem GitHub-Repo und lädt neuere Dateien in den Ordner des Devices.
+// ES5 (Max [js]). Benutzt XMLHttpRequest von Max (maxurl).
+var LU = (function () {
+  var BASE = "https://raw.githubusercontent.com/Tim12iun/loomn-max-for-live/main/";
+  function cmp(a, b) { // "0.4.1" vs "0.4.0"
+    var x = String(a).split("."), y = String(b).split(".");
+    for (var i = 0; i < Math.max(x.length, y.length); i++) {
+      var d = (Number(x[i]) || 0) - (Number(y[i]) || 0); if (d) return d > 0 ? 1 : -1;
+    }
+    return 0;
+  }
+  function posix(p) { return p.indexOf(":/") >= 0 ? p.substring(p.indexOf(":/") + 1) : p; }
+  function enc(path) { return path.split("/").map(encodeURIComponent).join("/"); }
+  function get(url, cb, fileOut) {
+    var req = new XMLHttpRequest();
+    req.open("GET", url + (url.indexOf("?") < 0 ? "?" : "&") + "t=" + new Date().getTime());
+    if (fileOut) req._setRequestKey("filename_out", fileOut);
+    req.onreadystatechange = function () {
+      if (this.readyState === 4) cb(this.status === 200 || this.status === 0 ? null : ("HTTP " + this.status), this.responseText);
+    };
+    req.send();
+  }
+  // check(pluginId, localVersion, cb(err, info)) – info = {latest, newer, entry}
+  function check(pluginId, localVersion, cb) {
+    get(BASE + "manifest.json", function (err, txt) {
+      if (err) return cb("Update-Server nicht erreichbar (" + err + ")");
+      var m; try { m = JSON.parse(txt); } catch (e) { return cb("manifest.json kaputt"); }
+      var entry = m.plugins && m.plugins[pluginId];
+      if (!entry) return cb("Plugin " + pluginId + " nicht im Repo");
+      cb(null, { latest: entry.version, newer: cmp(entry.version, localVersion) > 0, entry: entry });
+    });
+  }
+  // install(entry, deviceDir, writeText, cb(err, count)) – Textdateien über responseText, Binärdateien (.amxd) direkt in Datei
+  function install(entry, deviceDir, writeText, cb) {
+    var files = entry.files.slice(0), done = 0;
+    // Script zuletzt, damit nichts mitten im Update neu geladen wird
+    files.sort(function (a, b) { return (/\.js$/.test(a) ? 1 : 0) - (/\.js$/.test(b) ? 1 : 0); });
+    function next() {
+      if (!files.length) return cb(null, done);
+      var f = files.shift(), url = BASE + enc(entry.dir + "/" + f);
+      if (/\.amxd$/.test(f)) {
+        get(url, function (err) { if (err) return cb(f + ": " + err); done++; next(); }, posix(deviceDir) + f);
+      } else {
+        get(url, function (err, txt) {
+          if (err) return cb(f + ": " + err);
+          if (!txt || !writeText(deviceDir + f, txt)) return cb(f + ": konnte nicht schreiben");
+          done++; next();
+        });
+      }
+    }
+    next();
+  }
+  return { BASE: BASE, cmp: cmp, check: check, install: install };
+})();
+// ==== END loomn_update ====
+var STEM_RE = SM.STEM_RE;
+var settings = null;
+var cfg = { colors: {}, cut: null, rest: null }; // für die UI: Farbe pro Spalte
+var job = null;                        // laufende Aufnahme
+var task = null;
+
+// ---------- Hilfen ----------
+function say(kind, obj){ outlet(0, kind, encodeURIComponent(JSON.stringify(obj))); }
+function status(s){ post("SetMaker: " + s + "\n"); say("status", { text: s }); }
+function g(api, prop){ var v = api.get(prop); return (v instanceof Array) ? v.join(" ") : String(v); }
+function n(api, prop){ return Number(g(api, prop)); }
+function ids(api, prop){
+  var v = api.get(prop), out = [];
+  if (!(v instanceof Array)) return out;
+  for (var i = 0; i < v.length; i++) if (v[i] !== "id" && Number(v[i]) > 0) out.push(Number(v[i]));
+  return out;
+}
+function byId(id){ return new LiveAPI("id " + id); }
+function parseDict(v, key){
+  if (v instanceof Array) v = v.join(" ");
+  try { var o = JSON.parse(v); return (key && o[key] !== undefined) ? o[key] : o; } catch (e) { return null; }
+}
+function dictProp(api, prop){ return parseDict(api.get(prop), prop); }
+function laneById(id){ for (var i = 0; i < LANES.length; i++) if (LANES[i].id === id) return LANES[i]; return null; }
+function isGrey(rgb){ var r = (rgb >> 16) & 255, gg = (rgb >> 8) & 255, b = rgb & 255; return Math.abs(r - gg) < 12 && Math.abs(gg - b) < 12 && Math.abs(r - b) < 12; }
+
+// ---------- Einstellungen (Farben) neben dem Device speichern ----------
+function deviceDir(){
+  var fp = this.patcher ? this.patcher.filepath : "";
+  if (!fp) return "";
+  return fp.substring(0, fp.lastIndexOf("/") + 1);
+}
+var DIR = "";
+// Einstellungen liegen im Elternordner (SetMaker/), damit Sort und Prep in eigenen Unterordnern dieselbe Datei nutzen
+function parentDir(d){ var x = d.substring(0, d.length - 1); return x.substring(0, x.lastIndexOf("/") + 1); }
+function cfgPath(){ return parentDir(DIR) + SM.FILE; }
+function readText(path){
+  var f = new File(path, "read", "TEXT"); if (!f.isopen) return null;
+  var s = "", line; while ((line = f.readline(32767)) !== null && line !== undefined) { s += line + "\n"; if (f.position >= f.eof) break; }
+  f.close(); return s;
+}
+function writeText(path, s){
+  var f = new File(path, "write", "TEXT"); if (!f.isopen) return false;
+  f.position = 0;
+  for (var i = 0; i < s.length; i += 16000) f.writestring(s.substring(i, i + 16000));
+  f.eof = f.position; f.close(); return true;
+}
+function loadCfg(){
+  var raw = readText(cfgPath()), parsed = null;
+  if (raw){ try { parsed = JSON.parse(raw); } catch (e) {} }
+  settings = SM.normalize(parsed);
+  if (!parsed) writeText(cfgPath(), JSON.stringify(settings, null, 1)); // Defaults einmal anlegen
+  deriveCfg();
+}
+function saveCfg(){ writeText(cfgPath(), JSON.stringify(settings, null, 1)); deriveCfg(); }
+function deriveCfg(){
+  cfg = { colors: {}, cut: settings.cut || null, rest: settings.rest ? settings.rest.color : null };
+  for (var i = 0; i < settings.categories.length; i++){
+    var c = settings.categories[i];
+    if (c.color && !cfg.colors[c.lane]) cfg.colors[c.lane] = c.color;
+  }
+}
+function laneOfColor(index){
+  for (var i = 0; i < settings.categories.length; i++){
+    var c = settings.categories[i], col = c.color || cfg.colors[c.lane];
+    if (col && col.index === index) return c.lane;
+  }
+  return null;
+}
+function catColor(c){ return c.color || cfg.colors[c.lane] || null; }
+
+// ---------- Start ----------
+function init(){
+  DIR = deviceDir.call(this);
+  if (DIR){
+    var posix = DIR.indexOf(":/") >= 0 ? DIR.substring(DIR.indexOf(":/") + 1) : DIR;
+    outlet(0, "url", "file://" + encodeURI(posix) + "setmaker_prep.html");
+  }
+  loadCfg();
+  refresh();
+}
+function bang(){ init.call(this); }
+
+// ---------- Spuren nach Farbe einsortieren ----------
+function scan(){
+  var song = new LiveAPI("live_set");
+  var tIds = ids(song, "tracks"), tracks = [];
+  for (var i = 0; i < tIds.length; i++){
+    var t = byId(tIds[i]);
+    tracks.push({ id: tIds[i], api: t, name: g(t, "name"), color: n(t, "color_index"),
+      midi: n(t, "has_midi_input") === 1, group: n(t, "is_grouped") ? ids(t, "group_track")[0] : null });
+  }
+  var byIdMap = {}; for (var k = 0; k < tracks.length; k++) byIdMap[tracks[k].id] = tracks[k];
+  var res = { lanes: {}, stems: {} };
+  for (var j = 0; j < tracks.length; j++){
+    var tr = tracks[j];
+    if (STEM_RE.test(tr.name)){ res.stems[tr.name.split("_")[0]] = tr; continue; }
+    var laneId = laneOfColor(tr.color);
+    if (!laneId) continue;
+    // Wenn die Gruppe schon zur selben Spalte gehört, kommt der Ton über die Gruppe
+    var parent = tr.group ? byIdMap[tr.group] : null;
+    if (parent && laneOfColor(parent.color) === laneId) continue;
+    (res.lanes[laneId] = res.lanes[laneId] || []).push(tr);
+  }
+  return res;
+}
+
+function refresh(){
+  var s = scan(), song = new LiveAPI("live_set");
+  var counts = {}, names = {};
+  for (var l = 0; l < LANES.length; l++){
+    var arr = s.lanes[LANES[l].id] || [];
+    counts[LANES[l].id] = arr.length;
+    names[LANES[l].id] = arr.map(function (t) { return t.name; });
+  }
+  var stems = []; for (var k in s.stems) stems.push(k);
+  say("state", { version: VERSION, cfg: cfg, counts: counts, names: names, stems: stems, tempo: n(song, "tempo"),
+                 setName: g(song, "name"), recording: !!job });
+}
+
+// ---------- Farbe lernen: aus ausgewählter Spur (Spalten) bzw. ausgewähltem Clip (Schnitt) ----------
+function learn(laneId){
+  loadCfg(); // vor dem Ändern neu lesen, damit Änderungen des Umbenenn-Tools erhalten bleiben
+  if (laneId === "cut"){
+    var clip = new LiveAPI("live_set view detail_clip");
+    if (!clip.id || Number(clip.id) === 0){ status("Erst einen grau gefärbten Clip anklicken."); return; }
+    settings.cut = { index: n(clip, "color_index"), rgb: n(clip, "color") };
+  } else {
+    var t = new LiveAPI("live_set view selected_track");
+    if (!t.id || Number(t.id) === 0){ status("Erst eine Spur anklicken."); return; }
+    var col = { index: n(t, "color_index"), rgb: n(t, "color") };
+    if (laneId === "rest") settings.rest = { label: "Rest", color: col };
+    else {
+      // Farbe gilt für die erste (Haupt-)Kategorie dieser Spalte
+      for (var i = 0; i < settings.categories.length; i++) if (settings.categories[i].lane === laneId) { settings.categories[i].color = col; break; }
+      if (!cfg.colors[laneId] && !hasLaneCat(laneId)) settings.categories.push({ id: laneId, label: laneId, lane: laneId, keywords: [], color: col });
+    }
+  }
+  saveCfg(); refresh();
+}
+function hasLaneCat(laneId){ for (var i = 0; i < settings.categories.length; i++) if (settings.categories[i].lane === laneId) return true; return false; }
+function forget(laneId){
+  loadCfg();
+  if (laneId === "cut") settings.cut = null;
+  else if (laneId === "rest") settings.rest = null;
+  else for (var i = 0; i < settings.categories.length; i++) if (settings.categories[i].lane === laneId) delete settings.categories[i].color;
+  saveCfg(); refresh();
+}
+
+// ---------- Auto: Spuren per Keywords erkennen und einfärben (Vorauswahl zum Prüfen) ----------
+var lastAuto = [];
+function auto(){
+  loadCfg();
+  var tracks = SM.collectTracks(LiveAPI, settings);
+  var plan = SM.analyze(tracks, settings, {});
+  var byCat = {}; for (var c = 0; c < settings.categories.length; c++) byCat[settings.categories[c].id] = settings.categories[c];
+  var counts = {}, rest = 0, unsure = [];
+  lastAuto = [];
+  for (var i = 0; i < plan.rows.length; i++){
+    var r = plan.rows[i];
+    if (r.source === "stem" || r.source === "skip") continue;
+    var t = byId(r.id);
+    var hasContent = r.isGroup || (r.clipIds && r.clipIds.length) || (r.clips && r.clips.length);
+    var tr = null; for (var k = 0; k < tracks.length; k++) if (tracks[k].id === r.id) tr = tracks[k];
+    if (!r.isGroup && tr && !tr.clipIds.length) continue; // leere Spuren nicht anfassen
+    var cat = r.cat ? byCat[r.cat] : null;
+    var col = cat ? cat.color : (settings.rest ? settings.rest.color : null);
+    if (!col) continue;
+    lastAuto.push({ id: r.id, index: n(t, "color_index") });
+    t.set("color_index", col.index);
+    if (r.isGroup) continue;
+    if (cat){ counts[cat.label] = (counts[cat.label] || 0) + 1; if (r.conf === "unsicher") unsure.push(r.name); }
+    else rest++;
+  }
+  var parts = []; for (var m in counts) parts.push(m + " " + counts[m]);
+  status("Auto: " + (parts.join(", ") || "nichts erkannt") + (rest ? ", Rest " + rest : "") +
+         (unsure.length ? ". Unsicher: " + unsure.join(", ") : "") + ". Bitte prüfen, dann Rendern.");
+  refresh();
+}
+function autoundo(){
+  for (var i = 0; i < lastAuto.length; i++) byId(lastAuto[i].id).set("color_index", lastAuto[i].index);
+  status("Auto rückgängig: " + lastAuto.length + " Spuren zurückgefärbt."); lastAuto = []; refresh();
+}
+
+// ---------- Rendern = Echtzeit-Aufnahme auf Stem-Spuren ----------
+function render(songNameEnc){
+  if (job){ status("Aufnahme läuft schon."); return; }
+  var songName = decodeURIComponent(songNameEnc || "SONG").toUpperCase();
+  var s = scan(), song = new LiveAPI("live_set");
+  var tempo = Math.round(n(song, "tempo"));
+  var plan = [], endTime = 0;
+  for (var l = 0; l < LANES.length; l++){
+    var lane = LANES[l], src = s.lanes[lane.id];
+    if (lane.midi || !src || !src.length) continue;
+    if (s.stems[lane.short]){ status("Stem-Spur " + lane.short + " gibt es schon. Bitte erst löschen."); return; }
+    plan.push({ lane: lane, src: src });
+    for (var i = 0; i < src.length; i++){
+      var cl = ids(src[i].api, "arrangement_clips");
+      for (var c = 0; c < cl.length; c++) endTime = Math.max(endTime, n(byId(cl[c]), "end_time"));
+    }
+  }
+  if (!plan.length){ status("Keine eingefärbten Spuren gefunden. Erst Farben lernen."); return; }
+  if (!endTime){ status("Keine Clips im Arrangement gefunden."); return; }
+
+  job = { stems: [], rerouted: [], endTime: endTime + 4, started: false };
+  for (var p = 0; p < plan.length; p++){
+    song.call("create_audio_track", -1);
+    var all = ids(song, "tracks"), st = byId(all[all.length - 1]);
+    var stemName = plan[p].lane.short + "_" + songName + " " + tempo;
+    st.set("name", stemName);
+    if (cfg.colors[plan[p].lane.id]) st.set("color_index", cfg.colors[plan[p].lane.id].index);
+    setRoutingByName(st, "input_routing_type", "available_input_routing_types", ["No Input", "Kein Eingang"]);
+    st.set("current_monitoring_state", 1); // Auto
+    st.set("arm", 1);
+    job.stems.push(st.id);
+    for (var q = 0; q < plan[p].src.length; q++){
+      var sa = plan[p].src[q].api;
+      var before = dictProp(sa, "output_routing_type");
+      if (before) job.rerouted.push({ id: sa.id, identifier: before.identifier });
+      if (!setRoutingByName(sa, "output_routing_type", "available_output_routing_types", [stemName]))
+        status("Routing fehlgeschlagen: " + plan[p].src[q].name + " -> " + stemName);
+    }
+  }
+  song.set("loop", 0);
+  song.set("arrangement_overdub", 0);
+  song.call("stop_playing");
+  song.set("current_song_time", 0);
+  song.set("record_mode", 1);
+  song.call("continue_playing");
+  task = new Task(tick, this); task.interval = 200; task.repeat();
+  status("Aufnahme läuft … nicht anfassen.");
+}
+
+function tick(){
+  if (!job) return;
+  var song = new LiveAPI("live_set");
+  var t = n(song, "current_song_time"), playing = n(song, "is_playing");
+  if (playing) job.started = true;
+  say("progress", { pct: Math.min(100, Math.round(100 * t / job.endTime)) });
+  if (job.started && (!playing || t >= job.endTime)) finish(!playing && t < job.endTime);
+}
+
+function finish(aborted){
+  if (task){ task.cancel(); task = null; }
+  var song = new LiveAPI("live_set");
+  song.set("record_mode", 0);
+  song.call("stop_playing");
+  for (var i = 0; i < job.rerouted.length; i++){
+    var r = job.rerouted[i]; setRoutingById(byId(r.id), r.identifier);
+  }
+  for (var j = 0; j < job.stems.length; j++){
+    var st = byId(job.stems[j]);
+    st.set("arm", 0);
+    st.set("mute", 1); // Original spielt wieder normal, Stems würden sonst doppelt klingen
+  }
+  var count = job.stems.length;
+  job = null;
+  status(aborted ? "Aufnahme abgebrochen. Stem-Spuren bitte löschen und neu rendern."
+                 : count + " Full-Stems liegen unten (stumm geschaltet). Jetzt Passagen schneiden und grau färben, dann „Paket“.");
+  refresh();
+}
+
+function setRoutingByName(api, prop, availProp, names){
+  var avail = dictProp(api, availProp) || [];
+  for (var a = 0; a < avail.length; a++)
+    for (var k = 0; k < names.length; k++)
+      if (avail[a].display_name === names[k]) return setRoutingById(api, avail[a].identifier, prop);
+  return false;
+}
+function setRoutingById(api, identifier, prop){
+  prop = prop || "output_routing_type";
+  try { api.set(prop, { identifier: identifier }); } catch (e) {}
+  var now = dictProp(api, prop);
+  if (!now || now.identifier !== identifier){
+    try { api.set(prop, JSON.stringify({ identifier: identifier })); } catch (e2) {}
+    now = dictProp(api, prop);
+  }
+  return !!now && now.identifier === identifier;
+}
+
+// ---------- Paket schreiben ----------
+function isCutClip(clip){
+  if (cfg.cut) return n(clip, "color_index") === cfg.cut.index;
+  return isGrey(n(clip, "color"));
+}
+function pkg(songNameEnc){
+  var songName = decodeURIComponent(songNameEnc || "SONG").toUpperCase();
+  var song = new LiveAPI("live_set"), s = scan();
+  var out = { format: "setmaker-song", version: 2, song: songName, tempo: n(song, "tempo"),
+              sourceSet: g(song, "file_path"), lanes: [] };
+  for (var l = 0; l < LANES.length; l++){
+    var lane = LANES[l];
+    if (lane.midi){
+      var midiTracks = s.lanes[lane.id] || [], clips = [];
+      for (var m = 0; m < midiTracks.length; m++){
+        var cl = ids(midiTracks[m].api, "arrangement_clips");
+        for (var c = 0; c < cl.length; c++){
+          var mc = byId(cl[c]);
+          var len = n(mc, "length");
+          var notes = parseDict(mc.call("get_notes_extended", 0, 128, n(mc, "start_marker"), len), "notes") || [];
+          clips.push({ name: g(mc, "name"), track: midiTracks[m].name, start_time: n(mc, "start_time"),
+                       length: len, cut: isCutClip(mc), notes: notes });
+        }
+      }
+      if (clips.length) out.lanes.push({ lane: lane.id, clipName: lane.short + "_" + songName + " " + Math.round(out.tempo), midi: clips });
+      continue;
+    }
+    var st = s.stems[lane.short];
+    if (!st) continue;
+    var entry = { lane: lane.id, clipName: st.name, fullStem: null, cuts: [] };
+    var ac = ids(st.api, "arrangement_clips");
+    for (var a = 0; a < ac.length; a++){
+      var clip = byId(ac[a]), file = g(clip, "file_path");
+      if (!entry.fullStem) entry.fullStem = file;
+      if (isCutClip(clip)){
+        entry.cuts.push({ name: g(clip, "name"), file: file,
+          start_marker: n(clip, "start_marker"), end_marker: n(clip, "end_marker"),
+          start_time: n(clip, "start_time"), end_time: n(clip, "end_time") });
+      }
+    }
+    entry.cuts.sort(function (x, y) { return x.start_time - y.start_time; });
+    for (var i = 0; i < entry.cuts.length; i++) entry.cuts[i].clipName = st.name + " (" + (i + 1) + ")";
+    out.lanes.push(entry);
+  }
+  if (!out.lanes.length){ status("Nichts zu packen: erst rendern."); return; }
+  var setPath = g(song, "file_path");
+  if (!setPath){ status("Live-Set erst speichern, dann „Paket“."); return; }
+  var dir = setPath.substring(0, setPath.lastIndexOf("/") + 1);
+  var path = dir + "SETMAKER - " + songName + ".json";
+  if (writeText(path, JSON.stringify(out, null, 1))){
+    var cuts = 0; for (var z = 0; z < out.lanes.length; z++) cuts += (out.lanes[z].cuts || out.lanes[z].midi || []).length;
+    status("Paket gespeichert: " + path + " (" + out.lanes.length + " Spalten, " + cuts + " Schnitte/MIDI-Clips)");
+  } else status("Konnte Paket nicht schreiben: " + path);
+}
+
+// ---------- Update über GitHub ----------
+function update(){
+  status("Suche Update …");
+  LU.check(PLUGIN_ID, VERSION, function (err, info){
+    if (err){ status(err); return; }
+    if (!info.newer){ status("Aktuell: v" + VERSION + " ist die neueste Version."); return; }
+    status("Lade v" + info.latest + " …");
+    LU.install(info.entry, DIR, writeText, function (e2, count){
+      if (e2){ status("Update fehlgeschlagen: " + e2); return; }
+      status("v" + info.latest + " geladen (" + count + " Dateien). Device löschen und neu reinziehen.");
+    });
+  });
+}
+
+function anything(){ /* andere jweb-Meldungen ignorieren */ }
