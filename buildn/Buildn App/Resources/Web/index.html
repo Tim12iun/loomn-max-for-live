@@ -94,7 +94,15 @@ main::-webkit-scrollbar-corner{background:transparent}
 .cell.auto .chip{cursor:default;opacity:.8}
 .chip.over{box-shadow:0 0 0 2px var(--accent);animation:blink .5s ease-in-out 5 alternate}
 @keyframes blink{from{box-shadow:0 0 0 2px var(--accent)}to{box-shadow:0 0 0 2px transparent,0 0 0 0 transparent}}
+.block::after{content:"";position:absolute;inset:0;pointer-events:none;border-radius:4px;z-index:3}
+.block.drop::after{box-shadow:inset 0 0 0 2px var(--accent)}
+.block{transition:padding-top .14s ease}
+.block.gap{padding-top:44px}
+.block.gap::before{content:"Song hier einfügen";position:absolute;left:8px;right:8px;top:6px;height:32px;border:1.5px dashed var(--accent);border-radius:7px;color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:14px}
 .cell.off{background:repeating-linear-gradient(135deg,#1d1c1b 0 6px,#211f1e 6px 12px)}
+.addrow{height:11px;display:flex;align-items:center;background:var(--bg)}
+.addrow button{position:sticky;left:calc(var(--lab) - 30px);width:22px;height:11px;padding:0;border-radius:4px;font-size:12px;line-height:11px;color:var(--muted);background:var(--hi)}
+.addrow button:hover{color:#111;background:var(--accent)}
 .row.drop>.cell{box-shadow:inset 0 2px 0 var(--accent),inset 0 -2px 0 var(--accent)}
 .block{position:relative;background:var(--surface)}
 body.bdrag,body.bdrag *{cursor:grabbing!important}
@@ -283,13 +291,19 @@ const song = key => key ? songs.find(s => s.key === key) : null;
 function parseRef(ref){ const j = ref.lastIndexOf('|'), i = ref.lastIndexOf('|', j - 1); return [ref.slice(0, i), ref.slice(i + 1, j), ref.slice(j + 1)]; }
 function clipOf(ref){
   if (!ref || typeof ref !== 'string') return null;
+  if (ref.startsWith('old:')){
+    const o = olds[ref.slice(4)]; if (!o || !o.path) return null;
+    const nm = o.name;
+    return { song: { name: base ? base.name.replace(/\.als$/i, '') : '', tempo: o.tempo, key: null }, stem: { stem: nm, kind: kindOf(nm) }, clip: { name: nm, path: o.path, file: o.path.split('/').pop() }, full: false, old: o };
+  }
   const [k, si, ci] = parseRef(ref), s = song(k);
   const st = s && s.stems[+si]; if (!st) return null;
   const clip = ci === 'F' ? st.full : st.clips[+ci];
   return clip ? { song: s, stem: st, clip, full: ci === 'F' } : null;
 }
 // Zelle: ref (Text) oder {ref, lp:{v, l}} mit eigenem Loop. v = Vorlauf in Takten, l = Loop-Länge in Takten
-const refOf = v => typeof v === 'string' ? v : v && v.ref ? v.ref : null;
+const refOf = v => typeof v === 'string' ? v : v && v.ref ? v.ref : v && v.old ? 'old:' + v.old : null;
+const withLp = (v, lp) => v && v.old ? (lp ? { old: v.old, lp } : { old: v.old }) : lp ? { ref: refOf(v), lp } : refOf(v);
 // Länge eines Clips in Takten (4/4) im Song-Tempo; gewarpt wird genau so, nie gestreckt
 function barsOf(c, secs){ return secs > 0 ? secs * c.song.tempo / 60 / 4 : 0; }
 // Automatisch: 5, 9, 13 … Takte = 1 Takt Vorlauf + Loop über die vollen 4er-Takte, sonst Loop über den ganzen Clip
@@ -301,9 +315,13 @@ function autoLoop(bars){
 function loopOf(v, c, secs){
   const bars = barsOf(c, secs);
   const lp = v && v.lp;
+  if (!lp && c.old && c.old.lp && bars) return Object.assign(clampLp(c.old.lp, bars), { auto: true, fromSet: true });   // wie im Set
   if (!lp || !bars) return Object.assign(autoLoop(bars), { bars });
+  return Object.assign(clampLp(lp, bars), { auto: false });
+}
+function clampLp(lp, bars){
   const vv = Math.max(0, Math.min(lp.v, bars - 0.25)), l = Math.max(0.25, Math.min(lp.l, bars - vv));
-  return { s: Math.max(0, Math.min(lp.s || 0, bars - 0.25)), v: vv, l, bars, auto: false };
+  return { s: Math.max(0, Math.min(lp.s || 0, bars - 0.25)), v: vv, l, bars };
 }
 const fmtBars = x => (Math.round(x * 4) / 4).toLocaleString('de-DE');
 // A/B wechselt streng von Block zu Block: Block 1 = A, Block 2 = B, Block 3 = A … (auch nach dem Verschieben)
@@ -442,7 +460,7 @@ const isStop = c => !!c && /^[=\-_ ]{3,}$/.test(val(c, 'Name') || '');
 // letzte Zeile, in der oben (Stem-Spalten) noch etwas liegt
 function upperEnd(L){ let last = -1; L.upper.forEach(t => t.slots.forEach((s, r) => { if (slotClip(s) && r > last) last = r; })); return last; }
 // Song-Blöcke oben im Set lesen: zwischen den ==== Trennern. withClips = die Clips merken (geöffnetes Set), sonst leer (Vorlage)
-function readBlocks(L, withClips){
+function readBlocks(L, withClips, dir){
   const lastUpper = upperEnd(L), out = [], names = {};
   let cur = null;
   for (let r = 0; r <= lastUpper; r++){
@@ -452,15 +470,30 @@ function readBlocks(L, withClips){
     const row = {};
     if (withClips) for (const t of L.upper){
       const c = slotClip(t.slots[r]); if (!c) continue;
-      const id = r + '|' + t.name; names[id] = val(c, 'Name') || '(ohne Namen)'; row[t.name] = { old: id };
+      const id = r + '|' + t.name; names[id] = oldInfo(c, t.color, dir); row[t.name] = { old: id };
     }
     cur.rows.push(row);
   }
   // der letzte Trenner schließt nur ab und ist kein eigener Song
   const res = out.filter(b => b.rows.length);
-  if (withClips) res.forEach(b => { if (!b.name) b.name = guessName(b.rows.flatMap(r => Object.values(r).map(c => names[c.old]))); });
+  if (withClips) res.forEach(b => { if (!b.name) b.name = guessName(b.rows.flatMap(r => Object.values(r).map(c => names[c.old].name))); });
   return { blocks: res, olds: names };
 }
+// Clip, der schon im Set liegt: Name, Audiodatei, Tempo (aus den Warp-Markern) und Loop aus der Datei
+function oldInfo(c, color, dir){
+  const fr = path(c, 'SampleRef', 'FileRef');
+  let file = fr ? val(fr, 'Path') || '' : '';
+  const rel = fr ? val(fr, 'RelativePath') || '' : '';
+  if (!file && rel && dir) file = normPath(dir + '/' + rel);
+  const wm = [...c.getElementsByTagName('WarpMarker')].map(m => [+m.getAttribute('SecTime'), +m.getAttribute('BeatTime')]);
+  let tempo = 0;
+  if (wm.length > 1){ const a = wm[0], b = wm[wm.length - 1]; if (b[0] > a[0]) tempo = (b[1] - a[1]) / (b[0] - a[0]) * 60; }
+  if (!(tempo > 30 && tempo < 400)) tempo = 120;
+  const ls = +(val(c, 'Loop', 'LoopStart') || 0), le = +(val(c, 'Loop', 'LoopEnd') || 0), sr = +(val(c, 'Loop', 'StartRelative') || 0);
+  const lp = le > ls ? { s: Math.max(0, (ls + sr) / 4), v: ls / 4, l: (le - ls) / 4 } : null;
+  return { name: val(c, 'Name') || '(ohne Namen)', path: file, tempo, lp, color };
+}
+function normPath(p){ const out = []; p.split('/').forEach(x => { if (x === '..') out.pop(); else if (x !== '.') out.push(x); }); return out.join('/').replace(/\/\/+/g, '/'); }
 function guessName(list){
   const n = {};
   list.forEach(v => { const m = String(v).replace(/^\s*\d+\s+/, '').match(/_(.+?)(\s+\d+)?\s*$/); if (m) n[m[1].trim()] = (n[m[1].trim()] || 0) + 1; });
@@ -491,7 +524,7 @@ async function loadBase(path, keep){
   const L = readLiveSet(doc);
   if (!L.upper.length) throw new Error('Keine Stem-Spalten gefunden (Spuren wie „A BASS“, „A/B KICK“).');
   cols = L.upper.map(t => colInfo(t.name, t.color));
-  const r = readBlocks(L, true);
+  const r = readBlocks(L, true, path.substring(0, path.lastIndexOf('/')));
   normalizeBlocks(r.blocks);
   olds = r.olds;
   const same = keep && keep.sig === sig && keep.blocks;
@@ -592,6 +625,14 @@ function putClip(slot, clipEl){
 }
 // Audio-Clip aus einem Grundgerüst (Live 12). Warp-Marker exakt im Song-Tempo.
 const CLIP_SKELETON = `<AudioClip Id="0" Time="0"><LomId Value="0" /><LomIdView Value="0" /><CurrentStart Value="0" /><CurrentEnd Value="4" /><Loop><LoopStart Value="0" /><LoopEnd Value="4" /><StartRelative Value="0" /><LoopOn Value="true" /><OutMarker Value="4" /><HiddenLoopStart Value="0" /><HiddenLoopEnd Value="4" /></Loop><Name Value="" /><Annotation Value="" /><Color Value="0" /><LaunchMode Value="0" /><LaunchQuantisation Value="0" /><TimeSignature><TimeSignatures><RemoteableTimeSignature Id="0"><Numerator Value="4" /><Denominator Value="4" /><Time Value="0" /></RemoteableTimeSignature></TimeSignatures></TimeSignature><Envelopes><Envelopes /></Envelopes><ScrollerTimePreserver><LeftTime Value="0" /><RightTime Value="4" /></ScrollerTimePreserver><TimeSelection><AnchorTime Value="0" /><OtherTime Value="0" /></TimeSelection><Legato Value="false" /><Ram Value="false" /><GrooveSettings><GrooveId Value="-1" /></GrooveSettings><Disabled Value="false" /><VelocityAmount Value="0" /><FollowAction><FollowTime Value="4" /><IsLinked Value="true" /><LoopIterations Value="1" /><FollowActionA Value="4" /><FollowActionB Value="0" /><FollowChanceA Value="100" /><FollowChanceB Value="0" /><JumpIndexA Value="1" /><JumpIndexB Value="1" /><FollowActionEnabled Value="false" /></FollowAction><Grid><FixedNumerator Value="1" /><FixedDenominator Value="16" /><GridIntervalPixel Value="20" /><Ntoles Value="2" /><SnapToGrid Value="true" /><Fixed Value="false" /></Grid><FreezeStart Value="0" /><FreezeEnd Value="0" /><IsWarped Value="true" /><TakeId Value="1" /><IsInKey Value="true" /><ScaleInformation><Root Value="0" /><Name Value="0" /></ScaleInformation><AutomationEnvelopesListWrapper LomId="0" /><SampleRef><FileRef><RelativePathType Value="0" /><RelativePath Value="" /><Path Value="" /><Type Value="2" /><LivePackName Value="" /><LivePackId Value="" /><OriginalFileSize Value="0" /><OriginalCrc Value="0" /><SourceHint Value="" /></FileRef><LastModDate Value="0" /><SourceContext /><SampleUsageHint Value="0" /><DefaultDuration Value="0" /><DefaultSampleRate Value="44100" /><SamplesToAutoWarp Value="0" /></SampleRef><Onsets><UserOnsets /><HasUserOnsets Value="false" /></Onsets><WarpMode Value="0" /><GranularityTones Value="30" /><GranularityTexture Value="65" /><FluctuationTexture Value="25" /><TransientResolution Value="6" /><TransientLoopMode Value="2" /><TransientEnvelope Value="100" /><ComplexProFormants Value="100" /><ComplexProEnvelope Value="128" /><Sync Value="true" /><HiQ Value="true" /><Fade Value="true" /><Fades><FadeInLength Value="0" /><FadeOutLength Value="0" /><ClipFadesAreInitialized Value="true" /><CrossfadeInState Value="0" /><FadeInCurveSkew Value="0" /><FadeInCurveSlope Value="0" /><FadeOutCurveSkew Value="0" /><FadeOutCurveSlope Value="0" /><IsDefaultFadeIn Value="true" /><IsDefaultFadeOut Value="true" /></Fades><PitchCoarse Value="0" /><PitchFine Value="0" /><SampleVolume Value="1" /><WarpMarkers><WarpMarker Id="0" SecTime="0" BeatTime="0" /><WarpMarker Id="1" SecTime="1" BeatTime="2" /></WarpMarkers><SavedWarpMarkersForStretched /><MarkersGenerated Value="false" /><IsSongTempoLeader Value="false" /></AudioClip>`;
+// Loop-Klammer und Startmarker (Takte) in einen Clip schreiben, der schon im Set lag
+function setLoop(clip, lp){
+  const ls = Math.round(lp.v * 4 * 1000) / 1000, le = Math.round((lp.v + lp.l) * 4 * 1000) / 1000;
+  setVal(clip, ['CurrentStart'], ls); setVal(clip, ['CurrentEnd'], le);
+  setVal(clip, ['Loop', 'LoopStart'], ls); setVal(clip, ['Loop', 'LoopEnd'], le);
+  setVal(clip, ['Loop', 'StartRelative'], Math.round(((lp.s || 0) * 4 - ls) * 1000) / 1000);
+  setVal(clip, ['Loop', 'LoopOn'], 'true');
+}
 function makeAudioClip(doc, a){
   const el = new DOMParser().parseFromString(CLIP_SKELETON, 'application/xml').documentElement;
   const clip = doc.importNode(el, true);
@@ -675,7 +716,9 @@ async function buildSet(){
           if (!t){ missing.add(colName); continue; }
           if (cell && cell.old){
             const el = oldEl[cell.old]; if (!el) continue;
-            putClip(t.slots[row], used.has(cell.old) ? el.cloneNode(true) : el); used.add(cell.old);
+            const put = used.has(cell.old) ? el.cloneNode(true) : el; used.add(cell.old);
+            if (cell.lp) setLoop(put, cell.lp);
+            putClip(t.slots[row], put);
           } else {
             const c = clipOf(refOf(cell)); if (!c){ lost.push(String(refOf(cell)).split('|').pop()); continue; }
             let a; try { a = await native('audioInfo', { path: c.clip.path }); } catch (e) { lost.push(c.clip.file); continue; }
@@ -789,10 +832,12 @@ window.onNative = (kind, data) => {
 // ---------- Zeichnen ----------
 function chip(val, o){
   const ref = refOf(val), c = clipOf(ref); if (!c) return o.cell ? `<div class="chip lost" draggable="true" title="Datei nicht gefunden"><span class="t">fehlt</span>${rmBtn()}</div>` : '';
-  const col = colFor(c.stem.kind, 'A'), bg = col ? hex(col.color) : '#9a9a9a';
+  const col = colFor(c.stem.kind, 'A'), bg = c.old ? hex(c.old.color) : col ? hex(col.color) : '#9a9a9a';
+  const gone = durs[c.clip.path] === 0 && waves[c.clip.path] && !waves[c.clip.path].length;   // Datei nicht lesbar
   const pre = c.stem.stem.replace(/_.*$/, ''), num = (c.clip.name.match(/Clip \d+$/) || ['Full'])[0];
-  const label = o.list ? num : narrow ? num.replace('Clip ', '#') : pre + ' ' + num;
+  const label = c.old ? c.clip.name : o.list ? num : narrow ? num.replace('Clip ', '#') : pre + ' ' + num;
   const on = playing === ref;
+  if (gone) return `<div class="chip lost" draggable="${o.cell ? 'true' : 'false'}" title="Datei fehlt: ${esc(c.clip.path)}"><span class="t">${esc(label)} · fehlt</span>${o.cell ? rmBtn() : ''}</div>`;
   return `<div class="chip ${on ? 'on' : ''} ${o.over ? 'over' : ''} ${o.cell && o.id === cvCell ? 'sel' : ''}" draggable="${o.auto ? 'false' : 'true'}" data-ref="${esc(ref)}" style="background:${bg}${o.over ? ';animation-delay:-' + (Date.now() - overAt) + 'ms' : ''}" title="${esc(c.song.name + ' · ' + c.clip.name)}\nPlay = vorhören, dann Klick in die Waveform = spulen">`
     + `<span class="wv" data-seek="${esc(ref)}">${wavePath(c.clip.path)}${o.list ? '' : loopShade(val, c)}<i style="left:${on ? headPos * 100 : 0}%"></i></span>`
     + `<span class="pl ${on ? 'on' : ''}" data-play="${esc(ref)}" title="${on ? 'Stopp' : 'Vorhören'}"><svg><use href="#i-${on ? 'stop' : 'play'}"/></svg></span><span class="t">${esc(label)}</span>`
@@ -807,7 +852,7 @@ function loopShade(val, c){
 }
 const rmBtn = () => `<span class="rm" data-rm="1" title="Clip aus dem Set nehmen"><svg><use href="#i-x"/></svg></span>`;
 function oldChip(id, color){
-  const t = olds[id] || '?';
+  const t = (olds[id] || {}).name || '?';
   return `<div class="chip old" draggable="true" style="border-color:${hex(color)}" title="${esc(t)} (steht schon im Set)"><span class="t">${esc(t)}</span>${rmBtn()}</div>`;
 }
 function drawSongs(){
@@ -837,11 +882,12 @@ function drawGrid(){
     const auto = autoRow(b, i), fr = fullRow(b), side = i % 2 ? 'B' : 'A';
     b.rows.forEach((row, r) => {
       const isFull = r === fr && (s || b.rows.length > 1);
+      if (isFull) h += `<div class="addrow"><button data-addrow="${i}" title="Neue Clip-Zeile über Full">+</button></div>`;
       h += `<div class="row" data-row="${i}|${r}">${lab(isFull ? (s ? 'Full · ' + side : 'Full') : 'Clips ' + (r + 1))}`;
       h += cols.map(c => {
         const k = colKey(c), act = activeCol(c, i), id = i + '|' + r + '|' + k;
         const v = act ? row[k] : null, a = act && isFull && !v ? auto[k] : null;
-        const inner = v ? (v.old ? oldChip(v.old, c.color) : chip(v, { cell: true, id })) : a ? chip(a, { auto: true }) : '';
+        const inner = v ? (v.old && !clipOf(refOf(v)) ? oldChip(v.old, c.color) : chip(v, { cell: true, id })) : a ? chip(a, { auto: true }) : '';
         return `<div class="cell ${a ? 'auto' : ''} ${act ? '' : 'off'}" data-cell="${esc(id)}"${act ? '' : ` title="Song ${i + 1} liegt auf ${side}: Clips hier landen in ${esc(colFor(c.kind, side).name)}"`}>${inner}</div>`;
       }).join('') + '</div>';
     });
@@ -907,7 +953,7 @@ document.addEventListener('dragstart', e => {
   e.dataTransfer.setData('text/plain', 'buildn');
 });
 document.addEventListener('dragend', () => { drag = null; clearDrop(); document.querySelectorAll('.dragging').forEach(x => x.classList.remove('dragging')); if (pendingDraw) draw(); });
-function clearDrop(){ document.querySelectorAll('.drop').forEach(x => x.classList.remove('drop')); lastTgt = null; }
+function clearDrop(){ document.querySelectorAll('.drop,.gap').forEach(x => x.classList.remove('drop', 'gap')); lastTgt = null; }
 function target(e){
   if (!drag) return null;
   const end = e.target.closest('#endrow, #empty');
@@ -917,7 +963,19 @@ function target(e){
   }
   if (drag.type === 'song'){
     if (end) return { el: end, cls: 'drop', add: true };
-    const blk = e.target.closest('[data-block]'); if (blk) return { el: blk, cls: 'drop', assign: +blk.dataset.block };
+    const blk = e.target.closest('[data-block]');
+    if (blk){
+      const i = +blk.dataset.block, b = blocks[i];
+      const empty = j => blocks[j] && !blocks[j].key && blocks[j].rows.every(r => !Object.keys(r).length);
+      if (empty(i)) return { el: blk, cls: 'drop', assign: i };   // leerer Block: hier landet er
+      // belegter Block: obere Hälfte = davor einfügen, untere = dahinter (Lücke öffnet sich)
+      const r = blk.getBoundingClientRect(), gapNow = blk.classList.contains('gap') ? 44 : 0;
+      const at = e.clientY < r.top + gapNow + (r.height - gapNow) / 2 ? i : i + 1;
+      const nb = at === i ? i - 1 : i + 1;                          // leerer Nachbar? dann dort hinein statt Lücke
+      if (empty(nb)) return { el: document.querySelector(`[data-block="${nb}"]`), cls: 'drop', assign: nb };
+      const el = at < blocks.length ? document.querySelector(`[data-block="${at}"]`) : $('#endrow');
+      return at < blocks.length ? { el, cls: 'gap', insert: at } : { el, cls: 'drop', add: true };
+    }
     if (e.target.closest('#main')) return { el: blocks.length ? $('#endrow') : $('#empty'), cls: 'drop', add: true };
   }
   return null;
@@ -949,6 +1007,7 @@ document.addEventListener('drop', e => {
       setCell(to, d.val);
     } else if (d.type === 'song'){
       if (t.add){ blocks.push(emptyBlock()); fillBlock(blocks.length - 1, d.key); }
+      else if (t.insert != null){ blocks.splice(t.insert, 0, emptyBlock()); fillBlock(t.insert, d.key); }
       else fillBlock(t.assign, d.key, t.row);
     }
   });
@@ -964,7 +1023,10 @@ function fillBlock(bi, key, fullAt){
   while (b.rows.length < 3) b.rows.push({});
   // Clips des vorigen Songs in diesem Block herausnehmen, alles andere bleibt
   if (prev) b.rows.forEach(row => Object.keys(row).forEach(k => { const r = refOf(row[k]); if (typeof r === 'string' && r.startsWith(prev + '|')) delete row[k]; }));
-  b.full = fullAt != null && fullAt < b.rows.length ? fullAt : Math.min(2, b.rows.length - 1);
+  b.full = fullAt != null && fullAt < b.rows.length ? fullAt : b.rows.length - 1;
+  // so viele Clip-Zeilen wie der Stem mit den meisten Clips hat (Clip 3, 4 …), Full bleibt darunter
+  const most = Math.max(0, ...s.stems.map(st => st.clips.length));
+  while (b.rows.length - 1 < most){ b.rows.splice(b.full, 0, {}); b.full++; }
   const clipRows = b.rows.map((_, r) => r).filter(r => r !== b.full);
   const side = bi % 2 ? 'B' : 'A';
   over = new Set(); overAt = Date.now();
@@ -1004,6 +1066,8 @@ document.addEventListener('click', e => {
   const op = e.target.closest('[data-open]');
   if (op){ const k = op.dataset.open; open[k] = !open[k]; if (!open[k] && playing && playing.startsWith(k + '|')) stopPlay(); draw(); return; }
   const del = e.target.closest('[data-del]'); if (del){ change(() => blocks.splice(+del.dataset.del, 1)); status('Block aus dem Line-up genommen. ⌘Z holt ihn zurück.'); return; }
+  const ar = e.target.closest('[data-addrow]');
+  if (ar){ const b = blocks[+ar.dataset.addrow], fr = fullRow(b); change(() => { b.rows.splice(fr, 0, {}); b.full = fr + 1; }); return; }
   const add = e.target.closest('[data-addblk]'); if (add){ change(() => blocks.push(emptyBlock())); return; }
   const cv = e.target.closest('[data-cv]'); if (cv){ cvAction(cv.dataset.cv); return; }
 });
@@ -1035,8 +1099,8 @@ function drawClip(){
     if (!narrow) for (let q = 1; q < 4 && bars <= 8; q++) grid += `<b class="gl" style="left:${pc(k + q / 4)};opacity:.4"></b>`;
   }
   const on = playing === cvRef;
-  $('#cv').innerHTML = `<div class="cvh"><b>${esc(c.stem.stem)} · ${esc((c.clip.name.match(/Clip \d+$/) || ['Full'])[0])}</b><span>${fmtBars(bars)} Takte · ${Math.round(c.song.tempo)} BPM · Start ${L.s - L.v >= 0 ? fmtBars(L.s - L.v + 1) : '−' + fmtBars(L.v - L.s)} · Loop ${fmtBars(L.l)} Takte${L.auto ? ' (automatisch)' : ''}</span><span class="sp"></span>`
-    + (L.auto ? '' : `<button data-cv="auto" title="Startmarker und Loop wie von buildn erkannt">Automatisch</button>`)
+  $('#cv').innerHTML = `<div class="cvh"><b>${c.old ? esc(c.clip.name) + ' · im Set' : esc(c.stem.stem) + ' · ' + esc((c.clip.name.match(/Clip \d+$/) || ['Full'])[0])}</b><span>${fmtBars(bars)} Takte · ${Math.round(c.song.tempo)} BPM · Start ${L.s - L.v >= 0 ? fmtBars(L.s - L.v + 1) : '−' + fmtBars(L.v - L.s)} · Loop ${fmtBars(L.l)} Takte${L.fromSet ? ' (wie im Set)' : L.auto ? ' (automatisch)' : ''}</span><span class="sp"></span>`
+    + (L.auto ? '' : `<button data-cv="auto" title="${c.old ? 'Startmarker und Loop wie im Set' : 'Startmarker und Loop wie von buildn erkannt'}">${c.old ? 'Wie im Set' : 'Automatisch'}</button>`)
     + `<button class="icon" data-cv="play" title="${on ? 'Stopp' : 'Vorhören'} (dann in die Waveform klicken = spulen)"><svg><use href="#i-${on ? 'stop' : 'play'}"/></svg></button>`
     + `<button class="icon" data-cv="close" title="Clip-Fenster schließen (Esc)"><svg><use href="#i-x"/></svg></button></div>`
     + `<div class="cvb"><div class="ruler">${ruler}</div>`
@@ -1049,7 +1113,7 @@ function drawClip(){
 function cvAction(k){
   if (k === 'play'){ togglePlay(cvRef).then(drawClip); return; }
   if (k === 'close'){ closeClip(); return; }
-  if (k === 'auto'){ const v = cellVal(cvCell); change(() => setCell(cvCell, refOf(v))); drawClip(); }
+  if (k === 'auto'){ const v = cellVal(cvCell); change(() => setCell(cvCell, withLp(v, null))); drawClip(); }
 }
 document.addEventListener('pointerdown', e => {
   const h = e.target.closest('#cv [data-h]');
@@ -1072,7 +1136,7 @@ document.addEventListener('pointermove', e => {
   if (cvDrag.h === 'ls') ls = Math.max(0, Math.min(x, le - 0.25));
   if (cvDrag.h === 'le') le = Math.max(ls + 0.25, Math.min(x, bars));
   if (cvDrag.h === 's') s = Math.max(0, Math.min(x, bars - 0.25));
-  setCell(cvCell, { ref: cvRef, lp: { s, v: ls, l: le - ls } });
+  setCell(cvCell, withLp(v, { s, v: ls, l: le - ls }));
   drawClip();
 });
 document.addEventListener('pointerup', () => { if (!cvDrag) return; cvDrag = null; dirty = true; save(); draw(); });
