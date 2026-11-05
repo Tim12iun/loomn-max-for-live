@@ -5,11 +5,11 @@ SET MAKER - Installation auf dem Mac
    ~/Music/Ableton/User Library/Presets/Audio Effects/Max Audio Effect/
    (Falls "Max Audio Effect" fehlt: Ordner mit genau diesem Namen anlegen.)
 3. Den ganzen Ordner "SetMaker" dort hineinziehen. Nichts umbenennen, nichts einzeln verschieben.
-   Die Einstellungen (setmaker_settings.json) legt das Device selbst im Ordner "SetMaker" an,
-   Sort und Prep teilen sie sich.
+   Jedes Device legt seine Einstellungen selbst in seinem eigenen Ordner an (sortn bzw. prepn).
+   Die beiden sind unabhaengig voneinander.
 4. Ableton: links im Browser unter "Max for Live" -> "Max Audio Effect" -> "SetMaker"
    (oder unter Orte -> User Library -> Presets -> Audio Effects -> Max Audio Effect -> SetMaker).
-5. Zuerst "SetMaker Sort" auf die Main-Spur ziehen (Spuren umbenennen/einfaerben),
+5. Zuerst "sortn" auf die Main-Spur ziehen (Spuren umbenennen/einfaerben),
    danach "SetMaker Prep" auf die Main-Spur (Rendern + Paket).
 
 Alte Ordner "m4l", "m4l 2" und die alten ZIPs in Downloads koennen weg.

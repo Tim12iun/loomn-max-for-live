@@ -1,8 +1,8 @@
-// SET MAKER LIVE – Sort v0.1 (Max for Live, [js])
+// SET MAKER LIVE – sortn v0.2 (Max for Live, [js])
 // Erkennt die Rolle jeder Spur (Kick, Hi-Hat, Bass …), benennt einheitlich um und färbt nach Kategorie.
-// Einstellungen in setmaker_settings.json (gemeinsam mit SetMaker Prep).
+// Einstellungen in sortn_settings.json im eigenen Ordner (unabhängig von prepn).
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.1.0";
+var VERSION = "0.2.0";
 var PLUGIN_ID = "setmaker-sort";
 inlets = 1;
 outlets = 1; // -> jweb (über s ---toweb)
@@ -125,48 +125,53 @@ var SM = (function () {
   }
 
   // ---------- Spuren aus Live lesen ----------
-  function collectTracks(LiveAPICtor, settings) {
+  function lget(a, p) { var v = a.get(p); return isArr(v) ? v.join(" ") : String(v); }
+  function lnum(a, p) { return Number(lget(a, p)); }
+  function lids(a, p) {
+    var v = a.get(p), out = [];
+    if (!isArr(v)) return out;
+    for (var i = 0; i < v.length; i++) if (v[i] !== "id" && Number(v[i]) > 0) out.push(Number(v[i]));
+    return out;
+  }
+  // Alle Spur-ids (ohne Returns/Master)
+  function trackIds(LiveAPICtor) { return lids(new LiveAPICtor("live_set"), "tracks"); }
+  // Eine Spur einlesen (so kann man in Häppchen lesen, ohne Live einzufrieren)
+  function collectOne(LiveAPICtor, id, index, settings) {
     var src = (settings && settings.sort && settings.sort.sources) || defaults().sort.sources;
-    function api(id) { return new LiveAPICtor("id " + id); }
-    function g(a, p) { var v = a.get(p); return isArr(v) ? v.join(" ") : String(v); }
-    function n(a, p) { return Number(g(a, p)); }
-    function ids(a, p) {
-      var v = a.get(p), out = [];
-      if (!isArr(v)) return out;
-      for (var i = 0; i < v.length; i++) if (v[i] !== "id" && Number(v[i]) > 0) out.push(Number(v[i]));
-      return out;
+    function api(x) { return new LiveAPICtor("id " + x); }
+    var a = api(id);
+    var t = { id: id, index: index, name: lget(a, "name"), color: lnum(a, "color_index"),
+      isGroup: lnum(a, "is_foldable") === 1, group: null, midi: lnum(a, "has_midi_input") === 1,
+      clips: [], clipIds: [], files: [], devices: [] };
+    function readClip(cid) {
+      var c = api(cid);
+      t.clips.push(lget(c, "name"));
+      t.clipIds.push(cid);
+      if (src.fileNames && lnum(c, "is_audio_clip") === 1) { var f = baseName(lget(c, "file_path")); if (f) t.files.push(f); }
     }
-    function readClip(id, t) {
-      var c = api(id);
-      t.clips.push(g(c, "name"));
-      t.clipIds.push(id);
-      if (src.fileNames && n(c, "is_audio_clip") === 1) { var f = baseName(g(c, "file_path")); if (f) t.files.push(f); }
-    }
-    var song = new LiveAPICtor("live_set"), tIds = ids(song, "tracks"), out = [];
-    for (var i = 0; i < tIds.length; i++) {
-      var a = api(tIds[i]);
-      var t = { id: tIds[i], index: i, name: g(a, "name"), color: n(a, "color_index"),
-        isGroup: n(a, "is_foldable") === 1, group: null, midi: n(a, "has_midi_input") === 1,
-        clips: [], clipIds: [], files: [], devices: [] };
-      if (n(a, "is_grouped") === 1) t.group = ids(a, "group_track")[0] || null;
-      if (!t.isGroup && (src.clipNames || src.fileNames)) {
-        var slots = ids(a, "clip_slots");
-        for (var s = 0; s < slots.length; s++) {
-          var sl = api(slots[s]);
-          if (n(sl, "has_clip") === 1) { var cid = ids(sl, "clip")[0]; if (cid) readClip(cid, t); }
-        }
-        var arr = []; try { arr = ids(a, "arrangement_clips"); } catch (e) {}
-        for (var c = 0; c < arr.length; c++) readClip(arr[c], t);
+    if (lnum(a, "is_grouped") === 1) t.group = lids(a, "group_track")[0] || null;
+    if (!t.isGroup && (src.clipNames || src.fileNames)) {
+      var slots = lids(a, "clip_slots");
+      for (var s = 0; s < slots.length; s++) {
+        var sl = api(slots[s]);
+        if (lnum(sl, "has_clip") === 1) { var cid = lids(sl, "clip")[0]; if (cid) readClip(cid); }
       }
-      if (src.devices) {
-        var dv = ids(a, "devices");
-        for (var d = 0; d < dv.length; d++) {
-          var dev = api(dv[d]);
-          if (n(dev, "type") === 1) t.devices.push(g(dev, "name"));   // nur Instrumente
-        }
-      }
-      out.push(t);
+      var arr = []; try { arr = lids(a, "arrangement_clips"); } catch (e) {}
+      for (var c = 0; c < arr.length; c++) readClip(arr[c]);
     }
+    if (src.devices) {
+      var dv = lids(a, "devices");
+      for (var d = 0; d < dv.length; d++) {
+        var dev = api(dv[d]);
+        if (lnum(dev, "type") === 1) t.devices.push(lget(dev, "name"));   // nur Instrumente
+      }
+    }
+    return t;
+  }
+  // Alles auf einmal (blockiert Live kurz; für viele Spuren lieber trackIds + collectOne in Häppchen)
+  function collectTracks(LiveAPICtor, settings) {
+    var tIds = trackIds(LiveAPICtor), out = [];
+    for (var i = 0; i < tIds.length; i++) out.push(collectOne(LiveAPICtor, tIds[i], i, settings));
     return out;
   }
 
@@ -341,7 +346,7 @@ var SM = (function () {
   }
 
   return { LANES: LANES, PALETTE: PALETTE, STEM_RE: STEM_RE, defaults: defaults, normalize: normalize,
-           isDefaultName: isDefaultName, collectTracks: collectTracks, analyze: analyze, preselect: preselect,
+           isDefaultName: isDefaultName, collectTracks: collectTracks, trackIds: trackIds, collectOne: collectOne, analyze: analyze, preselect: preselect,
            FILE: "setmaker_settings.json" };
 })();
 if (typeof exports !== "undefined") { for (var smk in SM) exports[smk] = SM[smk]; }
@@ -414,7 +419,7 @@ var DIR = "";
 var lastStatus = "Bereit. „Analysieren“ zeigt die Vorschau, „Ausführen“ benennt um und färbt.";
 
 function say(kind, obj){ outlet(0, kind, encodeURIComponent(JSON.stringify(obj))); }
-function status(s){ lastStatus = s; post("SetMaker Sort: " + s + "\n"); say("status", { text: s }); }
+function status(s){ lastStatus = s; post("sortn: " + s + "\n"); say("status", { text: s }); }
 function byId(id){ return new LiveAPI("id " + id); }
 
 // ---------- Dateien ----------
@@ -435,11 +440,13 @@ function writeText(path, s){
   f.eof = f.position; f.close(); return true;
 }
 function parentDir(d){ var x = d.substring(0, d.length - 1); return x.substring(0, x.lastIndexOf("/") + 1); }
-function settingsPath(){ return parentDir(DIR) + SM.FILE; }
+// Eigene Einstellungsdatei nur für sortn, im eigenen Ordner (unabhängig von prepn)
+var SETTINGS_FILE = "sortn_settings.json";
+function settingsPath(){ return DIR + SETTINGS_FILE; }
 function readSettingsFile(){
   var txt = readText(settingsPath());
   if (!txt) return null;
-  try { return JSON.parse(txt); } catch (e) { post("SetMaker Sort: setmaker_settings.json ist kaputt, nehme Standard.\n"); return null; }
+  try { return JSON.parse(txt); } catch (e) { post("sortn: sortn_settings.json ist kaputt, nehme Standard.\n"); return null; }
 }
 function loadSettings(){
   var s = readSettingsFile();
@@ -459,25 +466,68 @@ function init(){
   DIR = deviceDir.call(this);
   if (DIR){
     var posix = DIR.indexOf(":/") >= 0 ? DIR.substring(DIR.indexOf(":/") + 1) : DIR;
-    outlet(0, "url", "file://" + encodeURI(posix) + "setmaker_sort.html");
+    outlet(0, "url", "file://" + encodeURI(posix) + "sortn.html");
   }
   loadSettings();
   analyze();
 }
 function bang(){ init.call(this); }
-function hello(){ if (!plan) analyze(); else send(); }
+function hello(){ if (busy) return; if (!plan) analyze(); else send(); }
 
+// Große Nachrichten in Stücken an die Oberfläche (lange Max-Symbole kommen sonst nicht an)
+var msgSeq = 0;
+function sayBig(kind, obj){
+  var s = encodeURIComponent(JSON.stringify(obj)), size = 4000;
+  if (s.length <= size){ outlet(0, kind, s); return; }
+  var id = ++msgSeq, n = Math.ceil(s.length / size);
+  for (var i = 0; i < n; i++) outlet(0, "chunk", kind, id, i, n, s.substring(i * size, (i + 1) * size));
+}
+function slimPlan(){
+  if (!plan) return null;
+  var rows = [];
+  for (var i = 0; i < plan.rows.length; i++){
+    var r = plan.rows[i];
+    rows.push({ id: r.id, name: r.name, color: r.color, isGroup: r.isGroup, depth: r.depth, cat: r.cat,
+                source: r.source, conf: r.conf, why: r.why, newName: r.newName, newColor: r.newColor });
+  }
+  return { rows: rows, ignored: plan.ignored };
+}
 function send(){
-  say("state", { version: VERSION, settings: settings, plan: plan, overrides: overrides, lanes: SM.LANES,
-                 palette: SM.PALETTE, canUndo: !!undoStack, status: lastStatus });
+  sayBig("state", { version: VERSION, settings: settings, plan: slimPlan(), overrides: overrides, lanes: SM.LANES,
+                    palette: SM.PALETTE, canUndo: !!undoStack, busy: busy, status: lastStatus });
+}
+function progress(text, done, total){ say("progress", { text: text, pct: total ? Math.round(100 * done / total) : 100 }); }
+
+// ---------- In Häppchen arbeiten, damit Ableton nicht einfriert ----------
+var busy = false, worker = null;
+function work(items, fn, label, done){
+  busy = true;
+  var i = 0;
+  worker = new Task(function (){
+    var start = new Date().getTime();
+    try {
+      while (i < items.length && new Date().getTime() - start < 12){ fn(items[i], i); i++; }
+    } catch (e) { busy = false; worker = null; status("Fehler: " + e); send(); return; }
+    progress(label + " " + i + "/" + items.length, i, items.length);
+    if (i < items.length) worker.schedule(8);
+    else { busy = false; worker = null; done(); }
+  }, this);
+  worker.schedule(0);
 }
 
 // ---------- Analysieren ----------
-function analyze(){
+function analyze(after){
+  if (busy) return;
   loadSettingsQuiet();
-  var tracks = SM.collectTracks(LiveAPI, settings);
-  plan = SM.analyze(tracks, settings, overrides);
-  plan.tracks = tracks;
+  var ids = SM.trackIds(LiveAPI), tracks = [];
+  work(ids, function (id, i){ tracks.push(SM.collectOne(LiveAPI, id, i, settings)); }, "Lese Spuren", function (){
+    plan = SM.analyze(tracks, settings, overrides);
+    plan.tracks = tracks;
+    if (typeof after === "function") after();
+    else { summary(); send(); }
+  });
+}
+function summary(){
   var known = 0, rest = 0, change = 0;
   for (var i = 0; i < plan.rows.length; i++){
     var r = plan.rows[i];
@@ -486,19 +536,19 @@ function analyze(){
     if (r.newName !== r.name || r.newColor !== r.color) change++;
   }
   status(plan.rows.length + " Spuren: " + known + " erkannt, " + rest + " Rest, " + change + " werden geändert."
-         + (plan.ignored.length ? " Ignoriert (in fast allen Spuren): " + plan.ignored.join(", ") : ""));
-  send();
+         + (plan.ignored.length ? " Ignoriert (Songtitel?): " + plan.ignored.join(", ") : ""));
 }
 // Datei kann von Prep geändert worden sein
 function loadSettingsQuiet(){ var s = readSettingsFile(); if (s) settings = SM.normalize(s); }
 
 // Nur neu rechnen (Overrides/Einstellungen), ohne Live neu einzulesen
 function recompute(){
+  if (busy) return;
   if (!plan || !plan.tracks) { analyze(); return; }
   var tracks = plan.tracks;
   plan = SM.analyze(tracks, settings, overrides);
   plan.tracks = tracks;
-  send();
+  summary(); send();
 }
 
 function override(trackId, catId){
@@ -509,28 +559,36 @@ function override(trackId, catId){
 
 // ---------- Ausführen ----------
 function run(){
-  analyze();
-  var o = settings.sort, undo = [], changed = 0;
+  if (busy) return;
+  analyze(apply); // Live einmal frisch einlesen, dann ändern
+}
+function apply(){
+  var o = settings.sort, todo = [], undo = [];
   for (var i = 0; i < plan.rows.length; i++){
     var r = plan.rows[i];
     if (r.source === "stem" || r.source === "skip") continue;
-    var t = byId(r.id), entry = { id: r.id, name: r.name, color: r.color, clips: [] }, did = false;
+    if (r.newName !== r.name || r.newColor !== r.color || (o.colorize && o.colorClips)) todo.push(r);
+  }
+  if (!todo.length){ status("Alles war schon sortiert, nichts geändert."); send(); return; }
+  work(todo, function (r){
+    var t = byId(r.id), tr = findTrack(r.id), entry = { id: r.id, name: r.name, color: r.color, clips: [] }, did = false;
     if (r.newName !== r.name){ t.set("name", r.newName); did = true; }
-    if (o.colorize && r.newColor !== r.color){ t.set("color_index", r.newColor); did = true; }
-    if (o.colorize && o.colorClips){
-      var tr = findTrack(r.id);
-      if (tr) for (var c = 0; c < tr.clipIds.length; c++){
+    if (r.newColor !== r.color){ t.set("color_index", r.newColor); did = true; }
+    if (o.colorize && o.colorClips && tr){
+      for (var c = 0; c < tr.clipIds.length; c++){
         var cl = byId(tr.clipIds[c]), before = Number(cl.get("color_index"));
         if (before !== r.newColor){ entry.clips.push({ id: tr.clipIds[c], color: before }); cl.set("color_index", r.newColor); did = true; }
       }
     }
-    if (did){ undo.push(entry); changed++; }
-  }
-  undoStack = undo.length ? undo : undoStack;
-  overrides = {};
-  analyze();
-  status(changed ? changed + " Spuren umbenannt/gefärbt. „Rückgängig“ stellt alles wieder her." : "Alles war schon sortiert, nichts geändert.");
-  send();
+    if (did) undo.push(entry);
+    if (tr){ tr.name = r.newName; tr.color = r.newColor; } // Plan aktuell halten, ohne neu einzulesen
+  }, "Ändere Spuren", function (){
+    if (undo.length) undoStack = undo;
+    overrides = {};
+    var tracks = plan.tracks; plan = SM.analyze(tracks, settings, overrides); plan.tracks = tracks;
+    status(undo.length ? undo.length + " Spuren umbenannt/gefärbt. „↶“ stellt alles wieder her." : "Alles war schon sortiert, nichts geändert.");
+    send();
+  });
 }
 function findTrack(id){
   if (!plan || !plan.tracks) return null;
@@ -539,20 +597,24 @@ function findTrack(id){
 }
 
 function undo(){
+  if (busy) return;
   if (!undoStack){ status("Nichts zum Rückgängigmachen."); return; }
-  var n = 0;
-  for (var i = 0; i < undoStack.length; i++){
-    var u = undoStack[i], t = byId(u.id);
-    if (!t.id || Number(t.id) === 0) continue; // Spur gelöscht
+  var list = undoStack, n = 0;
+  work(list, function (u){
+    var t = byId(u.id);
+    if (!t.id || Number(t.id) === 0) return; // Spur gelöscht
     t.set("name", u.name); t.set("color_index", u.color);
     for (var c = 0; c < u.clips.length; c++){ var cl = byId(u.clips[c].id); if (Number(cl.id)) cl.set("color_index", u.clips[c].color); }
+    var tr = findTrack(u.id); if (tr){ tr.name = u.name; tr.color = u.color; }
     n++;
-  }
-  undoStack = null;
-  analyze();
-  status(n + " Spuren zurückgesetzt.");
-  send();
+  }, "Setze zurück", function (){
+    undoStack = null;
+    if (plan && plan.tracks){ var tracks = plan.tracks; plan = SM.analyze(tracks, settings, overrides); plan.tracks = tracks; }
+    status(n + " Spuren zurückgesetzt.");
+    send();
+  });
 }
+function showsettings(){ say("tab", { tab: "set" }); }
 
 // ---------- Einstellungen aus der UI ----------
 function setsettings(enc){

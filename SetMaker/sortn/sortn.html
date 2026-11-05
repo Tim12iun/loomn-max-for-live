@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<title>Set Maker – Sort</title>
+<title>sortn</title>
 <style>
 :root{--bg:#1b1b1b;--panel:#262626;--panel2:#2e2e2e;--line:#3a3a3a;--text:#e6e6e6;--muted:#8d8d8d;--accent:#ff7a2f;--warn:#e8c547}
 *{box-sizing:border-box;margin:0}
@@ -38,7 +38,7 @@ select{padding:0 1px}
 .opts label:hover{color:var(--text)}
 .opts input[type=text]{width:80px}
 input[type=checkbox]{margin:0;accent-color:var(--accent)}
-.cat{display:grid;grid-template-columns:14px 78px minmax(0,1fr) 84px 22px 22px 18px 34px 14px;gap:4px;align-items:center;padding:1px 2px}
+.cat{display:grid;grid-template-columns:14px 78px minmax(0,1fr) 22px 22px 18px 34px 14px;gap:4px;align-items:center;padding:1px 2px}
 .cat .swb{width:14px;height:14px;border-radius:2px;cursor:pointer;border:1px solid rgba(255,255,255,.15)}
 .cat .ic{color:var(--muted);cursor:pointer;text-align:center}
 .cat .ic:hover{color:var(--text)}
@@ -51,19 +51,36 @@ input[type=checkbox]{margin:0;accent-color:var(--accent)}
 #pal i{width:14px;height:14px;border-radius:2px;cursor:pointer}
 #pal i:hover{outline:1px solid #fff}
 .empty{color:var(--muted);padding:8px 2px}
+.bar{flex:none;height:2px;background:var(--panel);border-radius:1px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .15s}
+#gear{display:none}
+@media (max-width:520px){
+  body{padding:4px 5px;gap:3px}
+  .top{gap:3px}
+  button{padding:2px 6px}
+  .tabs{display:none}
+  #gear{display:inline-block;margin-left:auto}
+  .row{grid-template-columns:10px minmax(0,1fr) minmax(0,.8fr) 72px 6px;gap:4px}
+  .row .arr,.row .sw.oldsw{display:none}
+  .row .old{order:3;font-size:10px}
+  .row .sw.newsw{order:1}.row .new{order:2}.row select{order:4}.row .dot{order:5}
+  .sw{width:10px;height:10px}
+}
 </style>
 </head>
 <body>
 <div class="top">
-  <span class="title">SORT</span>
-  <button id="analyze" title="Spuren neu einlesen und Vorschau zeigen">↻ Analysieren</button>
+  <span class="title">sortn</span>
+  <button id="analyze" title="Spuren neu einlesen und Vorschau zeigen">↻</button>
   <button class="go" id="run" title="Spuren umbenennen und färben wie in der Vorschau">▶ Ausführen</button>
   <button id="undo" title="Letztes Ausführen rückgängig machen">↶</button>
   <div class="tabs"><button id="tPrev" class="on">Spuren</button><button id="tSet">Einstellungen</button></div>
+  <button id="gear" title="Einstellungen (Farben, Begriffe …) im großen Fenster">⚙</button>
   <button id="upd" title="Prüft auf GitHub, ob es eine neue Version gibt">⟳</button>
   <button id="float" title="Als schwebendes Fenster öffnen (mehr Platz für Einstellungen)">⧉</button>
 </div>
 <main id="main"></main>
+<div class="bar"><i id="bar"></i></div>
 <div class="status" id="status"></div>
 <div id="pal"></div>
 
@@ -98,10 +115,10 @@ function drawPreview(){
     const dot = r.source === 'manual' || skip ? 'manual' : r.conf;
     const tip = (stem ? 'Stem-Spur von SetMaker Prep, wird nicht angefasst' : (r.why.join(' · ') || 'Nichts erkannt')) + (r.cat || stem ? '' : ' → ' + label);
     return `<div class="row ${stem||skip?'dim':''}" title="${esc(tip)}">
-      <span class="sw" style="background:${colorOf(r.color)}"></span>
+      <span class="sw oldsw" style="background:${colorOf(r.color)}"></span>
       <span class="nm old" style="padding-left:${r.depth*8}px">${r.isGroup?'▸ ':''}${esc(r.name)}</span>
       <span class="arr">→</span>
-      <span class="sw" style="background:${colorOf(r.newColor)}"></span>
+      <span class="sw newsw" style="background:${colorOf(r.newColor)}"></span>
       <span class="nm new ${chg?'chg':''}">${esc(r.newName)}</span>
       ${stem ? '<span class="nm old">Prep-Stem</span>' : `<select data-id="${r.id}">${opts.replace(`value="${esc(cur)}"`, `value="${esc(cur)}" selected`)}</select>`}
       <span class="dot ${dot}" title="${dot==='sicher'?'Sicher erkannt':dot==='unsicher'?'Unsicher, bitte prüfen':dot==='manual'?'Von Hand':''}"></span>
@@ -126,12 +143,11 @@ function drawSettings(){
       <span style="color:var(--muted)">Suchen in:</span>
       ${cb('sort.sources.trackName','Spurname')}${cb('sort.sources.clipNames','Clipnamen')}${cb('sort.sources.fileNames','Sample-Dateien')}${cb('sort.sources.devices','Instrumente')}
     </div>
-    <div class="cat head"><span></span><span>Name</span><span>Begriffe (Komma, ≤3 Zeichen = ganzes Wort)</span><span>Prep-Spalte</span><span title="Groß/klein beachten">Aa</span><span title="Allgemein: nur wenn nichts Genaueres passt">allg.</span><span></span><span></span><span></span></div>
+    <div class="cat head"><span></span><span>Name</span><span>Begriffe (Komma, ≤3 Zeichen = ganzes Wort)</span><span title="Groß/klein beachten">Aa</span><span title="Allgemein: nur wenn nichts Genaueres passt">allg.</span><span></span><span></span><span></span></div>
     ${s.categories.map((c, i) => `<div class="cat" data-i="${i}">
       <span class="swb" data-pal="${i}" style="background:${catColor(c)}" title="Farbe wählen"></span>
       <input type="text" data-f="label" value="${esc(c.label)}">
       <input type="text" data-f="keywords" value="${esc(c.keywords.join(', '))}">
-      <select data-f="lane">${lanes.replace(`value="${c.lane||''}"`, `value="${c.lane||''}" selected`)}</select>
       <label><input type="checkbox" data-f="caseSensitive" ${c.caseSensitive?'checked':''}></label>
       <label><input type="checkbox" data-f="fallback" ${c.fallback?'checked':''}></label>
       <span class="ic" data-learn="${esc(c.id)}" title="Farbe der in Ableton ausgewählten Spur übernehmen">◉</span>
@@ -139,10 +155,10 @@ function drawSettings(){
       <span class="ic" data-del title="Kategorie löschen">✕</span>
     </div>`).join('')}
     <div class="cat"><span class="swb" data-pal="rest" style="background:${catColor(s.rest)}" title="Farbe für alles Unbekannte"></span>
-      <input type="text" id="restLabel" value="${esc(s.rest.label)}"><span style="color:var(--muted)">alles, was nicht erkannt wird</span><span></span><span></span><span></span>
+      <input type="text" id="restLabel" value="${esc(s.rest.label)}"><span style="color:var(--muted)">alles, was nicht erkannt wird</span><span></span><span></span>
       <span class="ic" data-learn="_rest" title="Farbe der ausgewählten Spur übernehmen">◉</span><span></span><span></span></div>
     <div class="foot2"><button id="add">+ Kategorie</button><button id="reset" title="Alle Einstellungen auf Standard">Standard</button>
-      <span style="color:var(--muted);align-self:center">Reihenfolge = Priorität. Gespeichert in setmaker_settings.json, gilt auch für SetMaker Prep.</span></div>`;
+      <span style="color:var(--muted);align-self:center">Reihenfolge = Priorität. Gespeichert in sortn_settings.json, nur für sortn.</span></div>`;
 
   m.querySelectorAll('[data-o]').forEach(el => el.oninput = () => { set(el.dataset.o, el.type==='checkbox' ? el.checked : el.value); push(); });
   $('#allCase').onchange = e => { s.categories.forEach(c => c.caseSensitive = e.target.checked); push(true); };
@@ -197,17 +213,28 @@ $('#undo').onclick = () => toMax('undo');
 $('#float').onclick = () => toMax('popout');
 $('#upd').onclick = () => toMax('update');
 $('#tPrev').onclick = () => { flush(); tab = 'prev'; draw(); };
-$('#tSet').onclick = () => { tab = 'set'; drawSettings(); draw(); };
+$('#tSet').onclick = () => { if(!S) return; tab = 'set'; drawSettings(); draw(); };
+$('#gear').onclick = () => { flush(); toMax('popout'); toMax('showsettings'); };
 
+function setBusy(b){ ['#analyze','#run'].forEach(s => $(s).disabled = !!b); if(!b) $('#bar').style.width = '0'; }
 function onState(enc){
   const next = JSON.parse(decodeURIComponent(enc));
   if(dirty) next.settings = S.settings; // ungespeicherte Eingaben nicht überschreiben
   S = next; $('#status').textContent = S.status || '';
-  $('.title').textContent = 'SORT v' + (S.version || '?');
+  $('.title').textContent = 'sortn'; $('.title').title = 'v' + (S.version || '?');
+  setBusy(S.busy);
   draw();
 }
 if(window.max){
   window.max.bindInlet('state', onState);
+  const parts = {};
+  window.max.bindInlet('chunk', (kind, id, i, n, part) => {
+    const p = parts[id] = parts[id] || { got: 0, s: [] };
+    if(p.s[i] === undefined){ p.s[i] = part; p.got++; }
+    if(p.got === n){ delete parts[id]; if(kind === 'state') onState(p.s.join('')); }
+  });
+  window.max.bindInlet('progress', enc => { const p = JSON.parse(decodeURIComponent(enc)); setBusy(p.pct < 100); $('#bar').style.width = p.pct + '%'; $('#status').textContent = p.text + ' …'; });
+  window.max.bindInlet('tab', enc => { if(innerWidth > 520 && S){ tab = JSON.parse(decodeURIComponent(enc)).tab; drawSettings(); draw(); } });
   window.max.bindInlet('status', enc => { $('#status').textContent = JSON.parse(decodeURIComponent(enc)).text; });
   toMax('hello');
 } else window.SM_onState = onState; // Test im Browser
