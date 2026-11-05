@@ -547,6 +547,7 @@ var busy = false, worker = null;
 function work(items, fn, label, done){
   busy = true; lastPct = -1;
   var i = 0;
+  progress(label + " 0/" + items.length, 0, items.length); // Anzeige sofort zeigen
   worker = new Task(function (){
     var start = new Date().getTime();
     try {

@@ -78,6 +78,13 @@ input[type=checkbox]{margin:0;accent-color:var(--accent)}
 #greys span{color:var(--muted);cursor:pointer;padding:0 3px}#greys span:hover{color:var(--text)}
 @media (max-width:520px){ #gear{margin-left:0} .tabs+.keep{margin-left:auto} }
 @media (min-width:521px){ .tabs{margin-left:6px} }
+.wrap{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
+#busy{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:rgba(27,27,27,.92);z-index:5;text-align:center;padding:0 12px}
+#busy.on{display:flex}
+#busy b{font-size:13px;color:var(--text)}
+#busy small{color:var(--muted)}
+.bbar{width:80%;max-width:360px;height:8px;background:var(--panel);border-radius:4px;overflow:hidden;border:1px solid var(--line)}
+.bbar i{display:block;height:100%;width:0;background:var(--accent);transition:width .15s}
 </style>
 </head>
 <body>
@@ -93,7 +100,7 @@ input[type=checkbox]{margin:0;accent-color:var(--accent)}
   <button id="upd" title="Prüft auf GitHub, ob es eine neue Version gibt">⟳</button>
   <button id="float" title="Als schwebendes Fenster öffnen (mehr Platz für Einstellungen)">⧉</button>
 </div>
-<main id="main"></main>
+<div class="wrap"><main id="main"></main><div id="busy"><b id="busyT">sortn arbeitet …</b><div class="bbar"><i id="bbar"></i></div><small>Bitte kurz warten, nichts anfassen.</small></div></div>
 <div class="bar"><i id="bar"></i></div>
 <div class="status" id="status"></div>
 <div id="pal"></div>
@@ -225,8 +232,8 @@ function openPal(target, e){
 }
 document.addEventListener('mousedown', e => { if(!$('#pal').contains(e.target) && !e.target.dataset.pal) $('#pal').style.display = 'none'; });
 
-$('#analyze').onclick = () => { flush(); toMax('analyze'); };
-$('#run').onclick = () => { flush(); toMax('run'); };
+$('#analyze').onclick = () => { flush(); setBusy(true, 'Lese Spuren', 0); toMax('analyze'); };
+$('#run').onclick = () => { flush(); setBusy(true, 'Starte', 0); toMax('run'); };
 $('#undo').onclick = () => toMax('undo');
 const GREYS = [13, 27, 41, 55, 69];
 function setSort(k, v){ if(!S) return; S.settings.sort[k] = v; dirty = true; flush(); draw(); }
@@ -248,7 +255,13 @@ $('#tPrev').onclick = () => { flush(); tab = 'prev'; draw(); };
 $('#tSet').onclick = () => { if(!S) return; tab = 'set'; drawSettings(); draw(); };
 $('#gear').onclick = () => { flush(); toMax('popout'); toMax('showsettings'); };
 
-function setBusy(b){ ['#analyze','#run'].forEach(s => $(s).disabled = !!b); if(!b) $('#bar').style.width = '0'; }
+function setBusy(b, text, pct){
+  ['#analyze','#run','#undo'].forEach(s => $(s).disabled = !!b || (s==='#undo' && S && !S.canUndo));
+  $('#busy').classList.toggle('on', !!b);
+  if(text) $('#busyT').textContent = text + ' …';
+  if(pct !== undefined) $('#bbar').style.width = pct + '%';
+  if(!b){ $('#bar').style.width = '0'; $('#bbar').style.width = '0'; }
+}
 function onState(enc){
   const next = JSON.parse(decodeURIComponent(enc));
   if(dirty) next.settings = S.settings; // ungespeicherte Eingaben nicht überschreiben
@@ -265,7 +278,7 @@ if(window.max){
     if(p.s[i] === undefined){ p.s[i] = part; p.got++; }
     if(p.got === n){ delete parts[id]; if(kind === 'state') onState(p.s.join('')); }
   });
-  window.max.bindInlet('progress', enc => { const p = JSON.parse(decodeURIComponent(enc)); setBusy(p.pct < 100); $('#bar').style.width = p.pct + '%'; $('#status').textContent = p.text + ' …'; });
+  window.max.bindInlet('progress', enc => { const p = JSON.parse(decodeURIComponent(enc)); setBusy(p.pct < 100, p.text, p.pct); $('#bar').style.width = p.pct + '%'; $('#status').textContent = p.text + ' …'; });
   window.max.bindInlet('tab', enc => { if(innerWidth > 520){ tab = JSON.parse(decodeURIComponent(enc)).tab; if(S){ drawSettings(); draw(); } } });
   window.max.bindInlet('status', enc => { $('#status').textContent = JSON.parse(decodeURIComponent(enc)).text; });
   toMax('hello');
