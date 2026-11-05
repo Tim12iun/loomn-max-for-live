@@ -1,0 +1,31 @@
+buildn v0.1.0 – Live-Sets aus prepn-Paketen bauen
+buildn ist ein eigenes Tool (kein Max-for-Live-Geraet). Es laeuft in Google Chrome, ohne Installation.
+
+Installation
+- Den Ordner "buildn" nach ~/Documents/LOOMN-TOOLS/ legen. Ergebnis: LOOMN-TOOLS/buildn/buildn.html
+- buildn.html mit Rechtsklick > Oeffnen mit > Google Chrome oeffnen (Safari kann keine Ordner oeffnen).
+  Tipp: in Chrome als Lesezeichen speichern.
+- Update: Zahnrad > Pfeil neben der Version. Beim ersten Mal fragt buildn nach seinem eigenen Ordner
+  (LOOMN-TOOLS/buildn). Die Dateien werden mit gleichem Namen ueberschrieben, es entstehen keine Kopien.
+
+Ablauf
+1. Oben links "Vorlage waehlen": dein Live-Set als Vorlage (z. B. SELF_LIVESET_V3.als). Wird gemerkt.
+   Spalten oben = Spuren, die mit "A ", "B " oder "A/B " anfangen (A BASS, A/B KICK ...).
+2. "Songs laden": einen Paket-Ordner von prepn ("<Song>-Live-Set") waehlen oder einen Ordner, in dem viele liegen.
+3. Song von links in die Mitte ziehen. Jeder Song = Trenner-Zeile + 3 Zeilen:
+   Zeile 1 und 2 = deine Clips, Zeile 3 = Full-Stems (macht buildn automatisch).
+4. Song links aufklappen (Pfeil), Clips vorhoeren (Play) und in Zeile 1 oder 2 ziehen.
+   Clip im Raster verschieben = ziehen (auf einen belegten Platz = tauschen), Alt beim Loslassen = kopieren.
+   Clip raus: Doppelklick oder nach links ziehen.
+5. Ganzen Song verschieben: am Namen in der Trenner-Zeile ziehen. X = Song raus.
+   Bass/Tops/Melo A/B: wechselt von Song zu Song automatisch, Klick = andere Spalte.
+6. "Set erstellen": Speicherort waehlen. buildn schreibt ein neues .als: Vorlage + deine Songs unter den
+   letzten Block. Der rechte Block (Serum, Instrumente, Vocal Chain, MIDI ...) bleibt wie er ist und rutscht
+   nach unten, mit demselben Abstand wie in der Vorlage. Die Vorlage selbst wird nie veraendert.
+
+Zahnrad: Song-Tempo in die Szenen schreiben (aus), Szenen nach dem Song benennen (an), Update.
+
+Bekannte Grenzen
+- Die Clips verweisen auf die Dateien in den Paket-Ordnern. Pakete nicht verschieben, sonst sucht Live sie.
+- Aeltere Pakete (vor prepn 0.9.1) kennen ihren Ordner nicht. buildn nimmt dann den Projektordner des Songs an.
+  Stimmt das nicht, zeigt Live die Clips als fehlend. Dann Paket mit neuem prepn neu schreiben.

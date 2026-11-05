@@ -1,0 +1,747 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>buildn</title>
+<style>
+:root{--bg:#1b1b1b;--panel:#262626;--panel2:#303030;--line:#383838;--text:#e8e8e8;--muted:#8f8f8f;--accent:#ff7a2f;--cw:118px;--rh:22px}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font:12px/1.35 -apple-system,"Helvetica Neue",sans-serif;user-select:none;display:flex;flex-direction:column}
+svg{width:14px;height:14px;fill:currentColor;display:block}
+button{font:inherit;font-weight:600;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:4px;height:26px;padding:0 10px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap}
+button:hover{border-color:#5a5a5a;background:var(--panel2)}
+button:disabled{opacity:.35;cursor:default}
+button.icon{width:24px;height:24px;padding:0}
+button.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+button.ghost:hover{color:var(--text);background:var(--panel)}
+button.go{background:var(--accent);border-color:var(--accent);color:#111}
+button.go:hover{background:#ff8c4a}
+.hidden{display:none!important}
+header{display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--line);flex:none}
+.title{font-weight:700;letter-spacing:.03em;color:var(--accent);font-size:13px}
+.sp{flex:1}
+.muted{color:var(--muted)}
+.tpl{color:var(--muted);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.tpl:hover{color:var(--text)}
+.wrap{flex:1;min-height:0;display:flex}
+aside{width:250px;flex:none;border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+aside .list{flex:1;overflow:auto;padding:4px}
+.song{border-radius:4px;margin-bottom:2px}
+.song .sh{display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:4px;cursor:grab;background:var(--panel)}
+.song .sh:hover{background:var(--panel2)}
+.song .sh b{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.song .sh .tri{width:10px;color:var(--muted);cursor:pointer}
+.song .sh .bpm{color:var(--muted);font-size:10px;font-variant-numeric:tabular-nums}
+.song.used .sh b::after{content:" ✓";color:var(--accent)}
+.stem{padding:3px 0 2px 16px}
+.stem .sn{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px;display:flex;gap:6px}
+.stem .sn i{font-style:normal;opacity:.7}
+.chip{display:flex;align-items:center;gap:4px;height:20px;padding:0 4px 0 2px;border-radius:3px;margin-bottom:2px;cursor:grab;color:#111;font-weight:600;font-size:11px;overflow:hidden;white-space:nowrap}
+.chip .t{overflow:hidden;text-overflow:ellipsis;flex:1}
+.pl{flex:none;width:16px;height:16px;border-radius:2px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.18);cursor:pointer}
+.pl:hover{background:rgba(0,0,0,.35)}
+.pl svg{width:10px;height:10px}
+.pl.on{background:#111;color:#fff}
+aside .foot{padding:6px;border-top:1px solid var(--line);display:flex;gap:6px}
+aside .foot button{flex:1}
+main{flex:1;min-width:0;overflow:auto;position:relative}
+main::-webkit-scrollbar,aside .list::-webkit-scrollbar{width:8px;height:8px}
+main::-webkit-scrollbar-thumb,aside .list::-webkit-scrollbar-thumb{background:#444;border-radius:4px}
+.grid{display:inline-block;min-width:100%;padding:0 0 30px}
+.row{display:flex;height:var(--rh)}
+.row>div{width:var(--cw);flex:none;border-right:1px solid #111;border-bottom:1px solid #111;position:relative;overflow:hidden}
+.row .lab{width:250px;padding:0 6px;display:flex;align-items:center;gap:4px;color:var(--muted);font-size:10px;background:var(--bg);position:sticky;left:0;z-index:2;border-right:1px solid var(--line)}
+.hrow{position:sticky;top:0;z-index:3}
+.hrow>div{display:flex;align-items:center;padding:0 6px;font-weight:700;font-size:11px;color:#111}
+.hrow .lab{background:var(--bg)}
+.stop>div:not(.lab){background:#e9e9e9}
+.stop>div:not(.lab)::after{content:"==============";position:absolute;left:6px;top:3px;color:#777;font-size:11px;letter-spacing:-1px}
+.stop .lab{cursor:grab;color:var(--text);font-weight:700;font-size:11px;background:var(--panel)}
+.stop .lab:hover{background:var(--panel2)}
+.stop .lab .x{margin-left:auto}
+.stop .lab .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.cell{background:#2a2a2a}
+.cell.drop{outline:2px solid var(--accent);outline-offset:-2px}
+.cell .chip{height:100%;margin:0;border-radius:0}
+.cell.auto .chip{opacity:.75;cursor:default}
+
+.ab{display:inline-flex;gap:2px}
+.ab button{height:16px;padding:0 4px;font-size:9px;border-radius:3px;background:transparent;color:var(--muted)}
+.ab button:hover{color:var(--text)}
+.endrow{height:40px;display:flex;align-items:center;padding-left:260px;color:var(--muted)}
+.endrow.drop{color:var(--accent)}
+.block.dragging{opacity:.4}
+.block.dropbefore{box-shadow:0 -3px 0 var(--accent)}
+.empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);text-align:center;line-height:1.7;padding:20px}
+.status{flex:none;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px;padding:3px 10px;border-top:1px solid var(--line)}
+#back{position:fixed;inset:0;background:var(--bg);z-index:20;display:flex;flex-direction:column}
+#back .body{padding:12px 16px;display:flex;flex-direction:column;gap:14px;max-width:640px}
+h4{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+label.opt{display:flex;align-items:center;gap:8px;cursor:pointer}
+.ver{color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
+#busy{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(20,20,20,.92);z-index:30}
+#busy.on{display:flex}
+#busy b{font-size:14px;color:var(--accent)}
+.bbar{width:320px;height:8px;background:var(--panel);border-radius:4px;overflow:hidden;border:1px solid var(--line)}
+.bbar i{display:block;height:100%;width:0;background:var(--accent)}
+</style>
+</head>
+<body>
+<svg style="display:none"><defs>
+  <symbol id="i-gear" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.49.49 0 0 0-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></symbol>
+  <symbol id="i-dl" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></symbol>
+</defs></svg>
+
+<header>
+  <span class="title">buildn</span>
+  <span class="tpl" id="tpl" title="Klick = Vorlage wählen">Keine Vorlage</span>
+  <span class="sp"></span>
+  <button id="build" class="go" disabled title="Schreibt ein neues Live-Set (.als) aus der Vorlage und deinem Line-up">Set erstellen</button>
+  <button class="icon ghost" id="gear" title="Einstellungen, Update"><svg><use href="#i-gear"/></svg></button>
+</header>
+<div class="wrap">
+  <aside>
+    <div class="list" id="songs"></div>
+    <div class="foot"><button id="addSongs" title="Einen Song-Ordner (&lt;Song&gt;-Live-Set) oder einen Ordner mit vielen davon wählen">Songs laden</button></div>
+  </aside>
+  <main id="main"><div class="grid" id="grid"></div><div class="empty hidden" id="empty"></div></main>
+</div>
+<div class="status" id="status"></div>
+
+<section id="back" class="hidden">
+  <header>
+    <button class="icon ghost" id="backBtn" title="Zurück"><svg><use href="#i-back"/></svg></button>
+    <span class="title">Einstellungen</span>
+    <span class="sp"></span>
+    <span class="ver" id="ver"></span>
+    <button class="icon ghost" id="upd" title="Auf GitHub nach Update suchen"><svg><use href="#i-dl"/></svg></button>
+  </header>
+  <div class="body">
+    <div><h4>Set erstellen</h4>
+      <label class="opt"><input type="checkbox" id="optTempo"> Song-Tempo in die Szenen schreiben (Szene starten = Tempo wechselt)</label>
+      <label class="opt"><input type="checkbox" id="optNames"> Szenen nach dem Song benennen</label>
+    </div>
+    <div><h4>Songs</h4>
+      <button id="clearSongs">Alle Songs aus der Liste nehmen</button>
+    </div>
+  </div>
+  <div class="status"></div>
+</section>
+<div id="busy"><b id="busyT">buildn arbeitet …</b><div class="bbar"><i id="bbar"></i></div><small class="muted" id="busyS"></small></div>
+<audio id="audio"></audio>
+
+<script>
+"use strict";
+const VERSION = "0.1.0";
+const PLUGIN_ID = "buildn";
+const RAW = "https://raw.githubusercontent.com/Tim12iun/loomn-max-for-live/";
+const PALETTE = [16749734,16753961,13408551,16249980,12581632,1769263,2490280,6094824,9160191,5538020,9611263,14183652,15029152,16777215,16725558,16149507,10056267,16773172,8912743,4047616,49071,1698303,1090798,32192,8940772,11958214,16726484,13684944,14837594,16753524,13872497,15597486,13821080,12243060,10208397,13958625,13496824,12173795,13482980,11442405,15064289,11119017,13013643,12026454,10060650,12565097,10927616,8237133,8962746,10204100,8758722,8623052,10851765,12558270,12349846,8092539,11481907,11096369,7491393,14402304,8754719,5480241,695438,2319236,1716118,3101346,6441901,10701741,13381230,3947580];
+// Spalten oben im Live-Set (wie SELF_LIVESET_V3). Mit Vorlage kommen Namen und Farben aus dem .als.
+const DEFAULT_COLS = [["A BASS",28],["B BASS",28],["A/B KICK",14],["A TOPS",66],["B TOPS",66],["A/B VOX",12],["A MELODY",1],["B MELODY",1]];
+const ROWS = 3; // pro Song: Zeile 1 + 2 = deine Clips, Zeile 3 = Full-Stems (automatisch)
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const hex = i => '#' + (PALETTE[i] ?? 0x888888).toString(16).padStart(6, '0');
+
+// ---------- Kleiner Speicher (IndexedDB): Ordner-Zugriffe, Vorlage, Line-up ----------
+const DB = (() => {
+  let db = null;
+  const open = () => db ? Promise.resolve(db) : new Promise((res, rej) => {
+    const r = indexedDB.open("buildn", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("kv");
+    r.onsuccess = () => res(db = r.result); r.onerror = () => rej(r.error);
+  });
+  const tx = (mode, fn) => open().then(d => new Promise((res, rej) => {
+    const t = d.transaction("kv", mode), st = t.objectStore("kv"), q = fn(st);
+    t.oncomplete = () => res(q && q.result); t.onerror = () => rej(t.error);
+  }));
+  return { get: k => tx("readonly", s => s.get(k)).catch(() => undefined),
+           set: (k, v) => tx("readwrite", s => s.put(v, k)).catch(() => {}) };
+})();
+
+// ---------- Zustand ----------
+let songs = [];        // {key, name, tempo, dir (abs Pfad), handle, stems:[{stem, kind, full:{file,handle}, clips:[{name,file,handle}]}]}
+let lineup = [];       // {uid, key, side:{bass:'A'|'B'...}, cells:[{colName: ref}, {colName: ref}]}  ref = "songKey|stemIdx|clipIdx"
+let cols = DEFAULT_COLS.map(([name, color]) => colInfo(name, color));
+let tpl = null;        // {name, handle}
+let opts = { tempo: false, names: true };
+let open = {};         // aufgeklappte Songs in der Liste
+
+function colInfo(name, color){
+  const n = name.toUpperCase();
+  const m = n.match(/^(A\/B|A|B)\s+(.*)$/);
+  return { name, color, side: m ? (m[1] === 'A/B' ? 'AB' : m[1]) : 'AB', kind: kindOf(m ? m[2] : n) };
+}
+function kindOf(s){
+  s = String(s || '').toUpperCase();
+  if (/KICK/.test(s)) return 'kick';
+  if (/BASS|\bSUB\b|808/.test(s)) return 'bass';
+  if (/TOP|HAT|PERC|DRUM|SNARE|CLAP/.test(s)) return 'top';
+  if (/VOX|VOC/.test(s)) return 'vox';
+  if (/MELO|SYNTH|LEAD|PLUCK|PAD|CHORD/.test(s)) return 'melo';
+  if (/RISER|FX/.test(s)) return 'riser';
+  return null;
+}
+const LANE_KIND = { bass:'bass', kick:'kick', top:'top', vox:'vox', melo:'melo', riser:'riser' };
+const song = key => songs.find(s => s.key === key);
+function clipOf(ref){
+  if (!ref) return null;
+  const [k, si, ci] = ref.split('|'), s = song(k);
+  const st = s && s.stems[+si]; if (!st) return null;
+  return { song: s, stem: st, clip: ci === 'F' ? st.full : st.clips[+ci], full: ci === 'F' };
+}
+function sideOf(b, kind, i){ return (b.side && b.side[kind]) || (i % 2 ? 'B' : 'A'); }
+function colFor(kind, side){
+  const c = cols.filter(c => c.kind === kind);
+  return c.find(x => x.side === side) || c.find(x => x.side === 'AB') || c[0] || null;
+}
+// Zeile 3: Full-Stems landen automatisch in der Spalte ihres Stems (A/B je Song)
+function autoRow(b, i){
+  const s = song(b.key), out = {};
+  if (!s) return out;
+  s.stems.forEach((st, si) => {
+    if (!st.full) return;
+    const c = colFor(st.kind, sideOf(b, st.kind, i));
+    if (c && !out[c.name]) out[c.name] = s.key + '|' + si + '|F';
+  });
+  return out;
+}
+
+// ---------- Status ----------
+function status(t){ document.querySelectorAll('.status').forEach(s => { s.textContent = t; s.title = t; }); }
+function busy(on, title, sub){ $('#busy').classList.toggle('on', !!on); if (title) $('#busyT').textContent = title; $('#busyS').textContent = sub || ''; if (!on) pct(0); }
+let lastPct = -1;
+function pct(p){ p = Math.round(p); if (p === lastPct) return; lastPct = p; $('#bbar').style.width = p + '%'; }
+
+// ---------- Audio-Dateien (WAV / AIFF) ----------
+function str4(dv, o){ return String.fromCharCode(dv.getUint8(o), dv.getUint8(o+1), dv.getUint8(o+2), dv.getUint8(o+3)); }
+function ext80(dv, o){
+  const exp = ((dv.getUint8(o) & 0x7f) << 8) | dv.getUint8(o+1), hi = dv.getUint32(o+2), lo = dv.getUint32(o+6);
+  if (!exp && !hi && !lo) return 0;
+  return (hi * 2 ** 32 + lo) * 2 ** (exp - 16383 - 63);
+}
+// Liest nur den Kopf: Kanäle, Rate, Bits, Frames, wo die Daten liegen
+async function audioInfo(file){
+  const head = new DataView(await file.slice(0, Math.min(file.size, 1 << 20)).arrayBuffer());
+  const id = str4(head, 0), type = str4(head, 8);
+  if (id === 'RIFF' && type === 'WAVE'){
+    let p = 12, fmt = null;
+    while (p + 8 <= head.byteLength){
+      const cid = str4(head, p), size = head.getUint32(p + 4, true), body = p + 8;
+      if (cid === 'fmt ') fmt = { tag: head.getUint16(body, true), ch: head.getUint16(body + 2, true), rate: head.getUint32(body + 4, true), block: head.getUint16(body + 12, true), bits: head.getUint16(body + 14, true) };
+      if (cid === 'data'){ if (!fmt) break; const bytes = Math.min(size, file.size - body);
+        return { kind: 'wav', ...fmt, frames: Math.floor(bytes / fmt.block), dataStart: body, dataSize: bytes }; }
+      p = body + size + (size & 1);
+    }
+  }
+  if (id === 'FORM' && (type === 'AIFF' || type === 'AIFC')){
+    let p = 12, comm = null;
+    while (p + 8 <= head.byteLength){
+      const cid = str4(head, p), size = head.getUint32(p + 4), body = p + 8;
+      if (cid === 'COMM'){ comm = { ch: head.getUint16(body), frames: head.getUint32(body + 2), bits: head.getUint16(body + 6), rate: ext80(head, body + 8),
+                                     comp: type === 'AIFC' ? str4(head, body + 18) : 'NONE' }; }
+      if (cid === 'SSND'){ if (!comm) break; const off = head.getUint32(body);
+        return { kind: 'aiff', ...comm, block: comm.ch * Math.ceil(comm.bits / 8), dataStart: body + 8 + off, dataSize: size - 8 - off }; }
+      p = body + size + (size & 1);
+    }
+  }
+  throw new Error('Unbekanntes Audioformat: ' + file.name);
+}
+// Chrome spielt kein AIFF: zum Vorhören in WAV umwandeln (Bytes drehen)
+async function playableUrl(file){
+  const info = await audioInfo(file);
+  if (info.kind === 'wav') return URL.createObjectURL(file);
+  const raw = new Uint8Array(await file.slice(info.dataStart, info.dataStart + info.frames * info.block).arrayBuffer());
+  const bps = Math.ceil(info.bits / 8), comp = info.comp.toLowerCase(), float = comp === 'fl32' || comp === 'fl64';
+  if (comp !== 'sowt') for (let i = 0; i + bps <= raw.length; i += bps) raw.subarray(i, i + bps).reverse();
+  const h = new DataView(new ArrayBuffer(44)), w = (o, s) => [...s].forEach((c, i) => h.setUint8(o + i, c.charCodeAt(0)));
+  w(0, 'RIFF'); h.setUint32(4, 36 + raw.length, true); w(8, 'WAVE'); w(12, 'fmt '); h.setUint32(16, 16, true);
+  h.setUint16(20, float ? 3 : 1, true); h.setUint16(22, info.ch, true); h.setUint32(24, Math.round(info.rate), true);
+  h.setUint32(28, Math.round(info.rate) * info.ch * bps, true); h.setUint16(32, info.ch * bps, true); h.setUint16(34, bps * 8, true);
+  w(36, 'data'); h.setUint32(40, raw.length, true);
+  return URL.createObjectURL(new Blob([h, raw], { type: 'audio/wav' }));
+}
+let playing = null; // ref, die gerade läuft
+async function togglePlay(ref){
+  const a = $('#audio');
+  if (playing === ref){ a.pause(); playing = null; draw(); return; }
+  const c = clipOf(ref); if (!c || !c.clip) return;
+  try {
+    const f = await c.clip.handle.getFile();
+    if (a.src) URL.revokeObjectURL(a.src);
+    a.src = await playableUrl(f); playing = ref; a.currentTime = 0; await a.play();
+  } catch (e) { playing = null; status('Abspielen geht nicht: ' + (e.message || e)); }
+  draw();
+}
+$('#audio').onended = () => { playing = null; draw(); };
+
+// ---------- Songs laden ----------
+async function ensurePerm(h, mode){
+  const o = { mode: mode || 'read' };
+  if (await h.queryPermission(o) === 'granted') return true;
+  return (await h.requestPermission(o)) === 'granted';
+}
+async function readSong(dir){
+  let jf; try { jf = await dir.getFileHandle('SETMAKER.json'); } catch (e) { return null; }
+  const j = JSON.parse(await (await jf.getFile()).text());
+  const files = {}; for await (const [n, h] of dir.entries()) if (h.kind === 'file') files[n] = h;
+  const name = String(j.song || dir.name.replace(/-Live-Set( \d+)?$/, '')).toUpperCase();
+  const s = { key: (j.dir || '') + '|' + dir.name + '|' + name + '|' + j.tempo, name, tempo: Number(j.tempo) || 120, handle: dir,
+              folder: dir.name, dir: j.dir || guessDir(j, dir.name), stems: [] };
+  const lanes = (j.lanes || []).filter(l => l.stem);
+  lanes.forEach((l, i) => {
+    const f = (j.files || [])[i] || {};
+    const fullName = f.stem || Object.keys(files).find(n => n.replace(/\.(wav|aiff?|aif)$/i, '') === l.stem);
+    const clips = (l.clips || []).map((c, ci) => {
+      const fn = (f.clips || [])[ci] || Object.keys(files).find(n => n.replace(/\.(wav|aiff?|aif)$/i, '') === c.name);
+      return fn && files[fn] ? { name: c.name, file: fn, handle: files[fn] } : null;
+    }).filter(Boolean);
+    s.stems.push({ stem: l.stem, lane: l.lane, kind: LANE_KIND[l.lane] || kindOf(l.stem) || kindOf(l.lane),
+                   full: fullName && files[fullName] ? { name: l.stem, file: fullName, handle: files[fullName] } : null, clips });
+  });
+  return s;
+}
+// Ältere Pakete ohne "dir": Standard von prepn = Projektordner des Songs
+function guessDir(j, folder){
+  const p = String(j.sourceSet || '');
+  return p.indexOf('/') >= 0 ? p.substring(0, p.lastIndexOf('/')) + '/' + folder : '';
+}
+async function scanDir(dir, depth, out){
+  const s = await readSong(dir);
+  if (s){ out.push(s); return; }
+  if (depth <= 0) return;
+  for await (const [, h] of dir.entries()) if (h.kind === 'directory') await scanDir(h, depth - 1, out);
+}
+async function addSongs(){
+  let dir;
+  try { dir = await window.showDirectoryPicker({ id: 'buildn-songs', mode: 'read' }); } catch (e) { return; }
+  status('Lese Songs …');
+  const found = []; await scanDir(dir, 2, found);
+  if (!found.length){ status('Kein Song-Paket gefunden. Gesucht wird nach SETMAKER.json (von prepn).'); return; }
+  let added = 0;
+  for (const s of found){ if (!song(s.key)){ songs.push(s); added++; } else Object.assign(song(s.key), s); }
+  const roots = (await DB.get('roots')) || [];
+  if (!(await Promise.all(roots.map(r => r.isSameEntry(dir)))).some(Boolean)) roots.push(dir);
+  await DB.set('roots', roots);
+  sortSongs(); save(); draw();
+  status(found.length + ' Song' + (found.length > 1 ? 's' : '') + ' gefunden' + (added < found.length ? ' (' + (found.length - added) + ' schon da)' : '') + '. Song links in die Mitte ziehen.');
+}
+function sortSongs(){ songs.sort((a, b) => a.name.localeCompare(b.name) || a.folder.localeCompare(b.folder)); }
+async function restore(ask){
+  const roots = (await DB.get('roots')) || [];
+  const t = await DB.get('tpl'); if (t) tpl = t;
+  const o = await DB.get('opts'); if (o) opts = Object.assign(opts, o);
+  const lu = await DB.get('lineup'); if (lu) lineup = lu;
+  const c = await DB.get('cols'); if (c && c.length) cols = c;
+  let need = false; songs = [];
+  for (const r of roots){
+    const ok = ask ? await ensurePerm(r) : (await r.queryPermission({ mode: 'read' })) === 'granted';
+    if (!ok){ need = true; continue; }
+    const found = []; try { await scanDir(r, 2, found); } catch (e) {}
+    for (const s of found) if (!song(s.key)) songs.push(s);
+  }
+  sortSongs(); draw();
+  if (need) status('Klick irgendwo, um den Zugriff auf deine Song-Ordner zu erneuern.');
+  else status(songs.length ? songs.length + ' Songs geladen.' : 'Erst „Songs laden“, dann eine Vorlage (oben links) wählen.');
+  return need;
+}
+function save(){ DB.set('lineup', lineup); DB.set('opts', opts); }
+
+// ---------- Vorlage ----------
+async function gunzipMaybe(buf){
+  const u = new Uint8Array(buf);
+  if (u[0] !== 0x1f || u[1] !== 0x8b) return new TextDecoder().decode(u);
+  const ds = new Blob([u]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return await new Response(ds).text();
+}
+async function chooseTemplate(){
+  let h;
+  try { [h] = await window.showOpenFilePicker({ id: 'buildn-tpl', types: [{ description: 'Ableton Live Set', accept: { 'application/octet-stream': ['.als'] } }] }); } catch (e) { return; }
+  try {
+    const doc = parseXml(await gunzipMaybe(await (await h.getFile()).arrayBuffer()));
+    const L = readLiveSet(doc);
+    if (!L.upper.length) throw new Error('Keine Spalten wie „A BASS“, „A/B KICK“ gefunden.');
+    cols = L.upper.map(t => colInfo(t.name, t.color));
+    tpl = { name: h.name, handle: h };
+    await DB.set('tpl', tpl); await DB.set('cols', cols);
+    draw();
+    status('Vorlage ' + h.name + ': ' + cols.length + ' Spalten oben, ' + L.scenes.length + ' Szenen' + (L.stopper ? '' : '. Achtung: kein weißer ==== Trenner-Clip gefunden'));
+  } catch (e) { status('Vorlage geht nicht: ' + (e.message || e)); }
+}
+
+// ---------- .als lesen / schreiben ----------
+function parseXml(txt){
+  const doc = new DOMParser().parseFromString(txt, 'application/xml');
+  if (doc.querySelector('parsererror') || !doc.documentElement || doc.documentElement.nodeName !== 'Ableton') throw new Error('Keine gültige .als-Datei');
+  return doc;
+}
+const kids = (el, name) => el ? [...el.children].filter(c => !name || c.nodeName === name) : [];
+const kid = (el, name) => kids(el, name)[0] || null;
+const path = (el, ...names) => names.reduce((e, n) => kid(e, n), el);
+const val = (el, ...names) => { const e = path(el, ...names); return e ? e.getAttribute('Value') : null; };
+function setVal(el, names, v){ const e = path(el, ...names); if (e) e.setAttribute('Value', String(v)); return e; }
+function readLiveSet(doc){
+  const set = kid(doc.documentElement, 'LiveSet');
+  const tracks = kids(kid(set, 'Tracks')).filter(t => /^(Audio|Midi|Group)Track$/.test(t.nodeName)).map(t => ({
+    el: t, type: t.nodeName, name: (val(t, 'Name', 'UserName') || val(t, 'Name', 'EffectiveName') || '').trim(),
+    color: Number(val(t, 'Color')) || 0,
+    slots: kids(path(t, 'DeviceChain', 'MainSequencer', 'ClipSlotList'), 'ClipSlot')
+  }));
+  const upper = tracks.filter(t => t.type === 'AudioTrack' && /^(A\/B|A|B)\s+\S/i.test(t.name));
+  const scenes = kids(kid(set, 'Scenes'), 'Scene');
+  let stopper = null;
+  for (const t of upper) for (const s of t.slots){
+    const c = slotClip(s);
+    if (c && /^[=\-_ ]{3,}$/.test(val(c, 'Name') || '')){ stopper = c; break; }
+    if (stopper) break;
+  }
+  return { doc, set, tracks, upper, scenes, stopper };
+}
+function slotClip(slot){ const v = path(slot, 'ClipSlot', 'Value'); return v ? v.firstElementChild : null; }
+function slotValue(slot){ return path(slot, 'ClipSlot', 'Value'); }
+
+// Mehr Szenen anlegen: jede Clip-Slot-Liste mit genau N Einträgen (Spuren, Freeze, Main) wächst mit
+function growScenes(L, need){
+  const n = L.scenes.length; if (need <= n) return;
+  const lists = [...L.doc.getElementsByTagName('ClipSlotList')].filter(l => kids(l, 'ClipSlot').length === n);
+  const scenesEl = kid(L.set, 'Scenes'), lastScene = L.scenes[n - 1];
+  const maxId = els => els.reduce((m, e) => Math.max(m, Number(e.getAttribute('Id')) || 0), -1);
+  let sid = maxId(L.scenes);
+  for (let i = n; i < need; i++){
+    const sc = lastScene.cloneNode(true); sc.setAttribute('Id', String(++sid));
+    setVal(sc, ['Name'], ''); setVal(sc, ['IsTempoEnabled'], 'false'); setVal(sc, ['Color'], '-1');
+    scenesEl.appendChild(sc);
+    for (const l of lists){
+      const slots = kids(l, 'ClipSlot'), cs = slots[slots.length - 1].cloneNode(true);
+      cs.setAttribute('Id', String(maxId(slots) + 1));
+      const v = path(cs, 'ClipSlot', 'Value'); if (v) while (v.firstChild) v.removeChild(v.firstChild);
+      setVal(cs, ['LomId'], '0');
+      l.appendChild(cs);
+    }
+  }
+  L.scenes = kids(scenesEl, 'Scene');
+  for (const t of L.tracks) t.slots = kids(path(t.el, 'DeviceChain', 'MainSequencer', 'ClipSlotList'), 'ClipSlot');
+}
+function putClip(slot, clipEl){
+  const v = slotValue(slot); if (!v) return;
+  while (v.firstChild) v.removeChild(v.firstChild);
+  v.appendChild(clipEl);
+}
+// Audio-Clip aus einem Grundgerüst (Live 12). Warp-Marker exakt im Song-Tempo.
+const CLIP_SKELETON = `<AudioClip Id="0" Time="0"><LomId Value="0" /><LomIdView Value="0" /><CurrentStart Value="0" /><CurrentEnd Value="4" /><Loop><LoopStart Value="0" /><LoopEnd Value="4" /><StartRelative Value="0" /><LoopOn Value="true" /><OutMarker Value="4" /><HiddenLoopStart Value="0" /><HiddenLoopEnd Value="4" /></Loop><Name Value="" /><Annotation Value="" /><Color Value="0" /><LaunchMode Value="0" /><LaunchQuantisation Value="0" /><TimeSignature><TimeSignatures><RemoteableTimeSignature Id="0"><Numerator Value="4" /><Denominator Value="4" /><Time Value="0" /></RemoteableTimeSignature></TimeSignatures></TimeSignature><Envelopes><Envelopes /></Envelopes><ScrollerTimePreserver><LeftTime Value="0" /><RightTime Value="4" /></ScrollerTimePreserver><TimeSelection><AnchorTime Value="0" /><OtherTime Value="0" /></TimeSelection><Legato Value="false" /><Ram Value="false" /><GrooveSettings><GrooveId Value="-1" /></GrooveSettings><Disabled Value="false" /><VelocityAmount Value="0" /><FollowAction><FollowTime Value="4" /><IsLinked Value="true" /><LoopIterations Value="1" /><FollowActionA Value="4" /><FollowActionB Value="0" /><FollowChanceA Value="100" /><FollowChanceB Value="0" /><JumpIndexA Value="1" /><JumpIndexB Value="1" /><FollowActionEnabled Value="false" /></FollowAction><Grid><FixedNumerator Value="1" /><FixedDenominator Value="16" /><GridIntervalPixel Value="20" /><Ntoles Value="2" /><SnapToGrid Value="true" /><Fixed Value="false" /></Grid><FreezeStart Value="0" /><FreezeEnd Value="0" /><IsWarped Value="true" /><TakeId Value="1" /><IsInKey Value="true" /><ScaleInformation><Root Value="0" /><Name Value="0" /></ScaleInformation><AutomationEnvelopesListWrapper LomId="0" /><SampleRef><FileRef><RelativePathType Value="0" /><RelativePath Value="" /><Path Value="" /><Type Value="2" /><LivePackName Value="" /><LivePackId Value="" /><OriginalFileSize Value="0" /><OriginalCrc Value="0" /><SourceHint Value="" /></FileRef><LastModDate Value="0" /><SourceContext /><SampleUsageHint Value="0" /><DefaultDuration Value="0" /><DefaultSampleRate Value="44100" /><SamplesToAutoWarp Value="0" /></SampleRef><Onsets><UserOnsets /><HasUserOnsets Value="false" /></Onsets><WarpMode Value="0" /><GranularityTones Value="30" /><GranularityTexture Value="65" /><FluctuationTexture Value="25" /><TransientResolution Value="6" /><TransientLoopMode Value="2" /><TransientEnvelope Value="100" /><ComplexProFormants Value="100" /><ComplexProEnvelope Value="128" /><Sync Value="true" /><HiQ Value="true" /><Fade Value="true" /><Fades><FadeInLength Value="0" /><FadeOutLength Value="0" /><ClipFadesAreInitialized Value="true" /><CrossfadeInState Value="0" /><FadeInCurveSkew Value="0" /><FadeInCurveSlope Value="0" /><FadeOutCurveSkew Value="0" /><FadeOutCurveSlope Value="0" /><IsDefaultFadeIn Value="true" /><IsDefaultFadeOut Value="true" /></Fades><PitchCoarse Value="0" /><PitchFine Value="0" /><SampleVolume Value="1" /><WarpMarkers><WarpMarker Id="0" SecTime="0" BeatTime="0" /><WarpMarker Id="1" SecTime="1" BeatTime="2" /></WarpMarkers><SavedWarpMarkersForStretched /><MarkersGenerated Value="false" /><IsSongTempoLeader Value="false" /></AudioClip>`;
+function makeAudioClip(doc, a){
+  const el = new DOMParser().parseFromString(CLIP_SKELETON, 'application/xml').documentElement;
+  const clip = doc.importNode(el, true);
+  const secs = a.frames / a.rate, beats = Math.max(0.25, Math.round(secs * a.tempo / 60 * 1000) / 1000);
+  setVal(clip, ['CurrentEnd'], beats);
+  for (const n of ['LoopEnd', 'OutMarker', 'HiddenLoopEnd']) setVal(clip, ['Loop', n], beats);
+  setVal(clip, ['ScrollerTimePreserver', 'RightTime'], beats);
+  setVal(clip, ['Name'], a.name); setVal(clip, ['Color'], a.color);
+  setVal(clip, ['WarpMode'], a.warpMode);
+  const fr = path(clip, 'SampleRef', 'FileRef');
+  setVal(fr, ['RelativePathType'], a.rel ? 1 : 0); setVal(fr, ['RelativePath'], a.rel || ''); setVal(fr, ['Path'], a.path || '');
+  setVal(fr, ['OriginalFileSize'], a.size);
+  setVal(clip, ['SampleRef', 'LastModDate'], Math.floor((a.mtime || 0) / 1000));
+  setVal(clip, ['SampleRef', 'DefaultDuration'], a.frames); setVal(clip, ['SampleRef', 'DefaultSampleRate'], Math.round(a.rate));
+  const wm = kids(path(clip, 'WarpMarkers'), 'WarpMarker');
+  wm[1].setAttribute('SecTime', String(secs)); wm[1].setAttribute('BeatTime', String(beats));
+  return clip;
+}
+// Plan: welche Zeile bekommt was. Rückgabe [{row, stop:true, song}, {row, cells:{col:ref}}]
+function plan(){
+  const out = [];
+  lineup.forEach((b, i) => {
+    const s = song(b.key); if (!s) return;
+    out.push({ stop: true, song: s, block: b });
+    out.push({ cells: b.cells[0] || {}, song: s }); out.push({ cells: b.cells[1] || {}, song: s });
+    out.push({ cells: autoRow(b, i), song: s, full: true });
+  });
+  if (out.length) out.push({ stop: true, end: true });
+  return out;
+}
+async function buildSet(){
+  if (!tpl) return chooseTemplate();
+  if (!lineup.length){ status('Erst Songs ins Line-up ziehen.'); return; }
+  let outHandle;
+  const day = new Date().toISOString().slice(0, 10);
+  try { outHandle = await window.showSaveFilePicker({ id: 'buildn-out', suggestedName: 'LIVESET ' + day + '.als',
+          types: [{ description: 'Ableton Live Set', accept: { 'application/octet-stream': ['.als'] } }] }); } catch (e) { return; }
+  busy(true, 'SET WIRD GEBAUT', 'Vorlage lesen …'); pct(0);
+  try {
+    if (!(await ensurePerm(tpl.handle))) throw new Error('Kein Zugriff auf die Vorlage');
+    const doc = parseXml(await gunzipMaybe(await (await tpl.handle.getFile()).arrayBuffer()));
+    const L = readLiveSet(doc);
+    const byName = {}; L.upper.forEach(t => byName[t.name.toUpperCase()] = t);
+    // Startzeile: unter dem letzten belegten Platz oben. Ist das ein Trenner, geht es dort weiter.
+    let last = -1;
+    L.upper.forEach(t => t.slots.forEach((s, r) => { if (slotClip(s) && r > last) last = r; }));
+    let row = last + 1;
+    if (last >= 0 && L.upper.every(t => { const c = t.slots[last] && slotClip(t.slots[last]); return c && /^[=\-_ ]{3,}$/.test(val(c, 'Name') || ''); })) row = last;
+    const P = plan(), low = lowerRange(L);
+    const endRow = row + P.length - 1;                          // letzter Trenner
+    const gap = low && low.start > last ? low.start - last : 6; // Abstand wie in der Vorlage
+    const delta = low ? Math.max(0, endRow + gap - low.start) : 0;
+    growScenes(L, Math.max(endRow + 1, low ? low.end + delta + 1 : 0));
+    if (low && delta) shiftLower(L, low.start, low.end, delta);
+    const missing = new Set(), stopClip = L.stopper;
+    let done = 0; const total = P.reduce((n, p) => n + (p.stop ? 0 : Object.keys(p.cells).length), 0) || 1;
+    for (let i = 0; i < P.length; i++, row++){
+      const p = P[i];
+      if (p.stop){
+        if (stopClip) for (const t of L.upper){ const s = t.slots[row]; if (s && !slotClip(s)) putClip(s, stopClip.cloneNode(true)); }
+        const sc = L.scenes[row];
+        if (sc && p.song){
+          if (opts.names) setVal(sc, ['Name'], p.song.name + ' ' + Math.round(p.song.tempo));
+        }
+        continue;
+      }
+      if (opts.tempo && p.song && L.scenes[row]){ setVal(L.scenes[row], ['Tempo'], p.song.tempo); setVal(L.scenes[row], ['IsTempoEnabled'], 'true'); }
+      for (const [colName, ref] of Object.entries(p.cells)){
+        const t = byName[colName.toUpperCase()], c = clipOf(ref);
+        if (!t || !c || !c.clip){ missing.add(colName); continue; }
+        const f = await c.clip.handle.getFile(), info = await audioInfo(f);
+        const absDir = c.song.dir, rel = await relPath(outHandle, c.clip.handle);
+        const stemName = c.stem.stem.replace(/\s+\d+$/, '');
+        const name = p.full ? Math.round(c.song.tempo) + ' ' + stemName : stemName;
+        putClip(t.slots[row], makeAudioClip(doc, { name, color: t.color, tempo: c.song.tempo, frames: info.frames, rate: info.rate,
+          size: f.size, mtime: f.lastModified, path: absDir ? absDir + '/' + c.clip.file : '', rel,
+          warpMode: (c.stem.kind === 'kick' || c.stem.kind === 'top') ? 0 : 4 }));
+        pct(100 * ++done / total);
+        $('#busyS').textContent = c.song.name + ' · ' + name;
+      }
+    }
+    $('#busyS').textContent = 'Datei schreiben …';
+    let xml = new XMLSerializer().serializeToString(doc);
+    if (!/^<\?xml/.test(xml)) xml = '<?xml version="1.0" encoding="UTF-8"?>\n' + xml;
+    const gz = new Blob([xml]).stream().pipeThrough(new CompressionStream('gzip'));
+    const w = await outHandle.createWritable(); await gz.pipeTo(w);
+    busy(false);
+    status('Fertig: ' + outHandle.name + ' mit ' + lineup.length + ' Songs. In Ableton öffnen.' + (L.stopper ? '' : ' Hinweis: Die Vorlage hatte keinen ==== Trenner-Clip, Trenner fehlen.')
+      + (missing.size ? ' Spalten nicht in der Vorlage: ' + [...missing].join(', ') : ''));
+  } catch (e) { busy(false); status('Set erstellen fehlgeschlagen: ' + (e.message || e)); }
+}
+// Liegt das Sample unter dem Ordner, in den das Set gespeichert wird? Dann relativer Pfad (findet Live immer).
+async function relPath(outHandle, fileHandle){
+  try {
+    const roots = (await DB.get('roots')) || [];
+    for (const r of roots){
+      const o = await r.resolve(outHandle), f = await r.resolve(fileHandle);
+      if (!o || !f) continue;
+      const od = o.slice(0, -1); let k = 0;
+      while (k < od.length && k < f.length - 1 && od[k] === f[k]) k++;
+      return Array(od.length - k).fill('..').concat(f.slice(k)).join('/');
+    }
+  } catch (e) {}
+  return '';
+}
+// Rechter Block (alles, was keine Stem-Spalte ist: Serum, Instrumente, Vocal Chain, MIDI …) bleibt unberührt,
+// rutscht aber als Ganzes nach unten, damit er nie in einer Zeile mit den Song-Blöcken liegt.
+function lowerRange(L){
+  const up = new Set(L.upper); let a = Infinity, b = -1;
+  L.tracks.filter(t => !up.has(t)).forEach(t => t.slots.forEach((s, r) => { if (slotClip(s)){ a = Math.min(a, r); b = Math.max(b, r); } }));
+  return b < 0 ? null : { start: a, end: b };
+}
+function shiftLower(L, from, to, delta){
+  const up = new Set(L.upper);
+  for (const t of L.tracks){
+    if (up.has(t)) continue;
+    for (let r = to; r >= from; r--){
+      const src = slotValue(t.slots[r]), dst = slotValue(t.slots[r + delta]);
+      if (!src || !dst) continue;
+      while (dst.firstChild) dst.removeChild(dst.firstChild);
+      while (src.firstChild) dst.appendChild(src.firstChild);
+    }
+  }
+}
+
+// ---------- Zeichnen ----------
+function chip(ref, opts2){
+  const c = clipOf(ref); if (!c || !c.clip) return '';
+  const col = colFor(c.stem.kind, 'A'), bg = col ? hex(col.color) : '#9a9a9a';
+  const pre = c.stem.stem.replace(/_.*$/, ''), num = (c.clip.name.match(/Clip \d+$/) || ['Full'])[0];
+  const label = opts2 && opts2.short ? num : (opts2 && opts2.grid ? pre + ' ' + num : c.clip.name);
+  return `<div class="chip" draggable="${opts2 && opts2.auto ? 'false' : 'true'}" data-ref="${esc(ref)}" style="background:${bg}" title="${esc(c.song.name + ' · ' + c.clip.name)}">`
+    + `<span class="pl ${playing === ref ? 'on' : ''}" data-play="${esc(ref)}"><svg><use href="#i-${playing === ref ? 'stop' : 'play'}"/></svg></span><span class="t">${esc(label)}</span></div>`;
+}
+function drawSongs(){
+  const used = new Set(lineup.map(b => b.key));
+  $('#songs').innerHTML = songs.length ? songs.map(s => {
+    const o = open[s.key];
+    const body = o ? s.stems.map((st, si) => {
+      const clips = st.clips.map((c, ci) => chip(s.key + '|' + si + '|' + ci, { short: true })).join('');
+      return `<div class="stem"><div class="sn">${esc(st.stem.replace(/_.*$/, ''))}<i>${st.clips.length ? st.clips.length + ' Clips' : 'nur Full-Stem'}</i></div>${clips}</div>`;
+    }).join('') : '';
+    return `<div class="song ${used.has(s.key) ? 'used' : ''}"><div class="sh" draggable="true" data-song="${esc(s.key)}" title="${esc(s.folder)}${s.dir ? '\n' + esc(s.dir) : ''}\nIn die Mitte ziehen = Song ins Line-up">`
+      + `<span class="tri" data-open="${esc(s.key)}">${o ? '▾' : '▸'}</span><b>${esc(s.name)}</b><span class="bpm">${Math.round(s.tempo)}</span></div>${body}</div>`;
+  }).join('') : '<div class="muted" style="padding:8px">Noch keine Songs. Unten „Songs laden“ und einen Paket-Ordner von prepn wählen.</div>';
+}
+function drawGrid(){
+  const lab = t => `<div class="lab">${t || ''}</div>`;
+  let h = `<div class="row hrow">${lab('')}${cols.map(c => `<div style="background:${hex(c.color)}">${esc(c.name)}</div>`).join('')}</div>`;
+  lineup.forEach((b, i) => {
+    const s = song(b.key);
+    const kinds = ['bass', 'top', 'melo'].filter(k => cols.filter(c => c.kind === k).length > 1);
+    const abBtns = kinds.map(k => `<button data-ab="${i}|${k}" title="Klick = Full-Stem von ${k === 'bass' ? 'Bass' : k === 'top' ? 'Tops' : 'Melody'} in die andere Spalte (A/B)">${k === 'bass' ? 'Bass' : k === 'top' ? 'Tops' : 'Melo'} ${sideOf(b, k, i)}</button>`).join('');
+    h += `<div class="block" data-block="${i}">`;
+    h += `<div class="row stop"><div class="lab" draggable="true" data-blk="${i}" title="Ziehen = ganzen Song im Line-up verschieben"><span class="nm">${esc(s ? s.name + ' ' + Math.round(s.tempo) : '? fehlt')}</span><span class="ab">${abBtns}</span><button class="icon ghost x" data-del="${i}" title="Song aus dem Line-up nehmen"><svg><use href="#i-x"/></svg></button></div>${cols.map(() => '<div></div>').join('')}</div>`;
+    const auto = autoRow(b, i);
+    for (let r = 0; r < ROWS; r++){
+      const isAuto = r === ROWS - 1;
+      h += `<div class="row">${lab(isAuto ? 'Full-Stems' : 'Clips ' + (r + 1))}`;
+      h += cols.map(c => {
+        const ref = isAuto ? auto[c.name] : (b.cells[r] || {})[c.name];
+        return `<div class="cell ${isAuto ? 'auto' : ''}" ${isAuto ? '' : `data-cell="${i}|${r}|${esc(c.name)}"`}>${ref ? chip(ref, { auto: isAuto, grid: true }) : ''}</div>`;
+      }).join('') + '</div>';
+    }
+    h += '</div>';
+  });
+  h += `<div class="row stop" style="${lineup.length ? '' : 'display:none'}">${lab('')}${cols.map(() => '<div></div>').join('')}</div>`;
+  h += `<div class="endrow" id="endrow">${lineup.length ? 'Weiteren Song hierher ziehen' : ''}</div>`;
+  $('#grid').innerHTML = h;
+  $('#empty').classList.toggle('hidden', lineup.length > 0);
+  $('#empty').innerHTML = songs.length ? 'Zieh einen Song von links hierher.<br>Dann Clips aus dem Song (▸ aufklappen) in Zeile 1 und 2 ziehen.<br>Zeile 3 füllt buildn mit den Full-Stems.'
+                                       : 'Unten links „Songs laden“: einen Paket-Ordner von prepn wählen<br>oder einen Ordner, in dem viele davon liegen.';
+}
+function draw(){
+  drawSongs(); drawGrid();
+  $('#tpl').textContent = tpl ? 'Vorlage: ' + tpl.name : 'Vorlage wählen …';
+  $('#build').disabled = !lineup.length;
+  $('#ver').textContent = 'v' + VERSION;
+  $('#optTempo').checked = !!opts.tempo; $('#optNames').checked = !!opts.names;
+}
+
+// ---------- Drag & Drop ----------
+let drag = null; // {type:'song'|'clip'|'block', key|ref|index, from?:{b,r,col}}
+document.addEventListener('dragstart', e => {
+  const sh = e.target.closest && e.target.closest('[data-song]');
+  const ch = e.target.closest && e.target.closest('.chip[draggable="true"]');
+  const bl = e.target.closest && e.target.closest('[data-blk]');
+  if (bl) drag = { type: 'block', index: +bl.dataset.blk };
+  else if (ch){ const cell = ch.closest('[data-cell]'); drag = { type: 'clip', ref: ch.dataset.ref, from: cell ? cell.dataset.cell : null }; }
+  else if (sh) drag = { type: 'song', key: sh.dataset.song };
+  else return;
+  e.dataTransfer.effectAllowed = 'copyMove';
+  e.dataTransfer.setData('text/plain', 'buildn');
+  if (drag.type === 'block') document.querySelector(`[data-block="${drag.index}"]`)?.classList.add('dragging');
+});
+document.addEventListener('dragend', () => { drag = null; document.querySelectorAll('.drop,.dropbefore,.dragging').forEach(x => x.classList.remove('drop', 'dropbefore', 'dragging')); });
+function target(e){
+  if (!drag) return null;
+  if (drag.type === 'clip'){
+    const cell = e.target.closest('[data-cell]'); if (cell) return { el: cell, cls: 'drop' };
+    if (drag.from && e.target.closest('aside')) return { el: $('aside'), cls: 'drop', remove: true };
+  }
+  if (drag.type === 'song' || drag.type === 'block'){
+    const blk = e.target.closest('[data-block]'); if (blk) return { el: blk, cls: 'dropbefore', before: +blk.dataset.block };
+    if (e.target.closest('#main')) return { el: $('#endrow'), cls: 'drop', before: lineup.length };
+  }
+  return null;
+}
+let lastTgt = null;
+document.addEventListener('dragover', e => {
+  const t = target(e);
+  if (lastTgt && (!t || lastTgt !== t.el)){ lastTgt.classList.remove('drop', 'dropbefore'); lastTgt = null; }
+  if (!t) return;
+  e.preventDefault(); e.dataTransfer.dropEffect = e.altKey && drag.type === 'clip' ? 'copy' : 'move';
+  if (lastTgt !== t.el){ t.el.classList.add(t.cls); lastTgt = t.el; }
+});
+document.addEventListener('drop', e => {
+  const t = target(e); if (!t) return;
+  e.preventDefault();
+  if (drag.type === 'clip'){
+    const clear = from => { const [b, r, c] = from.split('|'); if (lineup[+b] && lineup[+b].cells[+r]) delete lineup[+b].cells[+r][c]; };
+    if (t.remove){ clear(drag.from); }
+    else {
+      const [b, r, c] = t.el.dataset.cell.split('|'), blk = lineup[+b];
+      blk.cells[+r] = blk.cells[+r] || {};
+      const prev = blk.cells[+r][c];
+      if (drag.from && drag.from !== t.el.dataset.cell && !e.altKey){
+        clear(drag.from);
+        if (prev){ const [fb, fr, fc] = drag.from.split('|'); lineup[+fb].cells[+fr] = lineup[+fb].cells[+fr] || {}; lineup[+fb].cells[+fr][fc] = prev; } // tauschen
+      }
+      blk.cells[+r][c] = drag.ref;
+    }
+  } else if (drag.type === 'song'){
+    lineup.splice(t.before, 0, { uid: Date.now() + Math.random(), key: drag.key, side: {}, cells: [{}, {}] });
+  } else if (drag.type === 'block'){
+    const [b] = lineup.splice(drag.index, 1);
+    lineup.splice(t.before > drag.index ? t.before - 1 : t.before, 0, b);
+  }
+  drag = null; save(); draw();
+});
+
+// ---------- Klicks ----------
+document.addEventListener('click', e => {
+  const pl = e.target.closest('[data-play]'); if (pl){ e.stopPropagation(); togglePlay(pl.dataset.play); return; }
+  const op = e.target.closest('[data-open]'); if (op){ open[op.dataset.open] = !open[op.dataset.open]; draw(); return; }
+  const sh = e.target.closest('[data-song]'); if (sh){ open[sh.dataset.song] = !open[sh.dataset.song]; draw(); return; }
+  const del = e.target.closest('[data-del]'); if (del){ lineup.splice(+del.dataset.del, 1); save(); draw(); return; }
+  const ab = e.target.closest('[data-ab]');
+  if (ab){ const [i, k] = ab.dataset.ab.split('|'), b = lineup[+i]; b.side = b.side || {}; b.side[k] = sideOf(b, k, +i) === 'A' ? 'B' : 'A'; save(); draw(); return; }
+});
+document.addEventListener('dblclick', e => { // Doppelklick auf einen Clip im Raster = raus
+  const cell = e.target.closest('[data-cell]'); if (!cell || e.target.closest('[data-play]')) return;
+  const [b, r, c] = cell.dataset.cell.split('|'); if (lineup[+b].cells[+r]) delete lineup[+b].cells[+r][c]; save(); draw();
+});
+$('#addSongs').onclick = addSongs;
+$('#tpl').onclick = chooseTemplate;
+$('#build').onclick = buildSet;
+$('#gear').onclick = () => $('#back').classList.remove('hidden');
+$('#backBtn').onclick = () => $('#back').classList.add('hidden');
+$('#optTempo').onchange = e => { opts.tempo = e.target.checked; save(); };
+$('#optNames').onchange = e => { opts.names = e.target.checked; save(); };
+$('#clearSongs').onclick = async () => { songs = []; lineup = []; await DB.set('roots', []); save(); draw(); status('Liste geleert.'); };
+$('#upd').onclick = update;
+
+// ---------- Update über GitHub (⟳) ----------
+function cmp(a, b){ const x = String(a).split('.'), y = String(b).split('.');
+  for (let i = 0; i < Math.max(x.length, y.length); i++){ const d = (+x[i] || 0) - (+y[i] || 0); if (d) return d > 0 ? 1 : -1; } return 0; }
+async function update(){
+  try {
+    status('Suche Update …');
+    let base = RAW + 'main/';
+    try { const m = await (await fetch('https://api.github.com/repos/Tim12iun/loomn-max-for-live/commits/main', { cache: 'no-store' })).json(); if (/^[0-9a-f]{40}$/.test(m.sha)) base = RAW + m.sha + '/'; } catch (e) {}
+    const man = await (await fetch(base + 'manifest.json', { cache: 'no-store' })).json();
+    const entry = man.plugins && man.plugins[PLUGIN_ID];
+    if (!entry) throw new Error('buildn nicht im Repo');
+    if (cmp(entry.version, VERSION) <= 0){ status('Aktuell: v' + VERSION + ' ist die neueste Version.'); return; }
+    // Eigener Ordner: einmal wählen, dann gemerkt
+    let dir = await DB.get('selfDir');
+    if (!dir || !(await ensurePerm(dir, 'readwrite'))){
+      status('Bitte den Ordner wählen, in dem buildn.html liegt (LOOMN-TOOLS › buildn).');
+      dir = await window.showDirectoryPicker({ id: 'buildn-self', mode: 'readwrite' });
+      try { await dir.getFileHandle('buildn.html'); } catch (e) { throw new Error('In diesem Ordner liegt keine buildn.html'); }
+      await DB.set('selfDir', dir);
+    }
+    status('Lade v' + entry.version + ' …');
+    const files = entry.files || [];
+    const data = await Promise.all(files.map(async f => {
+      const r = await fetch(base + entry.dir + '/' + f.split('/').map(encodeURIComponent).join('/'), { cache: 'no-store' });
+      if (!r.ok) throw new Error(f + ': HTTP ' + r.status); return r.blob(); }));
+    for (let i = 0; i < files.length; i++){ // gleicher Name = überschreiben, keine Kopien
+      const w = await (await dir.getFileHandle(files[i], { create: true })).createWritable(); await w.write(data[i]); await w.close();
+    }
+    for (const o of entry.obsolete || []) try { await dir.removeEntry(o); } catch (e) {}
+    status('v' + entry.version + ' geladen, lädt neu …');
+    location.reload();
+  } catch (e) { status('Update fehlgeschlagen: ' + (e.message || e)); }
+}
+
+// ---------- Start ----------
+if (!window.showDirectoryPicker){
+  status('buildn braucht Google Chrome (Safari kann keine Ordner öffnen). Datei mit Rechtsklick › Öffnen mit › Google Chrome öffnen.');
+  draw();
+} else {
+  restore(false).then(need => {
+    if (need) document.addEventListener('click', function once(){ document.removeEventListener('click', once, true); restore(true); }, true);
+  });
+}
+</script>
+</body>
+</html>
