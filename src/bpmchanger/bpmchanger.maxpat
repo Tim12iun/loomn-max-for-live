@@ -28,6 +28,18 @@
   "gridsnaponopen": 1,
   "toolbarvisible": 1,
   "devicewidth": 300.0,
+  "locked_bgcolor": [
+   0.0784,
+   0.0784,
+   0.0784,
+   1.0
+  ],
+  "editing_bgcolor": [
+   0.0784,
+   0.0784,
+   0.0784,
+   1.0
+  ],
   "description": "BPM Changer – Tempo weich ändern, Rampe über Takte",
   "boxes": [
    {
@@ -35,8 +47,12 @@
      "id": "ui",
      "maxclass": "jsui",
      "numinlets": 1,
-     "numoutlets": 3,
+     "numoutlets": 7,
      "outlettype": [
+      "",
+      "",
+      "",
+      "",
       "",
       "",
       ""
@@ -44,16 +60,17 @@
      "patching_rect": [
       400,
       300,
-      300,
+      212,
       169
      ],
+     "varname": "bpmui",
      "filename": "bpmchanger.js",
      "parameter_enable": 0,
      "presentation": 1,
      "presentation_rect": [
       0,
       0,
-      300,
+      212,
       169
      ]
     }
@@ -151,9 +168,9 @@
      ],
      "parameter_enable": 1,
      "presentation_rect": [
-      230,
-      24,
-      62,
+      220,
+      4,
+      72,
       72
      ],
      "varname": "Tempo",
@@ -182,9 +199,9 @@
       1.0
      ],
      "textcolor": [
-      0.5608,
-      0.549,
-      0.5255,
+      0.9412,
+      0.9333,
+      0.9137,
       1.0
      ],
      "focusbordercolor": [
@@ -193,14 +210,8 @@
       0.1216,
       1.0
      ],
-     "panelcolor": [
-      0.0784,
-      0.0784,
-      0.0784,
-      1.0
-     ],
-     "hint": "Tempo. Drehen gleitet weich, nach dem Loslassen auf ganze BPM.",
-     "annotation": "Tempo: weich drehen. Nach dem Loslassen rundet BPM Changer auf ganze BPM. Rechtsklick > MIDI-Mapping für einen Controller-Knopf.",
+     "hint": "Tempo: drehen gleitet weich, nach dem Loslassen auf ganze BPM.",
+     "annotation": "Tempo: weich drehen. Nach dem Loslassen rundet BPM Changer auf ganze BPM. Cmd+M und hier klicken, um einen Controller-Knopf zuzuweisen.",
      "saved_attribute_attributes": {
       "valueof": {
        "parameter_longname": "Tempo",
@@ -249,19 +260,20 @@
      "patching_rect": [
       120,
       120,
-      50,
-      15
+      76,
+      20
      ],
      "parameter_enable": 1,
      "presentation_rect": [
-      16,
-      122,
-      52,
-      22
+      218,
+      82,
+      76,
+      20
      ],
      "varname": "Takte",
-     "fontsize": 13.0,
-     "hint": "Takte: so lange dauert die Rampe.",
+     "fontsize": 12.0,
+     "fontface": 1,
+     "hint": "Takte: so lange dauert die Rampe. Ziehen oder Zahl tippen.",
      "annotation": "Takte: über so viele Takte gleitet das Tempo zum Ziel.",
      "saved_attribute_attributes": {
       "valueof": {
@@ -274,7 +286,8 @@
        "parameter_initial": [
         16
        ],
-       "parameter_unitstyle": 0
+       "parameter_unitstyle": 9,
+       "parameter_units": "%d Takte"
       }
      },
      "activebgcolor": [
@@ -319,7 +332,6 @@
       0.1216,
       1.0
      ],
-     "appearance": 0,
      "presentation": 1
     }
    },
@@ -352,21 +364,22 @@
       "float"
      ],
      "patching_rect": [
-      200,
+      220,
       120,
-      50,
-      15
+      76,
+      20
      ],
      "parameter_enable": 1,
      "presentation_rect": [
+      218,
+      106,
       76,
-      122,
-      60,
-      22
+      20
      ],
      "varname": "Ziel",
-     "fontsize": 13.0,
-     "hint": "Ziel-BPM der Rampe.",
+     "fontsize": 12.0,
+     "fontface": 1,
+     "hint": "Ziel-BPM der Rampe. Ziehen oder Zahl tippen.",
      "annotation": "Ziel: auf dieses Tempo gleitet die Rampe.",
      "saved_attribute_attributes": {
       "valueof": {
@@ -379,7 +392,8 @@
        "parameter_initial": [
         128
        ],
-       "parameter_unitstyle": 0
+       "parameter_unitstyle": 9,
+       "parameter_units": "%d BPM"
       }
      },
      "activebgcolor": [
@@ -424,7 +438,6 @@
       0.1216,
       1.0
      ],
-     "appearance": 0,
      "presentation": 1
     }
    },
@@ -438,7 +451,7 @@
       ""
      ],
      "patching_rect": [
-      200,
+      220,
       200,
       90,
       22
@@ -457,10 +470,10 @@
       ""
      ],
      "patching_rect": [
-      300,
+      320,
       120,
-      60,
-      20
+      76,
+      30
      ],
      "parameter_enable": 1,
      "mode": 1,
@@ -469,9 +482,9 @@
      "fontsize": 13.0,
      "fontface": 1,
      "presentation_rect": [
-      206,
-      118,
-      78,
+      218,
+      132,
+      76,
       30
      ],
      "varname": "Start",
@@ -535,8 +548,8 @@
       0.1216,
       1.0
      ],
-     "hint": "Start: Rampe beginnt auf dem nächsten Takt. Nochmal = abbrechen.",
-     "annotation": "Start: die Rampe beginnt auf dem nächsten Takt und gleitet über die eingestellten Takte zum Ziel. Nochmal drücken bricht ab.",
+     "hint": "Start: Rampe beginnt auf der nächsten 1. Nochmal = abbrechen.",
+     "annotation": "Start: die Rampe beginnt auf der nächsten 1 und gleitet über die eingestellten Takte zum Ziel. Nochmal drücken bricht ab.",
      "saved_attribute_attributes": {
       "valueof": {
        "parameter_longname": "Start",
@@ -566,7 +579,7 @@
       ""
      ],
      "patching_rect": [
-      300,
+      320,
       200,
       90,
       22
@@ -700,6 +713,339 @@
      ],
      "text": "compile"
     }
+   },
+   {
+    "box": {
+     "id": "sst",
+     "maxclass": "newobj",
+     "numinlets": 1,
+     "numoutlets": 0,
+     "outlettype": [],
+     "patching_rect": [
+      420,
+      500,
+      100,
+      22
+     ],
+     "text": "s ---bpmstate"
+    }
+   },
+   {
+    "box": {
+     "id": "rcmd",
+     "maxclass": "newobj",
+     "numinlets": 0,
+     "numoutlets": 1,
+     "outlettype": [
+      ""
+     ],
+     "patching_rect": [
+      420,
+      260,
+      90,
+      22
+     ],
+     "text": "r ---bpmcmd"
+    }
+   },
+   {
+    "box": {
+     "id": "pc",
+     "maxclass": "newobj",
+     "numinlets": 1,
+     "numoutlets": 1,
+     "outlettype": [
+      ""
+     ],
+     "patching_rect": [
+      560,
+      530,
+      60,
+      22
+     ],
+     "text": "pcontrol"
+    }
+   },
+   {
+    "box": {
+     "id": "win",
+     "maxclass": "newobj",
+     "text": "p window",
+     "varname": "window",
+     "numinlets": 1,
+     "numoutlets": 0,
+     "outlettype": [],
+     "patching_rect": [
+      560,
+      570,
+      70,
+      22
+     ],
+     "patcher": {
+      "fileversion": 1,
+      "appversion": {
+       "major": 8,
+       "minor": 6,
+       "revision": 0,
+       "architecture": "x64",
+       "modernui": 1
+      },
+      "classnamespace": "box",
+      "rect": [
+       200,
+       200,
+       450,
+       254
+      ],
+      "bglocked": 0,
+      "openinpresentation": 1,
+      "default_fontsize": 12.0,
+      "default_fontface": 0,
+      "default_fontname": "Arial",
+      "gridonopen": 1,
+      "gridsize": [
+       15.0,
+       15.0
+      ],
+      "gridsnaponopen": 1,
+      "toolbarvisible": 0,
+      "boxes": [
+       {
+        "box": {
+         "id": "w1",
+         "maxclass": "inlet",
+         "numinlets": 0,
+         "numoutlets": 1,
+         "outlettype": [
+          ""
+         ],
+         "patching_rect": [
+          10,
+          10,
+          30,
+          30
+         ]
+        }
+       },
+       {
+        "box": {
+         "id": "w2",
+         "maxclass": "newobj",
+         "text": "r ---bpmstate",
+         "numinlets": 0,
+         "numoutlets": 1,
+         "outlettype": [
+          ""
+         ],
+         "patching_rect": [
+          10,
+          60,
+          90,
+          22
+         ]
+        }
+       },
+       {
+        "box": {
+         "id": "w3",
+         "maxclass": "jsui",
+         "filename": "bpmchanger.js",
+         "jsarguments": [
+          "win"
+         ],
+         "parameter_enable": 0,
+         "numinlets": 1,
+         "numoutlets": 7,
+         "outlettype": [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+         ],
+         "patching_rect": [
+          10,
+          100,
+          450,
+          254
+         ],
+         "presentation": 1,
+         "presentation_rect": [
+          0,
+          0,
+          450,
+          254
+         ]
+        }
+       },
+       {
+        "box": {
+         "id": "w4",
+         "maxclass": "newobj",
+         "text": "s ---bpmcmd",
+         "numinlets": 1,
+         "numoutlets": 0,
+         "outlettype": [],
+         "patching_rect": [
+          10,
+          400,
+          90,
+          22
+         ]
+        }
+       },
+       {
+        "box": {
+         "id": "w5",
+         "maxclass": "newobj",
+         "text": "loadbang",
+         "numinlets": 1,
+         "numoutlets": 1,
+         "outlettype": [
+          "bang"
+         ],
+         "patching_rect": [
+          500,
+          10,
+          60,
+          22
+         ]
+        }
+       },
+       {
+        "box": {
+         "id": "w6",
+         "maxclass": "message",
+         "numinlets": 2,
+         "numoutlets": 1,
+         "outlettype": [
+          ""
+         ],
+         "patching_rect": [
+          500,
+          40,
+          420,
+          22
+         ],
+         "text": "window flags float, window flags nogrow, window flags nozoom, window size 200 200 650 454, window exec, title BPM Changer"
+        }
+       },
+       {
+        "box": {
+         "id": "w7",
+         "maxclass": "newobj",
+         "text": "thispatcher",
+         "numinlets": 1,
+         "numoutlets": 2,
+         "outlettype": [
+          "",
+          ""
+         ],
+         "patching_rect": [
+          500,
+          80,
+          80,
+          22
+         ]
+        }
+       },
+       {
+        "box": {
+         "id": "w8",
+         "maxclass": "message",
+         "numinlets": 2,
+         "numoutlets": 1,
+         "outlettype": [
+          ""
+         ],
+         "patching_rect": [
+          120,
+          10,
+          60,
+          22
+         ],
+         "text": "wopen"
+        }
+       }
+      ],
+      "lines": [
+       {
+        "patchline": {
+         "source": [
+          "w2",
+          0
+         ],
+         "destination": [
+          "w3",
+          0
+         ]
+        }
+       },
+       {
+        "patchline": {
+         "source": [
+          "w3",
+          0
+         ],
+         "destination": [
+          "w4",
+          0
+         ]
+        }
+       },
+       {
+        "patchline": {
+         "source": [
+          "w5",
+          0
+         ],
+         "destination": [
+          "w6",
+          0
+         ]
+        }
+       },
+       {
+        "patchline": {
+         "source": [
+          "w6",
+          0
+         ],
+         "destination": [
+          "w7",
+          0
+         ]
+        }
+       },
+       {
+        "patchline": {
+         "source": [
+          "w1",
+          0
+         ],
+         "destination": [
+          "w8",
+          0
+         ]
+        }
+       },
+       {
+        "patchline": {
+         "source": [
+          "w8",
+          0
+         ],
+         "destination": [
+          "w4",
+          0
+         ]
+        }
+       }
+      ]
+     }
+    }
    }
   ],
   "lines": [
@@ -802,6 +1148,18 @@
    {
     "patchline": {
      "source": [
+      "ui",
+      3
+     ],
+     "destination": [
+      "bars",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "source": [
       "ziel",
       0
      ],
@@ -819,6 +1177,18 @@
      ],
      "destination": [
       "ui",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "source": [
+      "ui",
+      4
+     ],
+     "destination": [
+      "ziel",
       0
      ]
     }
@@ -999,6 +1369,54 @@
      ],
      "destination": [
       "tb",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "source": [
+      "ui",
+      5
+     ],
+     "destination": [
+      "sst",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "source": [
+      "rcmd",
+      0
+     ],
+     "destination": [
+      "ui",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "source": [
+      "ui",
+      6
+     ],
+     "destination": [
+      "pc",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "source": [
+      "pc",
+      0
+     ],
+     "destination": [
+      "win",
       0
      ]
     }
