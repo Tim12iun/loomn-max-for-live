@@ -4,105 +4,147 @@
 <meta charset="utf-8">
 <title>sortn</title>
 <style>
-:root{--bg:#1b1b1b;--panel:#262626;--panel2:#2e2e2e;--line:#3a3a3a;--text:#e6e6e6;--muted:#8d8d8d;--accent:#ff7a2f;--warn:#e8c547}
+:root{--bg:#1b1b1b;--panel:#262626;--panel2:#303030;--line:#383838;--text:#e8e8e8;--muted:#8f8f8f;--accent:#ff7a2f;--ok:#5fbf5f;--warn:#e8c547}
 *{box-sizing:border-box;margin:0}
 html,body{height:100%;overflow:hidden}
-body{background:var(--bg);color:var(--text);font:11px/1.3 -apple-system,"Helvetica Neue",sans-serif;padding:5px 8px;display:flex;flex-direction:column;gap:4px;user-select:none}
-.top{display:flex;gap:5px;align-items:center;flex:none}
-.title{font-weight:700;letter-spacing:.04em;color:var(--accent);margin-right:2px}
-button{font:inherit;font-weight:600;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:3px;padding:2px 8px;cursor:pointer;white-space:nowrap}
-button:hover{border-color:#666}
-button:disabled{opacity:.4;cursor:default}
-button.go{background:var(--accent);border-color:var(--accent);color:#111}
-.tabs{display:flex;margin-left:auto;border:1px solid var(--line);border-radius:3px;overflow:hidden}
-.tabs button{border:none;border-radius:0;background:transparent;color:var(--muted)}
+body{background:var(--bg);color:var(--text);font:11px/1.35 -apple-system,"Helvetica Neue",sans-serif;user-select:none;position:relative}
+svg{width:14px;height:14px;fill:currentColor;display:block}
+button{font:inherit;font-weight:600;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:4px;height:24px;padding:0 9px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap}
+button:hover{border-color:#5a5a5a;background:var(--panel2)}
+button:disabled{opacity:.35;cursor:default}
+button.icon{width:24px;padding:0}
+button.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+button.ghost:hover{color:var(--text);background:var(--panel)}
+button.go{background:var(--accent);border-color:var(--accent);color:#111;height:30px;font-size:12px}
+button.go:hover{background:#ff8c4a}
+.page{position:absolute;inset:0;display:flex;flex-direction:column;padding:6px 8px 5px}
+.hidden{display:none!important}
+.head{display:flex;align-items:center;gap:4px;height:24px;flex:none}
+.title{font-weight:700;letter-spacing:.03em;color:var(--accent);font-size:12px}
+.sp{flex:1}
+.muted{color:var(--muted)}
+/* Vorderseite */
+.sum{flex:1;display:flex;align-items:center;gap:10px;min-height:0}
+.stat{display:flex;flex-direction:column;align-items:flex-start;line-height:1.1}
+.stat b{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+.stat span{color:var(--muted);font-size:10px}
+.stat.ok b{color:var(--ok)}.stat.warn b{color:var(--warn)}
+.link{margin-left:auto;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:2px}
+.link:hover{color:var(--text)}
+.act{display:flex;gap:6px;flex:none}
+.act .go{flex:1}
+.act button.icon{width:30px;height:30px}
+.opts{display:flex;align-items:center;gap:14px;flex:none;height:26px}
+.opt{display:flex;align-items:center;gap:6px;color:var(--muted);cursor:pointer;white-space:nowrap}
+.opt:hover{color:var(--text)}
+.chip{width:16px;height:16px;border-radius:3px;border:1px solid #666;box-shadow:inset 0 0 0 1px rgba(0,0,0,.35)}
+.chip.off{background:repeating-linear-gradient(45deg,#3a3a3a 0 3px,#262626 3px 6px)}
+.caret{width:10px;height:10px;opacity:.7}
+.sw2{position:relative;width:26px;height:14px;border-radius:7px;background:#444;transition:background .12s}
+.sw2::after{content:"";position:absolute;top:2px;left:2px;width:10px;height:10px;border-radius:50%;background:#bbb;transition:left .12s}
+.sw2.on{background:var(--accent)}.sw2.on::after{left:14px;background:#111}
+.status{flex:none;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px;padding-top:2px;border-top:1px solid var(--line)}
+/* Rückseite */
+.tabs{display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;margin-left:4px}
+.tabs button{border:none;border-radius:0;height:22px;background:transparent;color:var(--muted);font-weight:600;padding:0 8px}
 .tabs button.on{background:var(--panel2);color:var(--text)}
-main{flex:1;min-height:0;overflow:auto;border-top:1px solid var(--line);padding-top:3px}
+main{flex:1;min-height:0;overflow:auto;margin-top:5px}
 main::-webkit-scrollbar{width:6px}main::-webkit-scrollbar-thumb{background:#444;border-radius:3px}
-.sw{flex:none;width:12px;height:12px;border-radius:2px;display:inline-block;vertical-align:middle}
-/* Vorschau */
-.row{display:grid;grid-template-columns:12px minmax(0,1fr) 10px 12px minmax(0,1fr) 108px 8px;gap:5px;align-items:center;padding:1px 2px;border-radius:2px}
+.sw{flex:none;width:10px;height:10px;border-radius:2px;display:inline-block}
+.row{display:grid;grid-template-columns:10px minmax(0,1fr) minmax(0,.8fr) 74px 6px;gap:5px;align-items:center;padding:1px 2px;border-radius:3px;min-height:20px}
 .row:hover{background:var(--panel)}
-.row .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.row .old{color:var(--muted)}
-.row .new.chg{font-weight:600}
-.row .arr{color:#555}
+.nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.old{color:var(--muted);font-size:10px}
+.new.chg{font-weight:600}
 .row.dim{opacity:.45}
 .dot{width:6px;height:6px;border-radius:50%}
-.dot.sicher{background:#5fbf5f}.dot.unsicher{background:var(--warn)}.dot.manual{background:var(--accent)}
-select,input[type=text]{font:inherit;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:3px;padding:1px 3px;min-width:0;width:100%}
-select{padding:0 1px}
-/* Einstellungen */
-.opts{display:flex;flex-wrap:wrap;gap:3px 10px;padding:2px 2px 5px;border-bottom:1px solid var(--line);margin-bottom:4px}
-.opts label{display:flex;align-items:center;gap:3px;color:var(--muted);white-space:nowrap}
-.opts label:hover{color:var(--text)}
-.opts input[type=text]{width:80px}
+.dot.sicher{background:var(--ok)}.dot.unsicher{background:var(--warn)}.dot.manual{background:var(--accent)}
+select,input[type=text]{font:inherit;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:3px;padding:1px 4px;min-width:0;width:100%;height:20px}
+select{padding:0 2px}
+.cat{border-bottom:1px solid var(--line);padding:4px 2px;display:grid;grid-template-columns:16px 1fr auto;gap:4px 6px;align-items:center}
+.cat .kw{grid-column:2 / 4}
+.swb{width:16px;height:16px;border-radius:3px;cursor:pointer;border:1px solid rgba(255,255,255,.18)}
+.tools{display:flex;align-items:center;gap:2px}
+.tools label{display:flex;align-items:center;gap:2px;color:var(--muted);font-size:10px;margin-right:4px;cursor:pointer}
+.ic{color:var(--muted);cursor:pointer;width:16px;height:18px;display:flex;align-items:center;justify-content:center;border-radius:3px}
+.ic:hover{color:var(--text);background:var(--panel)}
+.ic svg{width:12px;height:12px}
+.olist{display:flex;flex-direction:column;gap:5px;padding:2px}
+.olist label{display:flex;align-items:center;gap:6px;cursor:pointer}
+.olist h4{font-size:10px;color:var(--muted);font-weight:600;margin-top:4px;text-transform:uppercase;letter-spacing:.05em}
+.olist input[type=text]{width:110px}
 input[type=checkbox]{margin:0;accent-color:var(--accent)}
-.cat{display:grid;grid-template-columns:14px 78px minmax(0,1fr) 22px 22px 18px 34px 14px;gap:4px;align-items:center;padding:1px 2px}
-.cat .swb{width:14px;height:14px;border-radius:2px;cursor:pointer;border:1px solid rgba(255,255,255,.15)}
-.cat .ic{color:var(--muted);cursor:pointer;text-align:center}
-.cat .ic:hover{color:var(--text)}
-.cat label{display:flex;justify-content:center}
-.head{color:var(--muted);font-size:10px}
-.head > *{white-space:nowrap;overflow:hidden}
-.foot2{display:flex;gap:5px;padding:5px 2px}
-.status{flex:none;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.foot2{display:flex;gap:6px;padding:6px 2px;align-items:center;flex-wrap:wrap}
+.empty{color:var(--muted);padding:8px 2px}
 #pal{position:fixed;display:none;grid-template-columns:repeat(14,14px);gap:2px;padding:4px;background:#111;border:1px solid #555;border-radius:4px;z-index:9}
 #pal i{width:14px;height:14px;border-radius:2px;cursor:pointer}
 #pal i:hover{outline:1px solid #fff}
-.empty{color:var(--muted);padding:8px 2px}
-.bar{flex:none;height:2px;background:var(--panel);border-radius:1px;overflow:hidden}
-.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .15s}
-#gear{display:none}
-@media (max-width:520px){
-  body{padding:4px 5px;gap:3px}
-  .top{gap:3px}
-  button{padding:2px 6px}
-  .tabs{display:none}
-  #gear{display:inline-block;margin-left:auto}
-  .row{grid-template-columns:10px minmax(0,1fr) minmax(0,.8fr) 72px 6px;gap:4px}
-  .row .arr,.row .sw.oldsw{display:none}
-  .row .old{order:3;font-size:10px}
-  .row .sw.newsw{order:1}.row .new{order:2}.row select{order:4}.row .dot{order:5}
-  .sw{width:10px;height:10px}
-}
-.keep{display:inline-flex;align-items:center;gap:3px;cursor:pointer;color:var(--muted);margin-left:auto}
-.keep i{width:12px;height:12px;border-radius:2px;border:1px solid #666;display:inline-block}
-.keep i.off{background:repeating-linear-gradient(45deg,#333 0 3px,#222 3px 6px)}
-.keep:hover i{border-color:#bbb}
-.clipsT{display:flex;align-items:center;gap:3px;color:var(--muted);white-space:nowrap;cursor:pointer}
-.clipsT:hover{color:var(--text)}
-#greys{position:fixed;display:none;gap:3px;padding:4px;background:#111;border:1px solid #555;border-radius:4px;z-index:9;align-items:center}
-#greys i{width:16px;height:16px;border-radius:2px;cursor:pointer;border:1px solid #444}
-#greys i:hover,#greys i.on{outline:1px solid var(--accent)}
-#greys span{color:var(--muted);cursor:pointer;padding:0 3px}#greys span:hover{color:var(--text)}
-@media (max-width:520px){ #gear{margin-left:0} .tabs+.keep{margin-left:auto} }
-@media (min-width:521px){ .tabs{margin-left:6px} }
-.wrap{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
-#busy{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:rgba(27,27,27,.92);z-index:5;text-align:center;padding:0 12px}
+#greys{position:fixed;display:none;gap:4px;padding:5px;background:#111;border:1px solid #555;border-radius:4px;z-index:9;align-items:center}
+#greys i{width:18px;height:18px;border-radius:3px;cursor:pointer;border:1px solid #555}
+#greys i:hover,#greys i.on{outline:2px solid var(--accent)}
+#greys span{color:var(--muted);cursor:pointer;padding:0 4px}#greys span:hover{color:var(--text)}
+#busy{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:7px;background:rgba(27,27,27,.94);z-index:8;text-align:center;padding:0 14px}
 #busy.on{display:flex}
-#busy b{font-size:13px;color:var(--text)}
+#busy b{font-size:13px}
 #busy small{color:var(--muted)}
-.bbar{width:80%;max-width:360px;height:8px;background:var(--panel);border-radius:4px;overflow:hidden;border:1px solid var(--line)}
+.bbar{width:85%;height:8px;background:var(--panel);border-radius:4px;overflow:hidden;border:1px solid var(--line)}
 .bbar i{display:block;height:100%;width:0;background:var(--accent);transition:width .15s}
 </style>
 </head>
 <body>
-<div class="top">
-  <span class="title">sortn</span>
-  <button id="analyze" title="Spuren neu einlesen und Vorschau zeigen">↻</button>
-  <button class="go" id="run" title="Spuren umbenennen und färben wie in der Vorschau">▶ Ausführen</button>
-  <button id="undo" title="Letztes Ausführen rückgängig machen">↶</button>
-  <div class="tabs"><button id="tPrev" class="on">Spuren</button><button id="tSet">Einstellungen</button></div>
-  <span class="keep" id="keep" title="Spuren in dieser Farbe lässt sortn komplett in Ruhe (Name und Farbe). Klicken = Farbe wählen."><i id="keepSw"></i>Bleibt</span>
-  <label class="clipsT" title="Beim Ausführen bekommen die Clips denselben Namen und dieselbe Farbe wie ihre Spur"><input type="checkbox" id="matchClips">Clips</label>
-  <button id="gear" title="Einstellungen (Farben, Begriffe …) im großen Fenster">⚙</button>
-  <button id="upd" title="Prüft auf GitHub, ob es eine neue Version gibt">⟳</button>
-  <button id="float" title="Als schwebendes Fenster öffnen (mehr Platz für Einstellungen)">⧉</button>
-</div>
-<div class="wrap"><main id="main"></main><div id="busy"><b id="busyT">sortn arbeitet …</b><div class="bbar"><i id="bbar"></i></div><small>Bitte kurz warten, nichts anfassen.</small></div></div>
-<div class="bar"><i id="bar"></i></div>
-<div class="status" id="status"></div>
+<svg style="display:none"><defs>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.49.49 0 0 0-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></symbol>
+  <symbol id="i-dl" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M7 14l5-5 5 5z"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></symbol>
+  <symbol id="i-pick" viewBox="0 0 24 24"><path d="M20.71 5.63l-2.34-2.34a1 1 0 0 0-1.41 0l-3.12 3.12-1.93-1.91-1.41 1.41 1.42 1.42L3 16.25V21h4.75l8.92-8.92 1.42 1.42 1.41-1.41-1.92-1.92 3.12-3.12a1 1 0 0 0 .01-1.42zM6.92 19 5 17.08l8.06-8.06 1.92 1.92L6.92 19z"/></symbol>
+</defs></svg>
+
+<!-- Vorderseite -->
+<section class="page" id="front">
+  <div class="head">
+    <span class="title" id="title">sortn</span>
+    <span class="sp"></span>
+    <button class="icon ghost" id="analyze" title="Spuren neu einlesen"><svg><use href="#i-refresh"/></svg></button>
+    <button class="icon ghost" id="gear" title="Spuren, Kategorien und Optionen"><svg><use href="#i-gear"/></svg></button>
+  </div>
+  <div class="sum">
+    <div class="stat ok"><b id="nKnown">–</b><span>erkannt</span></div>
+    <div class="stat warn"><b id="nCheck">–</b><span>prüfen</span></div>
+    <div class="stat"><b id="nRest">–</b><span>Rest</span></div>
+    <div class="stat"><b id="nChg">–</b><span>Änderungen</span></div>
+    <span class="link" id="toTracks">Spuren <svg><use href="#i-next"/></svg></span>
+  </div>
+  <div class="act">
+    <button class="go" id="run" title="Spuren umbenennen und färben"><svg><use href="#i-play"/></svg>Ausführen</button>
+    <button class="icon" id="undo" title="Rückgängig: letztes Ausführen zurücknehmen"><svg><use href="#i-undo"/></svg></button>
+  </div>
+  <div class="opts">
+    <span class="opt" id="keep" title="Spuren in dieser Farbe lässt sortn komplett in Ruhe (Name und Farbe)">Bleibt <span class="chip" id="keepSw"></span><svg class="caret"><use href="#i-down"/></svg></span>
+    <span class="opt" id="clipsT" title="Beim Ausführen bekommen die Clips denselben Namen und dieselbe Farbe wie ihre Spur"><span class="sw2" id="clipsSw"></span>Clips angleichen</span>
+  </div>
+  <div class="status"></div>
+</section>
+
+<!-- Rückseite -->
+<section class="page hidden" id="back">
+  <div class="head">
+    <button class="icon ghost" id="backBtn" title="Zurück"><svg><use href="#i-back"/></svg></button>
+    <div class="tabs"><button data-t="tracks" class="on">Spuren</button><button data-t="cats">Kategorien</button><button data-t="opts">Optionen</button></div>
+    <span class="sp"></span>
+    <button class="icon ghost" id="upd" title="Auf GitHub nach Update suchen"><svg><use href="#i-dl"/></svg></button>
+  </div>
+  <main id="main"></main>
+  <div class="status"></div>
+</section>
+
+<div id="busy"><b id="busyT">sortn arbeitet …</b><div class="bbar"><i id="bbar"></i></div><small>Bitte kurz warten, nichts anfassen.</small></div>
 <div id="pal"></div>
 <div id="greys"></div>
 
@@ -111,91 +153,81 @@ const $ = s => document.querySelector(s);
 const toMax = (...a) => window.max ? window.max.outlet(...a) : console.log('max', a);
 const hex = rgb => '#' + ((rgb >>> 0) & 0xffffff).toString(16).padStart(6, '0');
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-let S = null, tab = 'prev', dirty = false, timer = null;
-
+const ico = (id, cls='') => `<svg class="${cls}"><use href="#i-${id}"/></svg>`;
+let S = null, page = 'front', tab = 'tracks', dirty = false, timer = null;
 const colorOf = idx => S && S.palette[idx] !== undefined ? hex(S.palette[idx]) : '#555';
 const catColor = c => c.color && c.color.rgb ? hex(c.color.rgb) : colorOf(c.color && c.color.index);
+const passive = r => r.source === 'stem' || r.source === 'skip' || r.source === 'keep';
 
 function draw(){
   if(!S) return;
-  $('#undo').disabled = !S.canUndo;
-  const kc = S.settings.sort.keepColor, ks = $('#keepSw');
-  ks.className = kc >= 0 ? '' : 'off'; ks.style.background = kc >= 0 ? colorOf(kc) : '';
-  $('#matchClips').checked = !!S.settings.sort.matchClips;
-  $('#tPrev').classList.toggle('on', tab==='prev');
-  $('#tSet').classList.toggle('on', tab==='set');
-  if(tab==='prev') drawPreview(); else if(!document.activeElement || !$('#main').contains(document.activeElement)) drawSettings();
+  $('#front').classList.toggle('hidden', page !== 'front');
+  $('#back').classList.toggle('hidden', page !== 'back');
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === tab));
+  if(page === 'front') drawFront();
+  else if(tab === 'tracks') drawTracks();
+  else if(!document.activeElement || !$('#main').contains(document.activeElement)) (tab === 'cats' ? drawCats : drawOpts)();
 }
 
-function drawPreview(){
+function drawFront(){
+  const rows = (S.plan && S.plan.rows) || [];
+  let known = 0, check = 0, rest = 0, chg = 0;
+  for(const r of rows){ if(passive(r)) continue; if(r.cat){ known++; if(r.conf === 'unsicher') check++; } else rest++; if(r.newName !== r.name || r.newColor !== r.color) chg++; }
+  $('#nKnown').textContent = known; $('#nCheck').textContent = check; $('#nRest').textContent = rest; $('#nChg').textContent = chg;
+  $('#undo').disabled = !S.canUndo;
+  const kc = S.settings.sort.keepColor, ks = $('#keepSw');
+  ks.className = 'chip' + (kc >= 0 ? '' : ' off'); ks.style.background = kc >= 0 ? colorOf(kc) : '';
+  $('#clipsSw').classList.toggle('on', !!S.settings.sort.matchClips);
+}
+
+function drawTracks(){
   const m = $('#main'), rows = (S.plan && S.plan.rows) || [], cats = S.settings.categories;
   if(!rows.length){ m.innerHTML = '<div class="empty">Keine Spuren gefunden.</div>'; return; }
   const opts = '<option value="_auto">Auto</option>' + cats.map(c => `<option value="${esc(c.id)}">${esc(c.label)}</option>`).join('')
     + `<option value="_rest">${esc(S.settings.rest.label)}</option><option value="_skip">Nicht ändern</option>`;
   m.innerHTML = rows.map(r => {
-    const stem = r.source === 'stem', skip = r.source === 'skip', keep = r.source === 'keep';
-    const chg = r.newName !== r.name;
+    const stem = r.source === 'stem', keep = r.source === 'keep', skip = r.source === 'skip';
     const cur = S.overrides[r.id] !== undefined ? S.overrides[r.id] : '_auto';
-    const label = r.cat ? (cats.find(c => c.id === r.cat) || {}).label : (stem ? 'Prep-Stem' : S.settings.rest.label);
     const dot = r.source === 'manual' || skip ? 'manual' : r.conf;
-    const tip = keep ? 'Farbe „Nicht ändern“: bleibt, wie sie ist' : (stem ? 'Stem-Spur von SetMaker Prep, wird nicht angefasst' : (r.why.join(' · ') || 'Nichts erkannt')) + (r.cat || stem ? '' : ' → ' + label);
-    return `<div class="row ${stem||skip||keep?'dim':''}" title="${esc(tip)}">
-      <span class="sw oldsw" style="background:${colorOf(r.color)}"></span>
-      <span class="nm old" style="padding-left:${r.depth*8}px">${r.isGroup?'▸ ':''}${esc(r.name)}</span>
-      <span class="arr">→</span>
-      <span class="sw newsw" style="background:${colorOf(r.newColor)}"></span>
-      <span class="nm new ${chg?'chg':''}">${esc(r.newName)}</span>
-      ${keep ? '<span class="nm old">bleibt</span>' : stem ? '<span class="nm old">Prep-Stem</span>' : `<select data-id="${r.id}">${opts.replace(`value="${esc(cur)}"`, `value="${esc(cur)}" selected`)}</select>`}
-      <span class="dot ${dot}" title="${dot==='sicher'?'Sicher erkannt':dot==='unsicher'?'Unsicher, bitte prüfen':dot==='manual'?'Von Hand':''}"></span>
+    const tip = keep ? 'Farbe „Bleibt“: wird nicht angefasst' : stem ? 'Stem-Spur von prepn, wird nicht angefasst' : (r.why.join(' · ') || 'Nichts erkannt');
+    return `<div class="row ${passive(r)?'dim':''}" title="${esc(tip)}">
+      <span class="sw" style="background:${colorOf(r.newColor)}"></span>
+      <span class="nm new ${r.newName!==r.name?'chg':''}" style="padding-left:${r.depth*8}px">${r.isGroup?'▸ ':''}${esc(r.newName)}</span>
+      <span class="nm old">${esc(r.name)}</span>
+      ${keep ? '<span class="old">bleibt</span>' : stem ? '<span class="old">Stem</span>' : `<select data-id="${r.id}">${opts.replace(`value="${esc(cur)}"`, `value="${esc(cur)}" selected`)}</select>`}
+      <span class="dot ${dot}"></span>
     </div>`;
   }).join('');
   m.querySelectorAll('select').forEach(sel => sel.onchange = () => toMax('override', Number(sel.dataset.id), sel.value));
 }
 
-function drawSettings(){
-  const s = S.settings, o = s.sort, m = $('#main');
-  const lanes = '<option value="">– keine –</option>' + S.lanes.map(l => `<option value="${l.id}">${esc(l.label)}</option>`).join('');
-  const cb = (path, label, tip) => `<label title="${esc(tip||'')}"><input type="checkbox" data-o="${path}" ${get(path)?'checked':''}>${label}</label>`;
-  const allCase = s.categories.length && s.categories.every(c => c.caseSensitive);
-  m.innerHTML = `<div class="opts">
-      ${cb('sort.rename','Umbenennen')}${cb('sort.colorize','Färben')}
-      <label title="Groß-/Kleinschreibung bei allen Begriffen beachten"><input type="checkbox" id="allCase" ${allCase?'checked':''}>Groß/klein beachten</label>
-      ${cb('sort.numberSingle','Nummer auch bei einer Spur','Kick 1 statt Kick')}
-      ${cb('sort.keepCustomNames','Eigene Namen behalten','Nur Spuren mit Standardnamen (1-Audio …) umbenennen')}
-      ${cb('sort.renameRest','Rest umbenennen','Unbekannte Spuren heißen dann z. B. Rest 1')}
-      ${cb('sort.groups','Gruppen nach Inhalt','Gruppe bekommt Name/Farbe, wenn alle Spuren darin gleich sind')}
-      <label>Muster <input type="text" data-o="sort.pattern" value="${esc(o.pattern)}" title="{name} = Kategorie, {n} = Nummer"></label>
-      <span style="color:var(--muted)">Suchen in:</span>
-      ${cb('sort.sources.trackName','Spurname')}${cb('sort.sources.clipNames','Clipnamen')}${cb('sort.sources.fileNames','Sample-Dateien')}${cb('sort.sources.devices','Instrumente')}
-    </div>
-    <div class="cat head"><span></span><span>Name</span><span>Begriffe (Komma, ≤3 Zeichen = ganzes Wort)</span><span title="Groß/klein beachten">Aa</span><span title="Allgemein: nur wenn nichts Genaueres passt">allg.</span><span></span><span></span><span></span></div>
-    ${s.categories.map((c, i) => `<div class="cat" data-i="${i}">
+function drawCats(){
+  const s = S.settings, m = $('#main');
+  m.innerHTML = s.categories.map((c, i) => `<div class="cat" data-i="${i}">
       <span class="swb" data-pal="${i}" style="background:${catColor(c)}" title="Farbe wählen"></span>
-      <input type="text" data-f="label" value="${esc(c.label)}">
-      <input type="text" data-f="keywords" value="${esc(c.keywords.join(', '))}">
-      <label><input type="checkbox" data-f="caseSensitive" ${c.caseSensitive?'checked':''}></label>
-      <label><input type="checkbox" data-f="fallback" ${c.fallback?'checked':''}></label>
-      <span class="ic" data-learn="${esc(c.id)}" title="Farbe der in Ableton ausgewählten Spur übernehmen">◉</span>
-      <span class="ic"><span data-mv="-1" title="Höhere Priorität">▲</span><span data-mv="1" title="Niedrigere Priorität">▼</span></span>
-      <span class="ic" data-del title="Kategorie löschen">✕</span>
-    </div>`).join('')}
+      <input type="text" data-f="label" value="${esc(c.label)}" title="Name der Spur">
+      <span class="tools">
+        <label title="Groß-/Kleinschreibung beachten"><input type="checkbox" data-f="caseSensitive" ${c.caseSensitive?'checked':''}>Aa</label>
+        <label title="Allgemein: greift nur, wenn nichts Genaueres passt"><input type="checkbox" data-f="fallback" ${c.fallback?'checked':''}>allg.</label>
+        <span class="ic" data-learn="${esc(c.id)}" title="Farbe der in Ableton ausgewählten Spur übernehmen">${ico('pick')}</span>
+        <span class="ic" data-mv="-1" title="Höhere Priorität">${ico('up')}</span>
+        <span class="ic" data-mv="1" title="Niedrigere Priorität">${ico('down')}</span>
+        <span class="ic" data-del title="Kategorie löschen">${ico('x')}</span>
+      </span>
+      <input class="kw" type="text" data-f="keywords" value="${esc(c.keywords.join(', '))}" title="Begriffe, mit Komma getrennt. Bis 3 Zeichen zählen nur als ganzes Wort.">
+    </div>`).join('') + `
     <div class="cat"><span class="swb" data-pal="rest" style="background:${catColor(s.rest)}" title="Farbe für alles Unbekannte"></span>
-      <input type="text" id="restLabel" value="${esc(s.rest.label)}"><span style="color:var(--muted)">alles, was nicht erkannt wird</span><span></span><span></span>
-      <span class="ic" data-learn="_rest" title="Farbe der ausgewählten Spur übernehmen">◉</span><span></span><span></span></div>
-    <div class="foot2"><button id="add">+ Kategorie</button><button id="reset" title="Alle Einstellungen auf Standard">Standard</button>
-      <span style="color:var(--muted);align-self:center">Reihenfolge = Priorität. Gespeichert in sortn_settings.json, nur für sortn.</span></div>`;
-
-  m.querySelectorAll('[data-o]').forEach(el => el.oninput = () => { set(el.dataset.o, el.type==='checkbox' ? el.checked : el.value); push(); });
-  $('#allCase').onchange = e => { s.categories.forEach(c => c.caseSensitive = e.target.checked); push(true); };
-  $('#restLabel').oninput = e => { s.rest.label = e.target.value; push(); };
+      <input type="text" id="restLabel" value="${esc(s.rest.label)}" title="Name für Unbekanntes">
+      <span class="tools"><span class="muted" style="font-size:10px;margin-right:4px">alles Unbekannte</span><span class="ic" data-learn="_rest" title="Farbe der ausgewählten Spur übernehmen">${ico('pick')}</span></span></div>
+    <div class="foot2"><button id="add">+ Kategorie</button><span class="muted">Reihenfolge = Priorität</span></div>`;
   m.querySelectorAll('.cat[data-i]').forEach(row => {
     const c = s.categories[+row.dataset.i];
     row.querySelectorAll('[data-f]').forEach(el => el.oninput = () => {
       const f = el.dataset.f;
-      if(el.type==='checkbox') c[f] = el.checked;
-      else if(f==='keywords') c.keywords = el.value.split(',').map(x => x.trim()).filter(Boolean);
+      if(el.type === 'checkbox') c[f] = el.checked;
+      else if(f === 'keywords') c.keywords = el.value.split(',').map(x => x.trim()).filter(Boolean);
       else c[f] = el.value;
-      push(el.type==='checkbox' || el.tagName==='SELECT');
+      push(el.type === 'checkbox');
     });
     row.querySelectorAll('[data-mv]').forEach(el => el.onclick = () => {
       const i = +row.dataset.i, j = i + Number(el.dataset.mv);
@@ -204,25 +236,51 @@ function drawSettings(){
     });
     row.querySelector('[data-del]').onclick = () => { if(confirm(`Kategorie „${c.label}“ löschen?`)){ s.categories.splice(+row.dataset.i, 1); push(true); } };
   });
+  $('#restLabel').oninput = e => { s.rest.label = e.target.value; push(); };
   m.querySelectorAll('[data-learn]').forEach(el => el.onclick = () => { flush(); toMax('learncolor', el.dataset.learn); });
   m.querySelectorAll('[data-pal]').forEach(el => el.onclick = e => openPal(el.dataset.pal, e));
   $('#add').onclick = () => { s.categories.push({ id: 'cat' + Date.now().toString(36), label: 'Neu', lane: '', keywords: [], caseSensitive: false, color: { index: 0, rgb: S.palette[0] } }); push(true); };
+}
+
+function drawOpts(){
+  const s = S.settings, o = s.sort, m = $('#main');
+  const cb = (path, label, tip) => `<label title="${esc(tip||'')}"><input type="checkbox" data-o="${path}" ${get(path)?'checked':''}>${label}</label>`;
+  const allCase = s.categories.length && s.categories.every(c => c.caseSensitive);
+  m.innerHTML = `<div class="olist">
+      <h4>Ausführen</h4>
+      ${cb('sort.rename','Spuren umbenennen')}${cb('sort.colorize','Spuren färben')}
+      ${cb('sort.numberSingle','Nummer auch bei nur einer Spur','Kick 1 statt Kick')}
+      ${cb('sort.keepCustomNames','Eigene Namen behalten','Nur Spuren mit Standardnamen (1-Audio …) umbenennen')}
+      ${cb('sort.renameRest','Unbekannte umbenennen','Unbekannte Spuren heißen dann z. B. Rest 1')}
+      ${cb('sort.groups','Gruppen nach Inhalt','Gruppe bekommt Name und Farbe, wenn alle Spuren darin gleich sind')}
+      <label>Muster <input type="text" data-o="sort.pattern" value="${esc(o.pattern)}" title="{name} = Kategorie, {n} = Nummer"></label>
+      <h4>Erkennen</h4>
+      <label><input type="checkbox" id="allCase" ${allCase?'checked':''}>Groß/klein bei allen Begriffen beachten</label>
+      ${cb('sort.sources.trackName','Spurnamen')}${cb('sort.sources.clipNames','Clipnamen')}${cb('sort.sources.fileNames','Sample-Dateinamen')}${cb('sort.sources.devices','Instrument-Namen')}
+      <div class="foot2"><button id="reset">Alles auf Standard</button><span class="muted" id="ver"></span></div>
+    </div>`;
+  $('#ver').textContent = 'sortn v' + (S.version || '?');
+  m.querySelectorAll('[data-o]').forEach(el => el.oninput = () => { set(el.dataset.o, el.type === 'checkbox' ? el.checked : el.value); push(); });
+  $('#allCase').onchange = e => { s.categories.forEach(c => c.caseSensitive = e.target.checked); push(); };
   $('#reset').onclick = () => { if(confirm('Alle Kategorien und Optionen auf Standard zurücksetzen?')) toMax('resetsettings'); };
 }
 
 function get(path){ return path.split('.').reduce((o, k) => o && o[k], S.settings); }
 function set(path, v){ const k = path.split('.'), last = k.pop(); k.reduce((o, x) => o[x], S.settings)[last] = v; }
 // Änderungen kurz sammeln, dann an das Device schicken (speichert + rechnet neu)
-function push(redraw){ dirty = true; clearTimeout(timer); timer = setTimeout(flush, 500); if(redraw){ document.activeElement && document.activeElement.blur(); drawSettings(); } }
+function push(redraw){ dirty = true; clearTimeout(timer); timer = setTimeout(flush, 500); if(redraw){ document.activeElement && document.activeElement.blur(); draw(); } }
 function flush(){ clearTimeout(timer); if(!dirty) return; dirty = false; toMax('setsettings', encodeURIComponent(JSON.stringify(S.settings))); }
+function setSort(k, v){ if(!S) return; S.settings.sort[k] = v; dirty = true; flush(); draw(); }
 
+function popAt(el, anchor, w, h){
+  el.style.left = Math.max(2, Math.min(anchor.left, innerWidth - w - 4)) + 'px';
+  el.style.top = Math.max(2, Math.min(anchor.bottom + 3, innerHeight - h - 4)) + 'px';
+}
 function openPal(target, e){
   const p = $('#pal');
   p.innerHTML = S.palette.map((rgb, i) => `<i data-i="${i}" style="background:${hex(rgb)}"></i>`).join('');
   p.style.display = 'grid';
-  const w = 14*16+8, h = 5*16+8;
-  p.style.left = Math.max(2, Math.min(e.clientX, innerWidth - w - 4)) + 'px';
-  p.style.top = Math.max(2, Math.min(e.clientY, innerHeight - h - 4)) + 'px';
+  popAt(p, { left: e.clientX, bottom: e.clientY }, 14*16+8, 5*16+8);
   p.onclick = ev => {
     const i = ev.target.dataset.i; if(i === undefined) return;
     const c = { index: +i, rgb: S.palette[+i] };
@@ -230,45 +288,47 @@ function openPal(target, e){
     p.style.display = 'none'; push(true);
   };
 }
-document.addEventListener('mousedown', e => { if(!$('#pal').contains(e.target) && !e.target.dataset.pal) $('#pal').style.display = 'none'; });
-
-$('#analyze').onclick = () => { flush(); setBusy(true, 'Lese Spuren', 0); toMax('analyze'); };
-$('#run').onclick = () => { flush(); setBusy(true, 'Starte', 0); toMax('run'); };
-$('#undo').onclick = () => toMax('undo');
 const GREYS = [13, 27, 41, 55, 69];
-function setSort(k, v){ if(!S) return; S.settings.sort[k] = v; dirty = true; flush(); draw(); }
-$('#matchClips').onchange = e => setSort('matchClips', e.target.checked);
 $('#keep').onclick = e => {
   if(!S) return;
   const g = $('#greys'), kc = S.settings.sort.keepColor;
   g.innerHTML = GREYS.map(i => `<i data-i="${i}" class="${i===kc?'on':''}" style="background:${colorOf(i)}"></i>`).join('') + '<span data-i="-1" title="Keine Farbe ausklammern">aus</span>';
   g.style.display = 'flex';
-  const r = $('#keep').getBoundingClientRect();
-  g.style.left = Math.max(2, Math.min(r.left, innerWidth - 140)) + 'px'; g.style.top = (r.bottom + 3) + 'px';
+  popAt(g, $('#keepSw').getBoundingClientRect(), 150, 30);
   g.onclick = ev => { const i = ev.target.dataset.i; if(i === undefined) return; g.style.display = 'none'; setSort('keepColor', Number(i)); };
   e.stopPropagation();
 };
-document.addEventListener('mousedown', e => { if(!$('#greys').contains(e.target) && !$('#keep').contains(e.target)) $('#greys').style.display = 'none'; });
-$('#float').onclick = () => toMax('popout');
-$('#upd').onclick = () => toMax('update');
-$('#tPrev').onclick = () => { flush(); tab = 'prev'; draw(); };
-$('#tSet').onclick = () => { if(!S) return; tab = 'set'; drawSettings(); draw(); };
-$('#gear').onclick = () => { flush(); toMax('popout'); toMax('showsettings'); };
+document.addEventListener('mousedown', e => {
+  if(!$('#pal').contains(e.target) && !e.target.dataset.pal) $('#pal').style.display = 'none';
+  if(!$('#greys').contains(e.target) && !$('#keep').contains(e.target)) $('#greys').style.display = 'none';
+});
 
+$('#clipsT').onclick = () => setSort('matchClips', !(S && S.settings.sort.matchClips));
+$('#analyze').onclick = () => { flush(); setBusy(true, 'Lese Spuren', 0); toMax('analyze'); };
+$('#run').onclick = () => { flush(); setBusy(true, 'Starte', 0); toMax('run'); };
+$('#undo').onclick = () => toMax('undo');
+$('#upd').onclick = () => toMax('update');
+$('#gear').onclick = () => { if(!S) return; page = 'back'; tab = 'cats'; draw(); };
+$('#toTracks').onclick = () => { if(!S) return; page = 'back'; tab = 'tracks'; draw(); };
+$('#backBtn').onclick = () => { flush(); page = 'front'; draw(); };
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { flush(); tab = b.dataset.t; draw(); });
+
+function setStatus(t){ document.querySelectorAll('.status').forEach(e => e.textContent = t); }
 function setBusy(b, text, pct){
-  ['#analyze','#run','#undo'].forEach(s => $(s).disabled = !!b || (s==='#undo' && S && !S.canUndo));
+  ['#analyze','#run'].forEach(s => $(s).disabled = !!b);
+  $('#undo').disabled = !!b || !(S && S.canUndo);
   $('#busy').classList.toggle('on', !!b);
   if(text) $('#busyT').textContent = text + ' …';
   if(pct !== undefined) $('#bbar').style.width = pct + '%';
-  if(!b){ $('#bar').style.width = '0'; $('#bbar').style.width = '0'; }
+  if(!b) $('#bbar').style.width = '0';
 }
 function onState(enc){
   const next = JSON.parse(decodeURIComponent(enc));
   if(dirty) next.settings = S.settings; // ungespeicherte Eingaben nicht überschreiben
-  S = next; $('#status').textContent = S.status || '';
-  $('.title').textContent = 'sortn'; $('.title').title = 'v' + (S.version || '?');
-  setBusy(S.busy);
+  S = next; setStatus(S.status || '');
+  $('#title').title = 'sortn v' + (S.version || '?');
   draw();
+  setBusy(S.busy);
 }
 if(window.max){
   window.max.bindInlet('state', onState);
@@ -278,9 +338,9 @@ if(window.max){
     if(p.s[i] === undefined){ p.s[i] = part; p.got++; }
     if(p.got === n){ delete parts[id]; if(kind === 'state') onState(p.s.join('')); }
   });
-  window.max.bindInlet('progress', enc => { const p = JSON.parse(decodeURIComponent(enc)); setBusy(p.pct < 100, p.text, p.pct); $('#bar').style.width = p.pct + '%'; $('#status').textContent = p.text + ' …'; });
-  window.max.bindInlet('tab', enc => { if(innerWidth > 520){ tab = JSON.parse(decodeURIComponent(enc)).tab; if(S){ drawSettings(); draw(); } } });
-  window.max.bindInlet('status', enc => { $('#status').textContent = JSON.parse(decodeURIComponent(enc)).text; });
+  window.max.bindInlet('progress', enc => { const p = JSON.parse(decodeURIComponent(enc)); setBusy(p.pct < 100, p.text, p.pct); setStatus(p.text + ' …'); });
+  window.max.bindInlet('status', enc => { setStatus(JSON.parse(decodeURIComponent(enc)).text); });
+  window.max.bindInlet('tab', () => {});
   toMax('hello');
 } else window.SM_onState = onState; // Test im Browser
 </script>
