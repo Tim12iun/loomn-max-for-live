@@ -64,6 +64,18 @@ aside.drop{box-shadow:inset 0 0 0 2px var(--accent)}
 @keyframes pulse{from{filter:saturate(.72) brightness(.92)}to{filter:saturate(.95) brightness(1.12)}}
 .cell .chip{padding-left:6px}
 .cell .chip .wv{left:4px}
+.chip .lt{flex:none;width:13px;height:16px;margin-left:-2px;display:flex;align-items:center;justify-content:center;position:relative;z-index:1;cursor:pointer;color:rgba(0,0,0,.55)}
+.chip .lt:hover{color:#000}
+.chip .lt svg{width:10px;height:10px;fill:currentColor;stroke:none}
+.chip.on .lt{color:#fff}
+.chip.q .lt{animation:qb .3s steps(1) infinite}
+@keyframes qb{0%{color:rgba(0,0,0,.55)}50%{color:#fff}}
+.mbpm{display:flex;align-items:center;gap:6px;background:var(--hi);border-radius:7px;height:32px;padding:0 4px 0 10px;color:var(--muted);font-size:13px;font-weight:600}
+.mbpm input{width:58px;background:transparent;border:none;color:var(--text);font:inherit;font-size:15px;font-weight:700;text-align:right;outline:none}
+.mbpm input::-webkit-inner-spin-button{display:none}
+.mbpm .icon{width:26px;height:26px}
+.mbpm .beat{width:8px;height:8px;border-radius:50%;background:var(--hi2)}
+.mbpm .beat.on{background:var(--accent)}
 .pl{flex:none;width:18px;height:18px;border-radius:4px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.2);cursor:pointer}
 .pl:hover{background:rgba(0,0,0,.4)}
 .pl svg{width:10px;height:10px;fill:currentColor;stroke:none}
@@ -226,6 +238,7 @@ input.rename{flex:1;min-width:0;height:20px;background:var(--bg);color:var(--tex
   <div class="tpl" id="tpl"><svg><use href="#i-file"/></svg><span class="k" id="tplKind"></span><b id="tplName">Vorlage wählen</b><span class="x hidden" id="baseClose" title="Set schließen, wieder ein neues Set aus der Vorlage bauen"><svg><use href="#i-x"/></svg></span></div>
   <button id="openSet" title="Ein bestehendes Live-Set öffnen und weitere Songs anhängen"><svg><use href="#i-file"/></svg>Set öffnen</button>
   <span class="sp"></span>
+  <div class="mbpm" title="Master-Tempo wie in Live: alle Clips laufen in diesem Tempo, ein Start wartet auf den nächsten Takt"><span class="beat" id="beat"></span><input id="bpmIn" type="number" min="60" max="200" step="0.1" placeholder="–"><span>BPM</span><button class="icon" id="stopAll" title="Alle Clips stoppen (Leertaste)"><svg><use href="#i-stop"/></svg></button></div>
   <button id="addSongs" title="Song-Ordner von prepn laden"><svg><use href="#i-folder"/></svg>Songs laden</button>
   <button id="build" class="main" disabled title="Neues Live-Set aus Vorlage und Line-up schreiben">Set erstellen</button>
   <button class="icon" id="gear" title="Einstellungen"><svg><use href="#i-gear"/></svg></button>
@@ -442,9 +455,9 @@ function save(){
 }
 function change(fn){
   undo.push(JSON.stringify(blocks)); if (undo.length > 100) undo.shift(); redo = [];
-  const was = pl ? pl.items.filter(x => x.cell).map(x => [x.cell, x.ref]) : [];
+  const was = (pl ? pl.items : []).concat(ss ? ss.items : []).filter(x => x.cell).map(x => [x.cell, x.ref]);
   fn(); dirty = true;
-  if (was.some(([c, r]) => refOf(cellVal(c)) !== r)) stopPlay();   // Clip, der gerade läuft, aus dem Raster genommen = Stopp
+  if (was.some(([c, r]) => refOf(cellVal(c) || autoVal(c)) !== r)) stopPlay();   // Clip, der gerade läuft, aus dem Raster genommen = Stopp
   save(); draw();
 }
 
@@ -836,12 +849,61 @@ function shiftLower(L, from, to, delta){
 let playing = null;   // Schlüssel der laufenden Wiedergabe (Clip, Zeile oder Auswahl)
 // pl.items: was gerade läuft, je {cell (Zelle im Raster oder null), ref, path, start (Sekunden)}; alles loopt wie in Live
 let pl = null;
-const isOn = (ref, cell) => !!pl && pl.items.some(x => (x.cell || null) === (cell || null) && (cell ? true : x.ref === ref));
+// ss: Session wie in Live. ss.t0 = Beginn von Takt 1 (ms), ss.items je {slot (Spur), cell, ref, path, tStart, tEnd, start (s), rate}
+let ss = null;
+const live = (x, now) => x.tStart <= now && !(x.tEnd <= now);
+const ssOn = cell => !!ss && ss.items.some(x => x.cell === cell && live(x, performance.now()));
+const ssQ = cell => !!ss && ss.items.some(x => x.cell === cell && x.tStart > performance.now());
+const isOn = (ref, cell) => (!!pl && pl.items.some(x => (x.cell || null) === (cell || null) && (cell ? true : x.ref === ref))) || (!!cell && ssOn(cell));
+const barMs = () => 240000 / opts.bpm;
+const clampRate = r => Math.min(2, Math.max(0.5, r || 1));
+const slotOf = id => { const p = id.split('|'), c = colOfKey(p.slice(2).join('|'), +p[0]); return c ? c.name : p.slice(2).join('|'); };
+// Clips starten wie in Live: läuft schon etwas, auf den nächsten Takt im Master-Tempo, sonst sofort.
+// Auf jeder Spur läuft höchstens ein Clip; stop = Spuren, die zum selben Zeitpunkt aufhören
+async function launch(list, stop){
+  stop = stop || [];
+  const now = performance.now();
+  if (ss) ss.items = ss.items.filter(x => !(x.tEnd <= now));
+  const running = ss && ss.items.length;
+  if (!running && !list.length){ ss = null; return; }
+  if (!opts.bpm){ opts.bpm = Math.round((list[0].tempo || 120) * 10) / 10; save(); }
+  const t = running ? ss.t0 + Math.max(1, Math.ceil((now + 15 - ss.t0) / barMs())) * barMs() : now + 40;
+  if (pl){ pl = null; playing = null; }
+  const its = list.map(x => Object.assign({}, x, { rate: clampRate(opts.bpm / (x.tempo || opts.bpm)), tStart: t, start: (x.at || 0) * (durs[x.path] || 0) }));
+  try { await native('launch', { items: its.map(x => ({ slot: x.slot, path: x.path, at: x.at || 0, rate: x.rate })), stop, delay: Math.max(0, t - performance.now()) / 1000 }); }
+  catch (e) { status('Abspielen geht nicht: ' + (e.message || e), null, true); return; }
+  if (!running) ss = { t0: t, items: [] };
+  const gone = new Set([...stop, ...its.map(x => x.slot)]);
+  ss.items.forEach(x => { if (gone.has(x.slot) && !(x.tEnd <= t)) x.tEnd = t; });
+  ss.items.push(...its);
+  tick(); draw();
+}
+// Clip an seinem Startmarker starten; läuft er schon, hört seine Spur am nächsten Takt auf
+function launchCell(id){
+  const v = cellVal(id) || autoVal(id), c = clipOf(refOf(v)); if (!c) return;
+  if (ssOn(id) || ssQ(id)){ launch([], [slotOf(id)]); return; }
+  const L = loopOf(v, c, durs[c.clip.path] || 0);
+  launch([{ slot: slotOf(id), cell: id, ref: refOf(v), path: c.clip.path, at: L.bars ? L.s / L.bars : 0, tempo: c.song.tempo }]);
+}
+function autoVal(id){ const p = id.split('|'), b = blocks[+p[0]]; return b && +p[1] === fullRow(b) ? autoRow(b, +p[0])[p.slice(2).join('|')] : null; }
+// Master-Tempo ändern: Takt-Raster und laufende Clips ziehen mit
+function setBpm(v){
+  v = Math.min(200, Math.max(60, +v || 0)); if (!v || v === opts.bpm) { draw(); return; }
+  const now = performance.now(), old = opts.bpm;
+  if (ss && old){
+    const k = (now - ss.t0) / (240000 / old); opts.bpm = v; ss.t0 = now - k * barMs();
+    const rates = {};
+    for (const x of ss.items) if (live(x, now)){ const d = durs[x.path] || 0; x.start = d ? ((now - x.tStart) / 1000 * x.rate + x.start) % d : 0; x.tStart = now; x.rate = clampRate(v / (x.tempo || v)); rates[x.slot] = x.rate; }
+    native('rates', { rates }).catch(() => {});
+  } else opts.bpm = v;
+  save(); draw();
+}
 async function startPlay(key, items){
   if (!items.length) return;
   try {
     await native('playRow', { items: items.map(x => ({ path: x.path, at: x.at || 0 })) });
-    pl = { key, t0: performance.now(), items: items.map(x => Object.assign({}, x, { start: (x.at || 0) * (durs[x.path] || 0) })) };
+    const t0 = performance.now(); ss = null;
+    pl = { key, t0, items: items.map(x => Object.assign({}, x, { tStart: t0, rate: 1, start: (x.at || 0) * (durs[x.path] || 0) })) };
     playing = key; tick();
   } catch (e) { pl = null; playing = null; status('Abspielen geht nicht: ' + (e.message || e), null, true); }
   draw();
@@ -849,18 +911,17 @@ async function startPlay(key, items){
 const cellItem = (id, at) => { const v = cellVal(id), c = clipOf(refOf(v)); return c ? { cell: id, ref: refOf(v), path: c.clip.path, at: at || 0 } : null; };
 // Ganze Zeile eines Blocks abspielen (wie eine Szene in Live): jeder Clip ab seinem Startmarker, alle zusammen
 async function playRow(i, r){
-  const key = 'row:' + i + '|' + r;
-  if (playing === key){ stopPlay(); return; }
   const b = blocks[i]; if (!b || !b.rows[r]) return;
   const auto = r === fullRow(b) ? autoRow(b, i) : {}, items = [];
   for (const c of cols){
     const k = cellKey(c, i), own = b.rows[r][k], v = own || (activeCol(c, i) ? auto[k] : null);
     const cl = clipOf(refOf(v)); if (!cl) continue;
     const secs = durs[cl.clip.path] || 0, L = loopOf(v, cl, secs);
-    items.push({ cell: i + '|' + r + '|' + k, ref: refOf(v), path: cl.clip.path, at: L.bars ? L.s / L.bars : 0 });
+    items.push({ slot: c.name, cell: i + '|' + r + '|' + k, ref: refOf(v), path: cl.clip.path, at: L.bars ? L.s / L.bars : 0, tempo: cl.song.tempo });
   }
   if (!items.length){ status('In dieser Zeile liegt noch nichts.'); return; }
-  startPlay(key, items);
+  // wie eine Szene in Live: Spuren ohne Clip in dieser Zeile hören auf
+  launch(items, cols.map(c => c.name).filter(n => !items.some(x => x.slot === n)));
 }
 async function togglePlay(ref, at, cell){
   if (isOn(ref, cell) && at == null){ stopPlay(); return; }
@@ -869,18 +930,24 @@ async function togglePlay(ref, at, cell){
 }
 // Laufende Clips: leichtes Pulsieren (CSS) und eine dunkle Fläche, die von links vollläuft; beim Loop wieder hell
 let ticking = false;
-function fracOf(x, now){ const d = durs[x.path] || 0; if (!d) return 0; const t = (now - pl.t0) / 1000 + x.start; return (t % d) / d; }
+function fracOf(x, now){ const d = durs[x.path] || 0; if (!d) return 0; const t = (now - x.tStart) / 1000 * (x.rate || 1) + x.start; return (t % d) / d; }
 function tick(){
   if (ticking) return; ticking = true;
+  let was = null;
   const step = () => {
-    if (!pl){ ticking = false; return; }
     const now = performance.now();
-    for (const x of pl.items){
+    if (ss){ const n = ss.items.length; ss.items = ss.items.filter(x => !(x.tEnd <= now)); if (!ss.items.length) ss = null; }
+    if (!pl && !ss){ ticking = false; const b = $('#beat'); if (b) b.classList.remove('on'); draw(); return; }
+    const all = (pl ? pl.items : []).concat(ss ? ss.items.filter(x => live(x, now)) : []);
+    const st = (ss ? ss.items.map(x => x.cell + (live(x, now) ? '+' : '-')).join() : '') + (pl ? 'p' : '');
+    if (st !== was){ if (was !== null) draw(); was = st; }
+    for (const x of all){
       const f = fracOf(x, now) * 100 + '%';
       const el = x.cell ? document.querySelector(`[data-cell="${CSS.escape(x.cell)}"] .chip .fill`) : document.querySelector(`aside .chip[data-ref="${CSS.escape(x.ref)}"] .fill`);
       if (el) el.style.width = f;
       if (x.cell && x.cell === cvCell){ const h = document.querySelector('#cv .cwave i'); if (h) h.style.left = f; }
     }
+    const b = $('#beat'); if (b) b.classList.toggle('on', !!ss && opts.bpm && ((now - ss.t0) / (60000 / opts.bpm)) % 1 < 0.25);
     requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
@@ -901,9 +968,9 @@ async function loadWaves(){
   catch (e) { paths.forEach(p => waves[p] = []); }
   draw();
 }
-function stopPlay(){ if (!pl && !playing) return; pl = null; playing = null; native('stop').catch(() => {}); draw(); }
+function stopPlay(){ if (!pl && !playing && !ss) return; pl = null; playing = null; ss = null; native('stop').catch(() => {}); draw(); }
 window.onNative = (kind, data) => {
-  if (kind === 'ended'){ pl = null; playing = null; draw(); }
+  if (kind === 'ended' && !ss){ pl = null; playing = null; draw(); }
   if (kind === 'data') start();
   if (kind === 'mergeProgress' && mBusy != null){ mBusy = data; const b = $('#mergeBox .bar i'); if (b) b.style.width = data * 100 + '%'; }
   if (kind === 'folders') addFolders(data).catch(fail);
@@ -918,9 +985,10 @@ function chip(val, o){
   const label = o.list && !c.mix ? num : !o.list && cellName(val) ? cellName(val) : narrow && !c.old && !c.mix ? num.replace('Clip ', '#') : clipLabel(c);
   const on = isOn(ref, o.id || null);
   if (gone) return `<div class="chip lost" draggable="${o.cell ? 'true' : 'false'}" title="Datei fehlt: ${esc(c.clip.path)}"><span class="t">${esc(label)} · fehlt</span>${o.cell ? rmBtn() : ''}</div>`;
-  return `<div class="chip ${on ? 'on' : ''} ${o.over ? 'over' : ''} ${o.id && sel.has(o.id) ? 'sel' : ''} ${o.id && o.id === cvCell ? 'cur' : ''}" draggable="true" data-ref="${esc(ref)}" style="background:${bg}${o.over ? ';animation-delay:-' + (Date.now() - overAt) + 'ms' : ''}" title="${esc(c.song.name + ' · ' + c.clip.name)}${o.list ? '\nPlay = vorhören' : '\nKlick = im Clip-Fenster zeigen · ⌘- oder ⇧-Klick = mehrere markieren'}">`
+  const q = o.id && ssQ(o.id);
+  return `<div class="chip ${on ? 'on' : ''} ${q ? 'q' : ''} ${o.over ? 'over' : ''} ${o.id && sel.has(o.id) ? 'sel' : ''} ${o.id && o.id === cvCell ? 'cur' : ''}" draggable="true" data-ref="${esc(ref)}" style="background:${bg}${o.over ? ';animation-delay:-' + (Date.now() - overAt) + 'ms' : ''}" title="${esc(c.song.name + ' · ' + c.clip.name)}${o.list ? '\nPlay = vorhören' : '\nKlick = im Clip-Fenster zeigen · ⌘- oder ⇧-Klick = mehrere markieren'}">`
     + `<span class="wv">${wavePath(c.clip.path)}${o.list ? '' : loopShade(val, c)}</span><b class="fill"></b>`
-    + (o.list ? `<span class="pl ${on ? 'on' : ''}" data-play="${esc(ref)}" title="${on ? 'Stopp' : 'Vorhören'}"><svg><use href="#i-${on ? 'stop' : 'play'}"/></svg></span>` : '') + `<span class="t">${esc(label)}</span>`
+    + (o.list ? `<span class="pl ${on ? 'on' : ''}" data-play="${esc(ref)}" title="${on ? 'Stopp' : 'Vorhören'}"><svg><use href="#i-${on ? 'stop' : 'play'}"/></svg></span>` : o.id ? `<span class="lt" data-launch="1" title="${on ? 'Stoppen (am nächsten Takt)' : 'Starten (auf den nächsten Takt, im Master-Tempo)'}"><svg><use href="#i-play"/></svg></span>` : '') + `<span class="t">${esc(label)}</span>`
     + (o.cell ? rmBtn() : o.unmix ? `<span class="rm" data-unmix="${esc(c.clip.path)}" title="Aus der Liste nehmen (die Datei bleibt im Merge-Ordner)"><svg><use href="#i-x"/></svg></span>` : '') + '</div>';
 }
 function chipBg(c){ const col = colFor(c.stem.kind, 'A'); return c.old ? hex(c.old.color) : c.mix && c.mix.color != null ? hex(c.mix.color) : col ? hex(col.color) : '#9a9a9a'; }
@@ -1003,8 +1071,7 @@ function drawGrid(){
     const auto = autoRow(b, i), fr = fullRow(b), side = i % 2 ? 'B' : 'A';
     b.rows.forEach((row, r) => {
       const isFull = r === fr && (s || b.rows.length > 1);
-      const ron = playing === 'row:' + i + '|' + r;
-      const rp = `<span class="rpl ${ron ? 'on' : ''}" data-rowplay="${i}|${r}" title="${ron ? 'Stopp' : 'Ganze Zeile abspielen'}"><svg><use href="#i-${ron ? 'stop' : 'play'}"/></svg></span>`;
+      const rp = `<span class="rpl" data-rowplay="${i}|${r}" title="Ganze Zeile starten wie eine Szene in Live (auf den nächsten Takt)"><svg><use href="#i-play"/></svg></span>`;
       h += `<div class="row" data-row="${i}|${r}">${lab(rp + (isFull ? (s ? 'Full · ' + side : 'Full') : 'Clips ' + (r + 1)))}`;
       h += cols.map(c => {
         const k = cellKey(c, i), act = activeCol(c, i), id = i + '|' + r + '|' + k;
@@ -1053,6 +1120,7 @@ function draw(){
   $('#tplInfo').textContent = tpl ? tpl.name + (tpl.src ? ' (Kopie von ' + tpl.src + ')' : '') : 'Noch keine Vorlage gewählt.';
   const v = 'Version ' + info.version + ' · Build ' + info.build;
   $('#ver').textContent = v;
+  if (document.activeElement !== $('#bpmIn')) $('#bpmIn').value = opts.bpm ? String(opts.bpm) : '';
   $('#dataPath').textContent = info.data || '–';
   setTog($('#optTempo'), opts.tempo); setTog($('#optNames'), opts.names);
 }
@@ -1168,6 +1236,8 @@ let noClick = false;
 document.addEventListener('click', e => {
   if (noClick){ noClick = false; return; }
   // Ein Klick auf einen Clip im Raster (auch auf Play) zeigt ihn im Clip-Fenster; abgespielt wird nur über Play
+  const lt = e.target.closest('[data-launch]');
+  if (lt){ const c = lt.closest('[data-cell]'); if (c) launchCell(c.dataset.cell); return; }
   // ⌘- oder ⇧-Klick = mehrere markieren (Rahmen); das Clip-Fenster zeigt immer den zuletzt geklickten
   const gc = !e.target.closest('[data-rm]') && e.target.closest('[data-cell] .chip[data-ref]');
   if (gc){
@@ -1398,7 +1468,7 @@ document.addEventListener('keydown', e => {
     to.push(JSON.stringify(blocks)); blocks = JSON.parse(from.pop()); dirty = true; save(); draw();
   }
   if (e.key === ' ' && cvCell){ e.preventDefault(); cvPlay(); }
-  else if (e.key === ' ' && playing){ e.preventDefault(); stopPlay(); }
+  else if (e.key === ' ' && (pl || ss)){ e.preventDefault(); stopPlay(); }
   if (e.key === 'Escape'){ $('#back').classList.add('hidden'); closeClip(); }
 });
 const fail = err => status(String(err.message || err), null, true);
@@ -1418,6 +1488,9 @@ $('#clearSongs').onclick = async () => {
 $('#dReveal').onclick = () => native('dataReveal');
 $('#dRelink').onclick = () => native('dataRelink');
 $('#dMove').onclick = () => native('dataMove');
+$('#bpmIn').onchange = e => setBpm(e.target.value);
+$('#bpmIn').onkeydown = e => { if (e.key === 'Enter') e.target.blur(); e.stopPropagation(); };
+$('#stopAll').onclick = () => stopPlay();
 $('#upd').onclick = () => native('checkUpdates');
 
 // ---------- Start ----------
