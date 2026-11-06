@@ -73,9 +73,12 @@ final class WebHost: NSObject, ObservableObject, WKScriptMessageHandlerWithReply
         if cmd == "mergeAudio" {
             // Clips zusammenführen: in 32-Bit-Float addieren und als 32-Bit-Float-WAV schreiben (verlustfrei, kein Clipping)
             let paths = body["paths"] as? [String] ?? [], out = body["out"] as? String ?? ""
+            let prog: (Double) -> Void = { [weak self] p in
+                DispatchQueue.main.async { MainActor.assumeIsolated { self?.sendJSON("mergeProgress", p) } }
+            }
             DispatchQueue.global(qos: .userInitiated).async {
                 do {
-                    let r = try Self.mix(paths, out: out)
+                    let r = try Self.mix(paths, out: out, progress: prog)
                     DispatchQueue.main.async { replyHandler(r, nil) }
                 } catch {
                     let m = error.localizedDescription
@@ -183,8 +186,8 @@ final class WebHost: NSObject, ObservableObject, WKScriptMessageHandlerWithReply
         }
     }
 
-    /// Lautstärke-Spitzen einer Audiodatei in n Abschnitten (0…1), für die kleine Waveform im Clip
-    nonisolated static func mix(_ paths: [String], out: String) throws -> [String: Any] {
+    /// Mehrere Audiodateien zu einer zusammenführen: Summe in 32-Bit-Float, geschrieben als 32-Bit-Float-WAV
+    nonisolated static func mix(_ paths: [String], out: String, progress: (Double) -> Void = { _ in }) throws -> [String: Any] {
         let fail = { (t: String) in NSError(domain: "buildn", code: 1, userInfo: [NSLocalizedDescriptionKey: t]) }
         let files = try paths.map { try AVAudioFile(forReading: URL(fileURLWithPath: $0)) }
         guard let first = files.first, !out.isEmpty else { throw fail("Keine Dateien zum Zusammenführen.") }
@@ -197,7 +200,8 @@ final class WebHost: NSObject, ObservableObject, WKScriptMessageHandlerWithReply
         else { throw fail("Audio konnte nicht gelesen werden.") }
         sum.frameLength = AVAudioFrameCount(len)
         for c in 0..<Int(ch) { for i in 0..<Int(len) { dst[c][i] = 0 } }
-        for f in files {
+        for (k, f) in files.enumerated() {
+            progress(Double(k) / Double(files.count + 1))
             guard let buf = AVAudioPCMBuffer(pcmFormat: f.processingFormat, frameCapacity: AVAudioFrameCount(f.length)) else { continue }
             try f.read(into: buf)
             guard let src = buf.floatChannelData else { continue }
@@ -210,10 +214,13 @@ final class WebHost: NSObject, ObservableObject, WKScriptMessageHandlerWithReply
                                        AVLinearPCMBitDepthKey: 32, AVLinearPCMIsFloatKey: true, AVLinearPCMIsBigEndianKey: false,
                                        AVLinearPCMIsNonInterleaved: false]
         let w = try AVAudioFile(forWriting: url, settings: settings, commonFormat: .pcmFormatFloat32, interleaved: false)
+        progress(Double(files.count) / Double(files.count + 1))
         try w.write(from: sum)
+        progress(1)
         return ["path": out, "frames": Int(len), "rate": rate]
     }
 
+    /// Lautstärke-Spitzen einer Audiodatei in n Abschnitten (0…1), für die kleine Waveform im Clip
     nonisolated static func peaks(_ url: URL, n: Int) -> [Double] {
         guard let f = try? AVAudioFile(forReading: url), f.length > 0 else { return [] }
         let total = f.length, per = max(1, total / AVAudioFramePosition(n))

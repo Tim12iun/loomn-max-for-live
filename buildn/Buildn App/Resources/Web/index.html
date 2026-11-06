@@ -72,8 +72,19 @@ aside.drop{box-shadow:inset 0 0 0 2px var(--accent)}
 .rm svg{width:10px;height:10px;stroke-width:2}
 .cell:hover .rm{display:flex}
 .rm:hover{background:rgba(0,0,0,.3)}
-aside .foot{padding:10px 12px;font-size:12px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;cursor:pointer}
-aside .foot:hover{color:var(--text)}
+aside .mbox{flex:none;margin:4px 8px 8px;min-height:68px;max-height:45%;overflow:auto;border:1.5px dashed var(--line);border-radius:8px;padding:6px 6px 6px;display:flex;flex-direction:column}
+aside .mbox.drop{border-color:var(--accent);background:rgba(255,90,31,.07)}
+.mbox .mh{display:flex;justify-content:space-between;font-size:12px;font-weight:600;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;padding:0 2px 2px}
+.mbox .mt{flex:1;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted);font-size:13px}
+.mbox .mi{display:flex;align-items:center;gap:4px;height:22px;border-radius:5px;padding:0 3px 0 6px;margin-top:3px;color:#141414;font-weight:600;font-size:13px;flex:none;filter:saturate(.72) brightness(.92)}
+.mbox .mi span:first-child{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mbox .mi .rm,aside .chip:hover .rm{display:flex}
+.mbox button{margin-top:6px;height:28px;flex:none}
+.mbox .bar{height:6px;background:var(--hi2);border-radius:3px;margin:8px 2px 2px;overflow:hidden;flex:none}
+.mbox .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .15s}
+.cvh b.cvn{cursor:text;border-radius:4px;padding:0 3px;margin:0 -3px}
+.cvh b.cvn:hover{background:var(--hi2)}
+.cvh input.cvn{font:inherit;font-weight:700;background:var(--hi2);color:var(--text);border:none;border-radius:4px;padding:2px 4px;width:240px;outline:1px solid var(--accent)}
 main{flex:1;min-height:0;overflow:auto;position:relative;background:var(--surface);border-radius:12px}
 main::-webkit-scrollbar,aside .list::-webkit-scrollbar{width:8px;height:8px}
 main::-webkit-scrollbar-thumb,aside .list::-webkit-scrollbar-thumb{background:var(--hi2);border-radius:4px}
@@ -223,7 +234,7 @@ input.rename{flex:1;min-width:0;height:20px;background:var(--bg);color:var(--tex
   <aside id="aside">
     <div class="top"><span class="sec">Songs</span><span class="sec num" id="songCount"></span></div>
     <div class="list" id="songs"></div>
-    <div class="foot num" id="verLine" title="Klick = nach Updates suchen"></div>
+    <div class="mbox" id="mergeBox" title="Clips hierher ziehen, dann „Mergen“ = eine Spur daraus (verlustfrei)"></div>
   </aside>
   <div class="center"><main id="main"><div class="grid" id="grid"></div><div class="empty hidden" id="empty"></div></main><section id="cv" class="hidden"></section></div>
 </div>
@@ -332,7 +343,14 @@ function clipOf(ref){
 }
 // Zelle: ref (Text) oder {ref, lp:{v, l}} mit eigenem Loop. v = Vorlauf in Takten, l = Loop-Länge in Takten
 const refOf = v => typeof v === 'string' ? v : v && v.ref ? v.ref : v && v.old ? 'old:' + v.old : null;
-const withLp = (v, lp) => v && v.old ? (lp ? { old: v.old, lp } : { old: v.old }) : lp ? { ref: refOf(v), lp } : refOf(v);
+// Zelle ändern: lp = eigener Loop, nm = eigener Name (nur im Raster und im Set, nicht in der Bibliothek)
+function cellPatch(v, patch){
+  const o = typeof v === 'string' ? { ref: v } : Object.assign({}, v);
+  for (const k in patch){ if (patch[k] == null || patch[k] === '') delete o[k]; else o[k] = patch[k]; }
+  return o.ref && !o.lp && !o.nm ? o.ref : o;
+}
+const withLp = (v, lp) => cellPatch(v, { lp });
+const cellName = v => v && typeof v === 'object' && v.nm ? v.nm : null;
 // Länge eines Clips in Takten (4/4) im Song-Tempo; gewarpt wird genau so, nie gestreckt
 function barsOf(c, secs){ return secs > 0 ? secs * c.song.tempo / 60 / 4 : 0; }
 // Automatisch: 5, 9, 13 … Takte = 1 Takt Vorlauf + Loop über die vollen 4er-Takte, sonst Loop über den ganzen Clip
@@ -747,13 +765,14 @@ async function buildSet(){
             const el = oldEl[cell.old]; if (!el) continue;
             const put = used.has(cell.old) ? el.cloneNode(true) : el; used.add(cell.old);
             if (cell.lp) setLoop(put, cell.lp);
+            if (cell.nm) setVal(put, ['Name'], cell.nm);
             putClip(t.slots[row], put);
           } else {
             const c = clipOf(refOf(cell)); if (!c){ lost.push(String(refOf(cell)).split('|').pop()); continue; }
             let a; try { a = await native('audioInfo', { path: c.clip.path }); } catch (e) { lost.push(c.clip.file); continue; }
             const lp = loopOf(cell, c, a.frames / a.rate);
             const stemName = c.stem.stem.replace(/\s+\d+$/, '');
-            const name = c.full ? Math.round(c.song.tempo) + ' ' + stemName : stemName;
+            const name = cellName(cell) || (c.mix ? c.clip.name : c.full ? Math.round(c.song.tempo) + ' ' + stemName : stemName);
             putClip(t.slots[row], makeAudioClip(doc, { name, color: t.color, tempo: c.song.tempo, frames: a.frames, rate: a.rate,
               size: 0, mtime: 0, path: c.clip.path, rel: relPath(outDir, c.clip.path),
               warpMode: (c.stem.kind === 'kick' || c.stem.kind === 'top') ? 0 : 4, lp }));
@@ -886,23 +905,26 @@ function stopPlay(){ if (!pl && !playing) return; pl = null; playing = null; nat
 window.onNative = (kind, data) => {
   if (kind === 'ended'){ pl = null; playing = null; draw(); }
   if (kind === 'data') start();
+  if (kind === 'mergeProgress' && mBusy != null){ mBusy = data; const b = $('#mergeBox .bar i'); if (b) b.style.width = data * 100 + '%'; }
   if (kind === 'folders') addFolders(data).catch(fail);
 };
 
 // ---------- Zeichnen ----------
 function chip(val, o){
   const ref = refOf(val), c = clipOf(ref); if (!c) return o.cell ? `<div class="chip lost" draggable="true" title="Datei nicht gefunden"><span class="t">fehlt</span>${rmBtn()}</div>` : '';
-  const col = colFor(c.stem.kind, 'A'), bg = c.old ? hex(c.old.color) : c.mix && c.mix.color != null ? hex(c.mix.color) : col ? hex(col.color) : '#9a9a9a';
+  const bg = chipBg(c);
   const gone = durs[c.clip.path] === 0 && waves[c.clip.path] && !waves[c.clip.path].length;   // Datei nicht lesbar
-  const pre = c.stem.stem.replace(/_.*$/, ''), num = (c.clip.name.match(/Clip \d+$/) || ['Full'])[0];
-  const label = c.old || c.mix ? c.clip.name : o.list ? num : narrow ? num.replace('Clip ', '#') : pre + ' ' + num;
+  const num = (c.clip.name.match(/Clip \d+$/) || ['Full'])[0];
+  const label = o.list && !c.mix ? num : !o.list && cellName(val) ? cellName(val) : narrow && !c.old && !c.mix ? num.replace('Clip ', '#') : clipLabel(c);
   const on = isOn(ref, o.id || null);
   if (gone) return `<div class="chip lost" draggable="${o.cell ? 'true' : 'false'}" title="Datei fehlt: ${esc(c.clip.path)}"><span class="t">${esc(label)} · fehlt</span>${o.cell ? rmBtn() : ''}</div>`;
-  return `<div class="chip ${on ? 'on' : ''} ${o.over ? 'over' : ''} ${o.id && sel.has(o.id) ? 'sel' : ''} ${o.id && o.id === cvCell ? 'cur' : ''}" draggable="${o.auto ? 'false' : 'true'}" data-ref="${esc(ref)}" style="background:${bg}${o.over ? ';animation-delay:-' + (Date.now() - overAt) + 'ms' : ''}" title="${esc(c.song.name + ' · ' + c.clip.name)}${o.list ? '\nPlay = vorhören' : '\nKlick = im Clip-Fenster zeigen · ⌘- oder ⇧-Klick = mehrere markieren'}">`
+  return `<div class="chip ${on ? 'on' : ''} ${o.over ? 'over' : ''} ${o.id && sel.has(o.id) ? 'sel' : ''} ${o.id && o.id === cvCell ? 'cur' : ''}" draggable="true" data-ref="${esc(ref)}" style="background:${bg}${o.over ? ';animation-delay:-' + (Date.now() - overAt) + 'ms' : ''}" title="${esc(c.song.name + ' · ' + c.clip.name)}${o.list ? '\nPlay = vorhören' : '\nKlick = im Clip-Fenster zeigen · ⌘- oder ⇧-Klick = mehrere markieren'}">`
     + `<span class="wv">${wavePath(c.clip.path)}${o.list ? '' : loopShade(val, c)}</span><b class="fill"></b>`
     + (o.list ? `<span class="pl ${on ? 'on' : ''}" data-play="${esc(ref)}" title="${on ? 'Stopp' : 'Vorhören'}"><svg><use href="#i-${on ? 'stop' : 'play'}"/></svg></span>` : '') + `<span class="t">${esc(label)}</span>`
-    + (o.cell ? rmBtn() : '') + '</div>';
+    + (o.cell ? rmBtn() : o.unmix ? `<span class="rm" data-unmix="${esc(c.clip.path)}" title="Aus der Liste nehmen (die Datei bleibt im Merge-Ordner)"><svg><use href="#i-x"/></svg></span>` : '') + '</div>';
 }
+function chipBg(c){ const col = colFor(c.stem.kind, 'A'); return c.old ? hex(c.old.color) : c.mix && c.mix.color != null ? hex(c.mix.color) : col ? hex(col.color) : '#9a9a9a'; }
+const clipLabel = c => c.old || c.mix ? c.clip.name : c.stem.stem.replace(/_.*$/, '') + ' ' + (c.clip.name.match(/Clip \d+$/) || ['Full'])[0];
 // Vorlauf grau, hinter dem Loop-Ende grau: so sieht man in der Waveform, was loopt
 function loopShade(val, c){
   const secs = durs[c.clip.path]; if (!secs) return '';
@@ -930,6 +952,45 @@ function drawSongs(){
       + `<span class="tri" data-open="${esc(s.key)}" title="Clips zeigen"><svg><use href="#i-${o ? 'tri-d' : 'tri'}"/></svg></span><b>${esc(s.name)}${sub}</b><span class="bpm num">${Math.round(s.tempo)} BPM</span>`
       + `<span class="unsong" data-unsong="${esc(s.key)}" title="Aus der Liste nehmen (der Ordner bleibt)"><svg><use href="#i-x"/></svg></span></div>${body}</div>`;
   }).join('') : '<div style="padding:8px 4px;color:var(--muted)">Noch keine Songs. Ordner hierher ziehen oder oben „Songs laden“.</div>';
+  const mx = Object.keys(mixes).filter(p => !mixes[p].hide);
+  if (mx.length) $('#songs').innerHTML += `<div class="song"><div class="sh" style="cursor:default" title="Zusammengeführte Spuren (Datenordner/Merge)"><span class="tri" data-mixopen="1"><svg><use href="#i-${mixOpen ? 'tri-d' : 'tri'}"/></svg></span><b>Merge</b><span class="bpm num">${mx.length}</span></div>`
+    + (mixOpen ? `<div class="stem">${mx.map(p => chip('mix:' + p, { list: true, unmix: true })).join('')}</div>` : '') + '</div>';
+  drawMerge();
+}
+// ---------- Merge-Feld unten links: Clips hineinziehen, „Mergen“ = eine Spur (Summe in 32-Bit-Float, verlustfrei) ----------
+let mq = [], mBusy = null, mixOpen = true;
+function drawMerge(){
+  const el = $('#mergeBox'); if (!el) return;
+  el.innerHTML = `<div class="mh"><span>Merge</span><span class="num">${mq.length || ''}</span></div>`
+    + (mq.length ? mq.map((m, i) => `<div class="mi" style="background:${m.bg}" title="${esc(m.path)}"><span>${esc(m.name)}</span><span class="rm" data-mq="${i}" title="Aus dem Merge-Feld nehmen"><svg><use href="#i-x"/></svg></span></div>`).join('')
+                 : '<div class="mt">Clips hierher ziehen</div>')
+    + (mBusy != null ? `<div class="bar"><i style="width:${mBusy * 100}%"></i></div>`
+       : mq.length > 1 ? '<button data-mergego="1" title="Zu einer WAV zusammenführen: 32-Bit-Float, ohne Normalisieren, verlustfrei">Mergen</button>' : '');
+}
+function addMerge(val){
+  const c = clipOf(refOf(val)); if (!c) return;
+  if (mq.some(m => m.path === c.clip.path)){ status('Der Clip liegt schon im Merge-Feld.'); return; }
+  mq.push({ path: c.clip.path, name: cellName(val) || clipLabel(c), bg: chipBg(c), tempo: c.song.tempo, kind: c.stem.kind, color: c.mix ? c.mix.color : c.old ? c.old.color : null });
+  drawMerge(); const el = $('#mergeBox'); el.scrollTop = el.scrollHeight;
+}
+// Gemeinsamer Kern: Dateien zusammenführen, Ergebnis in Datenordner/Merge, in die Bibliothek unter „Merge“
+async function mergeFiles(list){
+  const nm = list.map(m => m.name).filter((x, i, a) => a.indexOf(x) === i).join(' + ').slice(0, 80);
+  const stamp = new Date().toISOString().slice(0, 19).replace('T', ' ').replace(/:/g, '-');
+  const out = info.data + '/Merge/' + nm.replace(/[\/:]/g, '-') + ' ' + stamp + '.wav';
+  stopPlay(); mBusy = 0; drawMerge();
+  try {
+    const r = await native('mergeAudio', { paths: list.map(m => m.path), out });
+    mixes[r.path] = { name: nm, tempo: list[0].tempo, kind: list[0].kind, color: list[0].color };
+    durs[r.path] = r.frames / r.rate; mixOpen = true;
+    status(list.length + ' Spuren zu „' + nm + '“ zusammengeführt (32-Bit-Float-WAV, verlustfrei), liegt in Datenordner/Merge. Die Originale bleiben unverändert.');
+    return r.path;
+  } catch (e) { status('Zusammenführen geht nicht: ' + (e.message || e), null, true); return null; }
+  finally { mBusy = null; save(); draw(); }
+}
+async function runMerge(){
+  if (mq.length < 2 || mBusy != null) return;
+  const p = await mergeFiles(mq); if (p){ mq = []; drawMerge(); }
 }
 function drawGrid(){
   const lab = t => `<div class="lab">${t || ''}</div>`;
@@ -991,7 +1052,7 @@ function draw(){
   $('#build').textContent = base ? 'Set aktualisieren' : 'Set erstellen';
   $('#tplInfo').textContent = tpl ? tpl.name + (tpl.src ? ' (Kopie von ' + tpl.src + ')' : '') : 'Noch keine Vorlage gewählt.';
   const v = 'Version ' + info.version + ' · Build ' + info.build;
-  $('#verLine').textContent = v; $('#ver').textContent = v;
+  $('#ver').textContent = v;
   $('#dataPath').textContent = info.data || '–';
   setTog($('#optTempo'), opts.tempo); setTog($('#optNames'), opts.names);
 }
@@ -1020,6 +1081,7 @@ function target(e){
   const end = e.target.closest('#endrow, #empty');
   if (drag.type === 'clip'){
     const cell = e.target.closest('[data-cell]'); if (cell) return { el: cell, cls: 'drop' };
+    if (e.target.closest('#mergeBox')) return { el: $('#mergeBox'), cls: 'drop', merge: true };
     if (drag.from && e.target.closest('aside')) return { el: $('#aside'), cls: 'drop', remove: true };
   }
   if (drag.type === 'song'){
@@ -1053,6 +1115,7 @@ document.addEventListener('drop', e => {
   const t = target(e); if (!t) return;
   e.preventDefault();
   const d = drag; drag = null; clearDrop();
+  if (t.merge){ addMerge(d.val); return; }
   change(() => {
     if (d.type === 'clip'){
       if (t.remove){ setCell(d.from, null); return; }
@@ -1128,6 +1191,11 @@ document.addEventListener('click', e => {
   const del = e.target.closest('[data-del]'); if (del){ sel = new Set(); change(() => blocks.splice(+del.dataset.del, 1)); status('Block aus dem Line-up genommen. ⌘Z holt ihn zurück.'); return; }
   const add = e.target.closest('[data-addblk]'); if (add){ change(() => blocks.push(emptyBlock())); return; }
   const cv = e.target.closest('[data-cv]'); if (cv){ cvAction(cv.dataset.cv); return; }
+  const mqx = e.target.closest('[data-mq]'); if (mqx){ mq.splice(+mqx.dataset.mq, 1); drawMerge(); return; }
+  if (e.target.closest('[data-mergego]')){ runMerge(); return; }
+  if (e.target.closest('[data-mixopen]')){ mixOpen = !mixOpen; draw(); return; }
+  const um = e.target.closest('[data-unmix]'); if (um){ e.stopPropagation(); const m = mixes[um.dataset.unmix]; if (m){ m.hide = true; save(); draw(); } return; }
+  const cn = e.target.closest('[data-cvname]'); if (cn){ renameClip(cn); return; }
 });
 // ---------- Clip-Fenster (Doppelklick auf einen Clip im Raster) ----------
 // Startmarker und Loop-Klammer einstellen, auf dem Takt-Raster des Songs. Alt beim Ziehen = in Vierteln.
@@ -1158,7 +1226,7 @@ function drawClip(){
     if (!narrow) for (let q = 1; q < 4 && bars <= 8; q++) grid += `<b class="gl" style="left:${pc(k + q / 4)};opacity:.4"></b>`;
   }
   const on = isOn(cvRef, cvCell);
-  $('#cv').innerHTML = `<div class="cvh"><b>${c.old ? esc(c.clip.name) + ' · im Set' : esc(c.stem.stem) + ' · ' + esc((c.clip.name.match(/Clip \d+$/) || ['Full'])[0])}</b><span>${fmtBars(bars)} Takte · ${Math.round(c.song.tempo)} BPM · Start ${L.s - L.v >= 0 ? fmtBars(L.s - L.v + 1) : '−' + fmtBars(L.v - L.s)} · Loop ${fmtBars(L.l)} Takte${L.fromSet ? ' (wie im Set)' : L.auto ? ' (automatisch)' : ''}</span><span class="sp"></span>`
+  $('#cv').innerHTML = `<div class="cvh"><b class="cvn" data-cvname="1" title="Klick = umbenennen (im Raster und im Live-Set, nicht in der Bibliothek)">${esc(cellName(v) || defName(c))}</b>${c.old && !cellName(v) ? '<span>im Set</span>' : ''}<span>${fmtBars(bars)} Takte · ${Math.round(c.song.tempo)} BPM · Start ${L.s - L.v >= 0 ? fmtBars(L.s - L.v + 1) : '−' + fmtBars(L.v - L.s)} · Loop ${fmtBars(L.l)} Takte${L.fromSet ? ' (wie im Set)' : L.auto ? ' (automatisch)' : ''}</span><span class="sp"></span>`
     + (L.auto ? '' : `<button data-cv="auto" title="${c.old ? 'Startmarker und Loop wie im Set' : 'Startmarker und Loop wie von buildn erkannt'}">${c.old ? 'Wie im Set' : 'Automatisch'}</button>`)
     + (selCells().length > 1 ? `<span class="nsel">${selCells().length} markiert</span><button data-cv="merge" title="Markierte Spuren zu einer WAV zusammenführen (32-Bit-Float, verlustfrei)">Zusammenführen</button>` : '')
     + `<button class="icon" data-cv="play" title=""${on ? 'Stopp' : 'Ab Cursor abspielen'} (Leertaste)"><svg><use href="#i-${on ? 'stop' : 'play'}"/></svg></button>`
@@ -1169,6 +1237,23 @@ function drawClip(){
     + (L.v > 0 ? `<b class="pre" style="left:0;width:${pc(L.v)}"></b>` : '') + (L.v + L.l < bars - 0.01 ? `<b class="pre" style="left:${pc(L.v + L.l)};right:0"></b>` : '')
     + `<u class="cur" style="left:${cvCursor * 100}%"></u><i></i></div>`
     + `<div class="smk" title="Startmarker: hier beginnt der Clip beim Starten"><em data-h="s" style="left:${pc(L.s)}"></em></div></div>`;
+}
+const defName = c => c.old || c.mix ? c.clip.name : c.stem.stem + ' · ' + (c.clip.name.match(/Clip \d+$/) || ['Full'])[0];
+// Clip umbenennen: Klick auf den Namen oben im Clip-Fenster. Leer = wieder der ursprüngliche Name
+function renameClip(el){
+  const id = cvCell, v0 = cellVal(id), c = clipOf(refOf(v0)); if (!c) return;
+  const inp = document.createElement('input');
+  inp.className = 'cvn'; inp.value = cellName(v0) || defName(c); inp.spellcheck = false;
+  el.replaceWith(inp); inp.focus(); inp.select();
+  let done = false;
+  const finish = ok => {
+    if (done) return; done = true;
+    const t = inp.value.trim(), nm = !t || t === defName(c) ? null : t;
+    if (ok && nm !== cellName(cellVal(id))) change(() => setCell(id, cellPatch(cellVal(id), { nm })));
+    drawClip();
+  };
+  inp.addEventListener('keydown', k => { if (k.key === 'Enter') finish(true); if (k.key === 'Escape') finish(false); k.stopPropagation(); });
+  inp.addEventListener('blur', () => finish(true));
 }
 // Play/Stopp im Clip-Fenster: Play startet immer am Cursor, nicht da, wo gestoppt wurde
 function cvPlay(){ if (isOn(cvRef, cvCell)){ stopPlay(); drawClip(); } else cvPlayAt(cvCursor); }
@@ -1187,25 +1272,14 @@ function cvPlayAt(at){
 }
 // Markierte Spuren zu einer zusammenführen: Summe in 32-Bit-Float, als 32-Bit-Float-WAV, ohne Normalisieren und Dither = verlustfrei
 async function mergeSel(){
-  const ids = selCells(), seen = new Set(), paths = [];
-  const cs = ids.map(id => clipOf(refOf(cellVal(id)))).filter(Boolean);
-  for (const c of cs) if (!seen.has(c.clip.path)){ seen.add(c.clip.path); paths.push(c.clip.path); }
-  if (paths.length < 2){ status('Zum Zusammenführen mindestens zwei verschiedene Clips markieren (⌘- oder ⇧-Klick).'); return; }
-  const c0 = cs[0], nm = cs.map(c => c.old || c.mix ? c.clip.name : c.stem.stem.replace(/^\d+\s+/, '').replace(/_.*$/, '')).filter((x, i, a) => a.indexOf(x) === i).join(' + ').slice(0, 80);
-  const stamp = new Date().toISOString().slice(0, 19).replace('T', ' ').replace(/:/g, '-');
-  const out = info.data + '/Zusammengefuehrt/' + nm.replace(/[\/:]/g, '-') + ' ' + stamp + '.wav';
-  stopPlay(); busy(true, 'Spuren zusammenführen …', nm);
-  try {
-    const r = await native('mergeAudio', { paths, out });
-    busy(false);
-    const col = colOfKey(cvCell.split('|').slice(2).join('|'), +cvCell.split('|')[0]);
-    mixes[r.path] = { name: nm, tempo: c0.song.tempo, kind: c0.stem.kind, color: col ? col.color : null };
-    durs[r.path] = r.frames / r.rate;
-    const keep = cvCell;
-    change(() => { for (const id of ids) setCell(id, id === keep ? 'mix:' + r.path : null); });
-    sel = new Set([keep]); cvRef = 'mix:' + r.path; cvCursor = 0; drawClip(); drawGrid();
-    status(paths.length + ' Spuren zu „' + nm + '“ zusammengeführt (32-Bit-Float-WAV, verlustfrei). Die Originale bleiben unverändert. ⌘Z nimmt es zurück.');
-  } catch (e) { busy(false); status('Zusammenführen geht nicht: ' + (e.message || e), null, true); }
+  const ids = selCells(), list = [];
+  for (const id of ids){ const v = cellVal(id), c = clipOf(refOf(v)); if (c && !list.some(m => m.path === c.clip.path)) list.push({ path: c.clip.path, name: cellName(v) || clipLabel(c), tempo: c.song.tempo, kind: c.stem.kind, color: c.mix ? c.mix.color : c.old ? c.old.color : null }); }
+  if (list.length < 2){ status('Zum Zusammenführen mindestens zwei verschiedene Clips markieren (⌘- oder ⇧-Klick).'); return; }
+  const keep = cvCell, col = colOfKey(keep.split('|').slice(2).join('|'), +keep.split('|')[0]);
+  if (col) list[0].color = col.color;
+  const p = await mergeFiles(list); if (!p) return;
+  change(() => { for (const id of ids) setCell(id, id === keep ? 'mix:' + p : null); });
+  sel = new Set([keep]); cvRef = 'mix:' + p; cvCursor = 0; drawClip(); drawGrid();
 }
 function cvAction(k){
   if (k === 'play'){ cvPlay(); return; }
@@ -1344,7 +1418,7 @@ $('#clearSongs').onclick = async () => {
 $('#dReveal').onclick = () => native('dataReveal');
 $('#dRelink').onclick = () => native('dataRelink');
 $('#dMove').onclick = () => native('dataMove');
-$('#upd').onclick = $('#verLine').onclick = () => native('checkUpdates');
+$('#upd').onclick = () => native('checkUpdates');
 
 // ---------- Start ----------
 async function start(){

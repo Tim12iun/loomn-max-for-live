@@ -25,8 +25,10 @@ Ablauf
    Laufende Clips pulsieren leicht und laufen von links dunkel voll (zeigt die Position), beim Loop wieder hell.
    Klick auf einen Clip = im Clip-Fenster zeigen. Cmd- oder Shift-Klick = mehrere markieren (heller Rahmen).
    Klick in die Waveform spielt alle markierten Clips zusammen an derselben Stelle ab, z. B. alle Full-Stems
-   gleichzeitig durch den Song spulen. "Zusammenfuehren" (ab 2 markierten) mischt sie zu einer WAV in
-   Datenordner/Zusammengefuehrt: 32-Bit-Float, ohne Normalisieren, verlustfrei, Originale bleiben. Cmd+Z = zurueck.
+   gleichzeitig durch den Song spulen. "Zusammenfuehren" (ab 2 markierten) mischt sie zu einer Spur.
+   Merge-Feld unten links: Clips hineinziehen, "Mergen" = eine WAV in Datenordner/Merge, steht links unter "Merge".
+   Zusammengefuehrt wird in 32-Bit-Float ohne Normalisieren: verlustfrei, kein Clipping, Originale bleiben.
+   Klick auf den Namen oben im Clip-Fenster = Clip umbenennen (gilt im Raster und im Live-Set, nicht in der Bibliothek).
    Clip-Fenster: Klick in die Waveform setzt den Cursor und spielt ab dort,
    Leertaste = Play/Stopp, Play startet immer wieder am Cursor. Loop-Klammer in der Mitte ziehen = ganzen Loop verschieben.
    Play vor „Clips 1“, „Clips 2“, „Full“ = ganze Zeile zusammen abspielen (wie eine Szene in Live).
@@ -39,7 +41,7 @@ Ablauf
    offene Set (der alte Stand kommt vorher nach Datenordner/Backups). Der rechte Block (Serum, Vocal Chain, MIDI ...)
    rutscht immer mit dem Abstand aus der Vorlage unter die Songs. Cmd+Z macht rueckgaengig.
 
-Zahnrad: Szenen nach dem Song benennen, Song-Tempo in die Szenen schreiben, Datenordner, Version und Update.
+Zahnrad: Version und Update, Szenen nach dem Song benennen, Song-Tempo in die Szenen schreiben, Datenordner, Version und Update.
 
 Bekannte Grenzen
 - Die Clips verweisen auf die Dateien in den Paket-Ordnern. Pakete nicht verschieben, sonst sucht Live sie.
