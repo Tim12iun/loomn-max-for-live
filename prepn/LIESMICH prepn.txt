@@ -27,6 +27,8 @@ Ablauf
    solche Gruppe aufgenommen, mit ihren Effekten, ihrer Lautstaerke und Automation.
    Gruppenname zaehlt: Heisst eine Gruppe z. B. "Melody Group" und ist mindestens die Haelfte darin Melody,
    kommt die ganze Gruppe in den Melody-Stem (auch "FX 1" darin). Ausnahme Drums: Kick, Clap, Hi-Hat bleiben getrennt.
+   Tops + FX (Zahnrad, Standard an): FX laufen beim Aufnehmen zusaetzlich in den Tops-Stem,
+   weil es keine eigene FX-Full-Spalte gibt. Der FX-Stem wird trotzdem einzeln aufgenommen.
 2. Song-Name pruefen, "Rendern" klicken. Das Device legt unten pro Farbe eine Stem-Spur an
    (z. B. TOPS_IMSOLOST 132) und nimmt den Song einmal in Echtzeit auf. Waehrenddessen nichts anfassen.
    Danach sind die Stem-Spuren stumm geschaltet, damit nichts doppelt klingt.
