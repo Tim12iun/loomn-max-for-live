@@ -25,6 +25,8 @@ Ablauf
    Gruppen: Ist eine Gruppe eingefaerbt, wird die ganze Gruppe genommen.
    Auch graue Gruppen: Gehoeren alle Spuren darin zu einem Stem (z. B. Tops Group), wird die oberste
    solche Gruppe aufgenommen, mit ihren Effekten, ihrer Lautstaerke und Automation.
+   Gruppenname zaehlt: Heisst eine Gruppe z. B. "Melody Group" und ist mindestens die Haelfte darin Melody,
+   kommt die ganze Gruppe in den Melody-Stem (auch "FX 1" darin). Ausnahme Drums: Kick, Clap, Hi-Hat bleiben getrennt.
 2. Song-Name pruefen, "Rendern" klicken. Das Device legt unten pro Farbe eine Stem-Spur an
    (z. B. TOPS_IMSOLOST 132) und nimmt den Song einmal in Echtzeit auf. Waehrenddessen nichts anfassen.
    Danach sind die Stem-Spuren stumm geschaltet, damit nichts doppelt klingt.
