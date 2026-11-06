@@ -9,7 +9,7 @@
 //    gespeichert werden sie in unsichtbaren Live-Zahlenfeldern (bleiben im Set).
 //  - im Schwebe-Fenster (Argument "win"): zeichnet alles inkl. Regler und schickt Bedienung an das Device.
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.3.1";
+var VERSION = "0.3.2";
 var PLUGIN_ID = "bpmchanger";
 var WIN = jsarguments.length > 1 && jsarguments[1] === "win";
 try { if (!WIN && box && box.rect && box.rect[2] - box.rect[0] > 260) WIN = true; } catch (e) {} // Fenster ist breiter als die Device-Spalte
@@ -160,10 +160,18 @@ var mirrorTask = new Task(mirror, this);
 var playTask = new Task(playChanged, this);
 
 // ---------- Dateien / Einstellungen ----------
+// Ordner des Devices = .../LOOMN-MAX4LIVE/bpmchanger/. Update und Einstellungen landen nur dort.
+function fileExists(path) { var f = new File(path, "read"); var ok = f.isopen; if (ok) f.close(); return ok; }
 function deviceDir() {
-  var fp = this.patcher ? this.patcher.filepath : "";
+  var fp = this.patcher ? String(this.patcher.filepath || "") : "";
   if (!fp) return "";
-  return fp.substring(0, fp.lastIndexOf("/") + 1);
+  var dir;
+  if (/\.(amxd|maxpat)$/i.test(fp)) dir = fp.substring(0, fp.lastIndexOf("/") + 1); // Pfad mit Dateiname
+  else dir = fp.replace(/\/?$/, "/");                                               // Pfad ist schon der Ordner
+  // Liegt das Device (noch) eine Ebene zu hoch, den eigenen Unterordner nehmen
+  if (!/\/bpmchanger\/$/.test(dir) && fileExists(dir + "bpmchanger/bpmchanger.js")) dir += "bpmchanger/";
+  post("BPM Changer: Ordner " + dir + "\n");
+  return dir;
 }
 function readText(path) {
   var f = new File(path, "read", "TEXT"); if (!f.isopen) return null;
