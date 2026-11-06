@@ -12,6 +12,9 @@ final class WebHost: NSObject, ObservableObject, WKScriptMessageHandlerWithReply
     weak var updater: ToolUpdater?
     /// Vorhören: ein Clip oder eine ganze Zeile (mehrere Spieler, gemeinsam gestartet)
     private var players: [AVAudioPlayer] = []
+    /// Session wie in Live: je Spur höchstens ein laufender Clip, im Master-Tempo (rate), Start auf den Takt
+    private var slots: [String: AVAudioPlayer] = [:]
+    private func stopSlots() { slots.values.forEach { $0.stop() }; slots = [:] }
 
     override init() {
         let c = WKWebViewConfiguration()
@@ -138,7 +141,7 @@ final class WebHost: NSObject, ObservableObject, WKScriptMessageHandlerWithReply
             let f = try AVAudioFile(forReading: URL(fileURLWithPath: str("path")))
             return ["frames": f.length, "rate": f.fileFormat.sampleRate]
         case "play":
-            players.forEach { $0.stop() }
+            players.forEach { $0.stop() }; stopSlots()
             let p = try AVAudioPlayer(contentsOf: URL(fileURLWithPath: str("path")))
             p.delegate = self
             if let at = b["at"] as? Double, at > 0 { p.currentTime = min(at, 0.999) * p.duration }
@@ -148,7 +151,7 @@ final class WebHost: NSObject, ObservableObject, WKScriptMessageHandlerWithReply
             return true
         case "playRow":
             // ganze Zeile wie eine Szene in Live: alle Clips sample-genau zusammen starten
-            players.forEach { $0.stop() }
+            players.forEach { $0.stop() }; stopSlots()
             var ps: [AVAudioPlayer] = []
             for it in b["items"] as? [[String: Any]] ?? [] {
                 guard let path = it["path"] as? String, let p = try? AVAudioPlayer(contentsOf: URL(fileURLWithPath: path)) else { continue }
@@ -161,7 +164,38 @@ final class WebHost: NSObject, ObservableObject, WKScriptMessageHandlerWithReply
             if let t = ps.first.map({ $0.deviceCurrentTime + 0.08 }) { ps.forEach { $0.play(atTime: t) } }
             players = ps
             return ps.count
-        case "stop": players.forEach { $0.stop() }; players = []; return true
+        case "stop": players.forEach { $0.stop() }; players = []; stopSlots(); return true
+        case "launch":
+            // Clips starten wie in Live: alle neuen zusammen nach delay Sekunden (nächster Takt), auf denselben Spuren
+            // laufende Clips (und die Spuren in "stop") hören genau dann auf
+            players.forEach { $0.stop() }; players = []
+            let delay = max(0, b["delay"] as? Double ?? 0)
+            var news: [(String, AVAudioPlayer)] = []
+            for it in b["items"] as? [[String: Any]] ?? [] {
+                guard let slot = it["slot"] as? String, let path = it["path"] as? String,
+                      let p = try? AVAudioPlayer(contentsOf: URL(fileURLWithPath: path)) else { continue }
+                p.delegate = self
+                p.enableRate = true
+                p.rate = Float(min(2, max(0.5, it["rate"] as? Double ?? 1)))
+                if let at = it["at"] as? Double, at > 0 { p.currentTime = min(at, 0.999) * p.duration }
+                p.numberOfLoops = -1
+                p.prepareToPlay()
+                news.append((slot, p))
+            }
+            let clock = (news.first?.1 ?? slots.values.first)?.deviceCurrentTime ?? 0
+            let t = clock + delay
+            news.forEach { $0.1.play(atTime: t) }
+            let old = ((b["stop"] as? [String] ?? []) + news.map { $0.0 }).compactMap { slots.removeValue(forKey: $0) }
+            for (slot, p) in news { slots[slot] = p }
+            if !old.isEmpty {
+                if delay < 0.01 { old.forEach { $0.stop() } }
+                else { DispatchQueue.main.asyncAfter(deadline: .now() + delay) { old.forEach { $0.stop() } } }
+            }
+            return news.count
+        case "rates":
+            // Master-Tempo geändert: laufende Clips schneller/langsamer, Tonhöhe bleibt
+            for (slot, r) in b["rates"] as? [String: Double] ?? [:] { slots[slot]?.rate = Float(min(2, max(0.5, r))) }
+            return true
         case "pos":
             guard let p = players.first, p.isPlaying, p.duration > 0 else { return -1 }
             return p.currentTime / p.duration
@@ -265,7 +299,7 @@ final class WebHost: NSObject, ObservableObject, WKScriptMessageHandlerWithReply
     }
 
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-        DispatchQueue.main.async { MainActor.assumeIsolated { if !self.players.contains(where: { $0.isPlaying }) { self.send("ended") } } }
+        DispatchQueue.main.async { MainActor.assumeIsolated { if !self.players.contains(where: { $0.isPlaying }) && self.slots.isEmpty { self.send("ended") } } }
     }
 }
 

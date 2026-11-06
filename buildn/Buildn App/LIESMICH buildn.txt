@@ -22,6 +22,11 @@ Ablauf
    A/B: Song 1 liegt auf A, Song 2 auf B, Song 3 auf A ... und passt sich beim Verschieben selbst an.
    Full-Clip im Raster in eine andere Zeile ziehen = alle Full-Stems des Songs wandern mit.
    Beim Ziehen: leerer Block = orange Rahmen, zwischen belegten Bloecken oeffnet sich eine Luecke zum Einfuegen.
+   Mini-Ableton zum Testen von Uebergaengen: Play-Dreieck am Clip = starten, nochmal = stoppen. Laeuft schon
+   etwas, wartet der Start auf den naechsten Takt (Dreieck blinkt). Je Spur laeuft ein Clip. Oben die BPM:
+   alle Clips laufen in diesem Tempo (Tonhoehe bleibt), beim ersten Start wird das Song-Tempo uebernommen.
+   Play vor einer Zeile = Szene: startet die Zeile, Spuren ohne Clip in der Zeile hoeren auf. Leertaste oder
+   das Quadrat neben den BPM = alles stoppen.
    Laufende Clips pulsieren leicht und laufen von links dunkel voll (zeigt die Position), beim Loop wieder hell.
    Klick auf einen Clip = im Clip-Fenster zeigen. Cmd- oder Shift-Klick = mehrere markieren (heller Rahmen).
    Klick in die Waveform spielt alle markierten Clips zusammen an derselben Stelle ab, z. B. alle Full-Stems
