@@ -2,7 +2,7 @@
 // Farben -> Spalten. "Rendern" nimmt pro Spalte einen Full-Stem unten im Projekt auf (Echtzeit).
 // "Paket" schreibt einen Song-Ordner: Full-Stems, markierte Passagen als Clips, Serum-MIDI (JSON).
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.9.2";
+var VERSION = "0.9.3";
 var PLUGIN_ID = "setmaker-prep";
 inlets = 1;
 outlets = 2; // 0 -> jweb (über s ---toweb), 1 -> prepn_pkg.js (node.script)
@@ -292,6 +292,20 @@ var SM = (function () {
       else if (byCat[ov]) { rw.cat = ov; rw.source = "manual"; rw.conf = ""; rw.why = ["Von Hand"]; }
     }
     // Gruppen: alle Spuren darin gleiche Kategorie -> Gruppe bekommt sie; gemischt -> Rest
+    // Alle Kategorien in derselben Spalte -> passende Kategorie für die Gruppe: ihr eigener Name (z. B. "Tops Group"), sonst die Sammel-Kategorie der Spalte (Drums), sonst die häufigste
+    function sameLaneCat(gr, leafCats) {
+      var lane = null, best = null;
+      for (var k in leafCats) {
+        var l = byCat[k] ? (byCat[k].lane || "") : "";
+        if (!l || (lane !== null && l !== lane)) return null;
+        lane = l;
+        if (!best || leafCats[k] > leafCats[best]) best = k;
+      }
+      if (gr.cat && byCat[gr.cat] && byCat[gr.cat].lane === lane) return gr.cat;
+      for (var f = 0; f < cats.length; f++) if (cats[f].lane === lane && cats[f].fallback) return cats[f].id; // z. B. Drums
+      return best;
+    }
+    var laneCat;
     if (o.groups) {
       for (var gi = rows.length - 1; gi >= 0; gi--) {
         var gr = rows[gi];
@@ -303,11 +317,15 @@ var SM = (function () {
           while (anc) { if (anc === gr) { inside = true; break; } anc = anc.group ? byId[anc.group] : null; }
           if (!inside) continue;
           nLeaf++;
-          if (lr.cat) { nKnown++; leafCats[lr.cat] = 1; if (lr.source === "group") inherited++; }
+          if (lr.cat) { nKnown++; leafCats[lr.cat] = (leafCats[lr.cat] || 0) + 1; if (lr.source === "group") inherited++; }
         }
         var keys = []; for (var kc in leafCats) keys.push(kc);
         if (nLeaf && nKnown === nLeaf && keys.length === 1) {
           if (gr.cat !== keys[0]) { gr.cat = keys[0]; gr.source = "auto"; gr.conf = "sicher"; gr.why = ["Alle " + nLeaf + " Spuren in der Gruppe: " + byCat[keys[0]].label]; }
+        } else if (nLeaf && nKnown === nLeaf && (laneCat = sameLaneCat(gr, leafCats))) {
+          // Alle Spuren in derselben Spalte (z. B. Tops + Hi-Hat): Gruppe nicht grau, sondern Farbe dieser Spalte.
+          // Sonst fehlt bei prepn die Gruppe (mit ihrer Automation und ihren Effekten) im Stem.
+          gr.cat = laneCat; gr.source = "auto"; gr.conf = "sicher"; gr.why = ["Alle " + nLeaf + " Spuren in der Spalte " + byCat[laneCat].label];
         } else if (nKnown > inherited) {
           gr.cat = null; gr.source = "auto"; gr.conf = ""; gr.why = ["Gemischte Gruppe"];
         }
@@ -508,6 +526,7 @@ function droplane(id){
 var settings = null;
 var cfg = { colors: {}, cut: null, rest: null }; // für die UI: Farbe pro Spalte
 var job = null;                        // laufende Aufnahme
+var renderNote = "";                   // Hinweis für die Meldung nach der Aufnahme
 var task = null;
 
 // ---------- Hilfen ----------
@@ -646,27 +665,96 @@ function hello(){
 }
 
 // ---------- Spuren nach Farbe einsortieren ----------
+// Grundregel: Farbe = Spalte. Liegt eine Spur in einer Gruppe, die als Ganzes zu derselben Spalte gehört,
+// wird die oberste solche Gruppe aufgenommen (mit ihren Effekten, ihrer Lautstärke und Automation), nicht die Spuren darin.
+// Eine Gruppe gehört zu einer Spalte, wenn sie diese Farbe hat ODER (egal welche Farbe, z. B. grau von sortn)
+// alle eingefärbten Spuren darin zu genau dieser Spalte gehören. Ungefärbte Spuren mit Clips darin sind nur erlaubt,
+// wenn der Gruppenname zur Spalte passt (z. B. "Tops Group" -> Tops), sonst bleibt die Gruppe außen vor.
 function scan(){
   var song = new LiveAPI("live_set");
   var tIds = ids(song, "tracks"), tracks = [];
   for (var i = 0; i < tIds.length; i++){
     var t = byId(tIds[i]);
-    tracks.push({ id: tIds[i], api: t, name: g(t, "name"), color: n(t, "color_index"),
-      midi: n(t, "has_midi_input") === 1, group: n(t, "is_grouped") ? ids(t, "group_track")[0] : null });
+    tracks.push({ id: tIds[i], api: t, name: g(t, "name"), color: n(t, "color_index"), isGroup: n(t, "is_foldable") === 1,
+      midi: n(t, "has_midi_input") === 1, group: n(t, "is_grouped") ? ids(t, "group_track")[0] : null, lane: null, stem: false });
   }
   var byIdMap = {}; for (var k = 0; k < tracks.length; k++) byIdMap[tracks[k].id] = tracks[k];
-  var res = { lanes: {}, stems: {} };
+  var res = { lanes: {}, stems: {}, mixed: [] };
   for (var j = 0; j < tracks.length; j++){
     var tr = tracks[j];
-    if (STEM_RE.test(tr.name)){ res.stems[tr.name.split("_")[0]] = tr; continue; }
-    var laneId = laneOfColor(tr.color);
-    if (!laneId) continue;
-    // Wenn die Gruppe schon zur selben Spalte gehört, kommt der Ton über die Gruppe
-    var parent = tr.group ? byIdMap[tr.group] : null;
-    if (parent && laneOfColor(parent.color) === laneId) continue;
-    (res.lanes[laneId] = res.lanes[laneId] || []).push(tr);
+    if (STEM_RE.test(tr.name)){ tr.stem = true; res.stems[tr.name.split("_")[0]] = tr; continue; }
+    tr.lane = laneOfColor(tr.color);
+  }
+  function inside(tr, grp){
+    var p = tr.group ? byIdMap[tr.group] : null, d = 0;
+    while (p && d++ < 30){ if (p === grp) return true; p = p.group ? byIdMap[p.group] : null; }
+    return false;
+  }
+  for (var a = 0; a < tracks.length; a++){
+    var gr = tracks[a];
+    if (!gr.isGroup || gr.stem || gr.lane) continue;
+    var lanes = {}, nLanes = 0, loose = [];
+    for (var b = 0; b < tracks.length; b++){
+      var c = tracks[b];
+      if (c.stem || !inside(c, gr)) continue;
+      var cl = laneOfColor(c.color);
+      if (cl){ if (!lanes[cl]){ lanes[cl] = 1; nLanes++; } }
+      else if (!c.isGroup) loose.push(c);
+    }
+    if (nLanes !== 1){ if (nLanes > 1) res.mixed.push(gr); continue; }
+    var laneId; for (var lk in lanes) laneId = lk;
+    if (loose.length && !nameFitsLane(gr.name, laneId)){
+      var sounding = false;
+      for (var e = 0; e < loose.length && !sounding; e++) if (ids(loose[e].api, "arrangement_clips").length) sounding = true;
+      if (sounding){ res.mixed.push(gr); continue; }
+    }
+    gr.lane = laneId;
+  }
+  for (var m = 0; m < tracks.length; m++){
+    var tm = tracks[m];
+    if (tm.stem || !tm.lane) continue;
+    // Gehört eine übergeordnete Gruppe schon zur selben Spalte, kommt der Ton über die Gruppe
+    var p = tm.group ? byIdMap[tm.group] : null, covered = false, dep = 0;
+    while (p && dep++ < 30){ if (p.lane === tm.lane){ covered = true; break; } p = p.group ? byIdMap[p.group] : null; }
+    if (covered) continue;
+    (res.lanes[tm.lane] = res.lanes[tm.lane] || []).push(tm);
   }
   return res;
+}
+// Passt der Name (z. B. "Tops Group") zu einer Spalte? Spaltenname oder ein Keyword einer Kategorie dieser Spalte als Wort.
+function nameFitsLane(name, laneId){
+  var words = String(name || "").toLowerCase().split(/[^a-z0-9äöüß]+/), keys = [];
+  var ln = laneById(laneId); if (ln){ keys.push(String(ln.label).toLowerCase()); keys.push(String(ln.short).toLowerCase()); }
+  for (var i = 0; i < settings.categories.length; i++){
+    var c = settings.categories[i];
+    if (c.lane !== laneId) continue;
+    keys.push(String(c.label || "").toLowerCase());
+    for (var k = 0; k < (c.keywords || []).length; k++) keys.push(String(c.keywords[k]).toLowerCase());
+  }
+  for (var w = 0; w < words.length; w++){
+    if (!words[w]) continue;
+    for (var q = 0; q < keys.length; q++){
+      var key = keys[q].replace(/[^a-z0-9äöüß]+/g, "");
+      if (!key) continue;
+      if (words[w] === key || (key.length > 3 && words[w].indexOf(key) === 0)) return true;
+    }
+  }
+  return false;
+}
+// Gemischte Gruppen über den Quellen: deren Effekte/Lautstärke/Automation können nicht in einen Stem.
+// Nur melden, wenn die Gruppe den Ton wirklich verändert (Geräte, Lautstärke nicht 0 dB oder Automation).
+function mixedNote(s){
+  var names = [];
+  for (var i = 0; i < s.mixed.length; i++){
+    var gr = s.mixed[i], changes = false;
+    try {
+      if (ids(gr.api, "devices").length) changes = true;
+      var vol = new LiveAPI("id " + gr.id + " mixer_device volume");
+      if (!changes && Number(vol.id)) changes = Math.abs(n(vol, "value") - 0.85) > 0.005 || n(vol, "automation_state") > 0;
+    } catch (e) {}
+    if (changes) names.push(gr.name);
+  }
+  return names.length ? " Hinweis: " + names.join(", ") + " enthält Spuren aus mehreren Stems. Effekte/Lautstärke dieser Gruppe sind nicht in den Stems." : "";
 }
 
 function refresh(){
@@ -869,6 +957,7 @@ function render(songNameEnc){
   if (isBusy()) return;
   var songName = decodeURIComponent(songNameEnc || "SONG").toUpperCase();
   var s = scan();
+  renderNote = mixedNote(s);
   var plan = [], srcs = [], endTime = 0, startTime = -1;
   for (var l = 0; l < LANES.length; l++){
     var lane = LANES[l], src = s.lanes[lane.id];
@@ -1090,6 +1179,7 @@ function finish(aborted){
     msg = (aborted ? "Abgebrochen. " : "") + ok.length + " Full-Stems liegen unten (stumm): " + ok.join(", ") + ".";
     if (empty.length) msg += " Ohne Aufnahme (gelöscht): " + empty.join(", ") + ".";
     if (late.length) msg += " ACHTUNG, Anfang fehlt: " + late.join(", ") + ".";
+    msg += renderNote;
     msg += aborted ? " Stem-Spuren löschen und neu rendern." : " Jetzt in den Stem-Spuren Passagen markieren und 0 drücken, dann „Paket“.";
   }
   showDevice();

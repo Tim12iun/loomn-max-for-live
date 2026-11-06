@@ -277,6 +277,20 @@ var SM = (function () {
       else if (byCat[ov]) { rw.cat = ov; rw.source = "manual"; rw.conf = ""; rw.why = ["Von Hand"]; }
     }
     // Gruppen: alle Spuren darin gleiche Kategorie -> Gruppe bekommt sie; gemischt -> Rest
+    // Alle Kategorien in derselben Spalte -> passende Kategorie für die Gruppe: ihr eigener Name (z. B. "Tops Group"), sonst die Sammel-Kategorie der Spalte (Drums), sonst die häufigste
+    function sameLaneCat(gr, leafCats) {
+      var lane = null, best = null;
+      for (var k in leafCats) {
+        var l = byCat[k] ? (byCat[k].lane || "") : "";
+        if (!l || (lane !== null && l !== lane)) return null;
+        lane = l;
+        if (!best || leafCats[k] > leafCats[best]) best = k;
+      }
+      if (gr.cat && byCat[gr.cat] && byCat[gr.cat].lane === lane) return gr.cat;
+      for (var f = 0; f < cats.length; f++) if (cats[f].lane === lane && cats[f].fallback) return cats[f].id; // z. B. Drums
+      return best;
+    }
+    var laneCat;
     if (o.groups) {
       for (var gi = rows.length - 1; gi >= 0; gi--) {
         var gr = rows[gi];
@@ -288,11 +302,15 @@ var SM = (function () {
           while (anc) { if (anc === gr) { inside = true; break; } anc = anc.group ? byId[anc.group] : null; }
           if (!inside) continue;
           nLeaf++;
-          if (lr.cat) { nKnown++; leafCats[lr.cat] = 1; if (lr.source === "group") inherited++; }
+          if (lr.cat) { nKnown++; leafCats[lr.cat] = (leafCats[lr.cat] || 0) + 1; if (lr.source === "group") inherited++; }
         }
         var keys = []; for (var kc in leafCats) keys.push(kc);
         if (nLeaf && nKnown === nLeaf && keys.length === 1) {
           if (gr.cat !== keys[0]) { gr.cat = keys[0]; gr.source = "auto"; gr.conf = "sicher"; gr.why = ["Alle " + nLeaf + " Spuren in der Gruppe: " + byCat[keys[0]].label]; }
+        } else if (nLeaf && nKnown === nLeaf && (laneCat = sameLaneCat(gr, leafCats))) {
+          // Alle Spuren in derselben Spalte (z. B. Tops + Hi-Hat): Gruppe nicht grau, sondern Farbe dieser Spalte.
+          // Sonst fehlt bei prepn die Gruppe (mit ihrer Automation und ihren Effekten) im Stem.
+          gr.cat = laneCat; gr.source = "auto"; gr.conf = "sicher"; gr.why = ["Alle " + nLeaf + " Spuren in der Spalte " + byCat[laneCat].label];
         } else if (nLeaf) {
           // Gemischte Gruppe: Farbe = Rest (damit nichts doppelt gezählt wird), Name aber trotzdem sauber:
           // 1. eigener Name passt zu einer Kategorie (z. B. "DRUMS"), 2. alle Spuren in derselben Spalte (z. B. Snare + Clap -> Drums)
