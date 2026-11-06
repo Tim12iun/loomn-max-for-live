@@ -1,4 +1,4 @@
-BPM Changer v0.3.1 (Test-Version) – Tempo weich aendern
+BPM Changer v0.3.2 (Test-Version) – Tempo weich aendern
 Fuer Songwechsel im Set: Tempo per Knopf (auch per MIDI-Controller) oder als Rampe ueber eine Anzahl Takte.
 BPM Changer arbeitet komplett eigenstaendig, unabhaengig von prepn und sortn.
 
