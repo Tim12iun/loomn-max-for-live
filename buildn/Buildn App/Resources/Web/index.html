@@ -25,7 +25,7 @@ button.main:hover{background:#ff6c36}
 .hidden{display:none!important}
 .sec{font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 header{display:flex;align-items:center;gap:8px;padding:0 12px 10px;flex:none}
-.tpl{display:flex;align-items:center;gap:8px;min-width:0;max-width:420px;height:32px;padding:0 12px;border-radius:7px;background:var(--hi);cursor:pointer}
+.tpl{white-space:nowrap;display:flex;align-items:center;gap:8px;min-width:0;max-width:420px;height:32px;padding:0 12px;border-radius:7px;background:var(--hi);cursor:pointer}
 .tpl:hover{background:var(--hi2)}
 .tpl b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
 .tpl.missing{box-shadow:inset 0 0 0 1px var(--accent)}
@@ -148,7 +148,7 @@ input.rename{flex:1;min-width:0;height:20px;background:var(--bg);color:var(--tex
 #empty a{color:var(--accent);cursor:pointer}
 .wv b.pre{position:absolute;top:-2px;bottom:-2px;background:rgba(20,20,20,.38)}
 .center{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
-#cv{flex:none;height:clamp(170px,32vh,320px);background:var(--surface);border-radius:12px;display:flex;flex-direction:column;padding:8px 12px 10px;gap:4px}
+#cv{flex:none;height:clamp(118px,32vh,320px);background:var(--surface);border-radius:12px;display:flex;flex-direction:column;padding:8px 12px 10px;gap:4px}
 .cvh{display:flex;align-items:center;gap:10px;height:28px}
 .cvh b{font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cvh span{color:var(--muted);font-size:14px;white-space:nowrap}
@@ -175,6 +175,21 @@ input.rename{flex:1;min-width:0;height:20px;background:var(--bg);color:var(--tex
 .smk em{top:0;bottom:auto;height:14px;margin-left:-6px;width:12px}
 .smk em::after{content:"";position:absolute;left:0;top:2px;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:10px solid var(--text)}
 .chip.sel{box-shadow:0 0 0 2px var(--text)}
+/* kleines oder schmales Fenster: alles bleibt nutzbar, nur kompakter */
+@media (max-width:900px){
+  :root{--lab:136px}
+  aside{width:150px}
+  #openSet,#addSongs{font-size:0;gap:0;padding:0 9px}
+  button.main{min-width:0;padding:0 12px}
+  .tpl .k{display:none}
+  .tpl{padding:0 10px}
+}
+@media (max-height:560px){
+  :root{--rh:21px}
+  header{padding-bottom:6px}
+  .wrap{gap:6px}
+  #cv{height:clamp(110px,30vh,200px);padding:6px 10px 6px}
+}
 </style>
 </head>
 <body>
