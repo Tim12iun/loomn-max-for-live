@@ -9,7 +9,7 @@
 //    gespeichert werden sie in unsichtbaren Live-Zahlenfeldern (bleiben im Set).
 //  - im Schwebe-Fenster (Argument "win"): zeichnet alles inkl. Regler und schickt Bedienung an das Device.
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.3.0";
+var VERSION = "0.3.1";
 var PLUGIN_ID = "bpmchanger";
 var WIN = jsarguments.length > 1 && jsarguments[1] === "win";
 try { if (!WIN && box && box.rect && box.rect[2] - box.rect[0] > 260) WIN = true; } catch (e) {} // Fenster ist breiter als die Device-Spalte
@@ -285,7 +285,14 @@ function snapNow() {
 }
 
 // ---------- Rampe ----------
-function setBars(v) { bars = Math.max(1, Math.min(64, Math.round(Number(v)) || 1)); redraw(); }
+var BAR_OPTS = [1, 2, 4, 8, 16, 32, 64];
+// Takte nur 1/2/4/8/16/32/64: andere Werte (alte Sets, MIDI) auf den nächsten erlaubten Wert
+function snapBars(v) {
+  v = Number(v) || 16; var best = BAR_OPTS[0];
+  for (var i = 0; i < BAR_OPTS.length; i++) if (Math.abs(BAR_OPTS[i] - v) < Math.abs(best - v)) best = BAR_OPTS[i];
+  return best;
+}
+function setBars(v) { bars = snapBars(v); redraw(); }
 function setRampTo(v) { rampTo = Math.max(60, Math.min(200, Math.round(Number(v)) || rampTo)); redraw(); }
 function start(v) {
   if (WIN || !song) return;
@@ -426,8 +433,8 @@ function fit(s, w, size, bold) { s = String(s); if (textW(s, size, bold) <= w) r
 // Bereiche (in 300 x 169, Fenster wird skaliert)
 var LW = 214; // linke Spalte (Device: rechts davon liegen nur Tempo-Knopf und Start als echte Live-Regler)
 var GEAR = { x: 188, y: 4, w: 22, h: 20 }, POP = { x: 162, y: 4, w: 22, h: 20 };
-var PILL = { x: 112, y: 27, w: 34, h: 16 }, SEG = { x: 112, y: 47, w: 92, h: 18 }, UPD = { x: 0, y: 69, w: 20, h: 16 };
-var R_BARS = { x: 62, y: 98, w: 68, h: 18 }, R_ZIEL = { x: 136, y: 98, w: 68, h: 18 };
+var PILL = { x: 112, y: 25, w: 34, h: 16 }, SEG = { x: 112, y: 44, w: 92, h: 18 }, UPD = { x: 0, y: 64, w: 20, h: 16 };
+var R_ZIEL = { x: 128, y: 90, w: 70, h: 18 }, R_BSEG = { x: 16, y: 113, w: 182, h: 18 };
 var R_DIAL = { x: 220, y: 4, w: 76, h: 112 }, R_START = { x: 220, y: 126, w: 76, h: 36 };
 
 function scale() { var r = box.rect; var w = r[2] - r[0]; return WIN ? Math.max(0.5, w / 300) : 1; }
@@ -453,27 +460,35 @@ function paintMain(m) {
   var t = m.tempo, whole = Math.floor(t + 0.00001), frac = Math.round((t - whole) * 100);
   if (frac >= 100) { whole += 1; frac = 0; }
   var a = String(whole), b = "." + (frac < 10 ? "0" : "") + frac;
-  text(a, 9, 64, C.text, 40, true);
-  var aw = textW(a, 40, true);
-  text(b, 9 + aw + 1, 64, frac ? C.text : C.dim, 18, true);
-  text("BPM", 9 + aw + textW(b, 18, true) + 6, 64, C.muted, 11, true);
-  text(fit(m.status, LW - 18, 11, false), 10, 83, C.muted, 11, false);
+  text(a, 9, 59, C.text, 38, true);
+  var aw = textW(a, 38, true);
+  text(b, 9 + aw + 1, 59, frac ? C.text : C.dim, 17, true);
+  text("BPM", 9 + aw + textW(b, 17, true) + 6, 59, C.muted, 11, true);
+  text(fit(m.status, LW - 18, 11, false), 10, 76, C.muted, 11, false);
 }
 function paintRamp(m) {
-  rrect(8, 91, LW - 14, 71, 10, C.surface);
-  text("RAMPE", 18, 111, C.muted, 8.5, true);
-  field(R_BARS, plural(m.bars, "Takt", "Takte"), m.hot);
+  rrect(8, 84, LW - 14, 81, 10, C.surface);
+  text("RAMPE", 18, 102, C.muted, 8.5, true);
+  text("ZIEL", R_ZIEL.x - 6 - textW("ZIEL", 8.5, true), 102, C.muted, 8.5, true);
   field(R_ZIEL, m.to + " BPM", m.hot);
-  // Beat-Striche (wie am CDJ): verbleibende Schläge im Takt leuchten, grau = nichts geplant, orange = Start gedrückt
-  var n = Math.max(1, Math.min(16, m.beatNum)), x0 = 18, x1 = LW - 16, gap = 5, w = (x1 - x0 - gap * (n - 1)) / n;
+  // Takte: Segment 1 2 4 8 16 32 64
+  var b = R_BSEG, n = BAR_OPTS.length, sw = b.w / n;
+  rrect(b.x, b.y, b.w, b.h, 6, C.raised);
   for (var i = 0; i < n; i++) {
-    var lit = m.beatIdx >= 0 && i >= m.beatIdx;
-    rrect(x0 + i * (w + gap), 123, w, 9, 3, lit ? (m.hot ? C.fill : C.dim) : C.raised2);
+    var on = m.bars === BAR_OPTS[i];
+    if (on) rstroke(b.x + i * sw + 1, b.y + 1, sw - 2, b.h - 2, 5, C.orange);
+    textC(String(BAR_OPTS[i]), b.x + i * sw, sw, b.y + 13, on ? C.text : C.muted, 11, on);
+  }
+  // Beat-Striche (wie am CDJ): verbleibende Schläge im Takt leuchten, grau = nichts geplant, orange = Start gedrückt
+  var nb = Math.max(1, Math.min(16, m.beatNum)), x0 = 18, x1 = LW - 16, gap = 5, w = (x1 - x0 - gap * (nb - 1)) / nb;
+  for (var j = 0; j < nb; j++) {
+    var lit = m.beatIdx >= 0 && j >= m.beatIdx;
+    rrect(x0 + j * (w + gap), 136, w, 8, 3, lit ? (m.hot ? C.fill : C.dim) : C.raised2);
   }
   // Fortschritt der Rampe
-  rrect(x0, 137, x1 - x0, 3, 1.5, C.line);
-  if (m.run && m.prog > 0.002) rrect(x0, 137, (x1 - x0) * m.prog, 3, 1.5, C.orange);
-  text(fit(m.rinfo, x1 - x0, 11, false), 18, 155, m.hot ? C.text : C.muted, 11, false);
+  rrect(x0, 147, x1 - x0, 3, 1.5, C.line);
+  if (m.run && m.prog > 0.002) rrect(x0, 147, (x1 - x0) * m.prog, 3, 1.5, C.orange);
+  text(fit(m.rinfo, x1 - x0, 10.5, false), 18, 161, m.hot ? C.text : C.muted, 10.5, false);
 }
 function drawGear() {
   var cx = GEAR.x + 11, cy = GEAR.y + 10, on = view === "set";
@@ -498,12 +513,12 @@ function drawPop() { // Fenster ausklappen: Quadrat mit Pfeil nach oben rechts
   mgraphics.stroke();
 }
 function paintSettings(m) {
-  text("Ganze BPM", 10, 39, C.text, 12, false);
+  text("Ganze BPM", 10, 37, C.text, 12, false);
   rrect(PILL.x, PILL.y, PILL.w, PILL.h, 8, C.raised2);
   rgba(m.snap ? C.dim : C.text); mgraphics.ellipse(PILL.x + 4, PILL.y + 4, 8, 8); mgraphics.fill();
   rgba(m.snap ? C.orange : C.dim); mgraphics.ellipse(PILL.x + PILL.w - 12, PILL.y + 4, 8, 8); mgraphics.fill();
-  text(m.snap ? "an" : "aus", PILL.x + PILL.w + 6, 39, C.muted, 11, false);
-  text("Nach Loslassen", 10, 60, m.snap ? C.text : C.dim, 12, false);
+  text(m.snap ? "an" : "aus", PILL.x + PILL.w + 6, 37, C.muted, 11, false);
+  text("Nach Loslassen", 10, 57, m.snap ? C.text : C.dim, 12, false);
   rrect(SEG.x, SEG.y, SEG.w, SEG.h, 6, C.raised);
   var opts = [1, 2, 4], sw = SEG.w / 3;
   for (var i = 0; i < 3; i++) {
@@ -513,8 +528,8 @@ function paintSettings(m) {
   }
   // Version + Download-Pfeil, daneben Ergebnis
   var vt = "v" + VERSION;
-  text(vt, 10, 81, C.muted, 11, false);
-  var ax = 10 + textW(vt, 11, false) + 8, ay = 69;
+  text(vt, 10, 76, C.muted, 11, false);
+  var ax = 10 + textW(vt, 11, false) + 8, ay = 64;
   UPD.x = ax; UPD.y = ay;
   rrect(ax, ay, UPD.w, UPD.h, 5, C.raised2);
   rgba(m.updating ? C.orange : C.text); mgraphics.set_line_width(1.6);
@@ -522,7 +537,7 @@ function paintSettings(m) {
   mgraphics.move_to(ax + 6.5, ay + 7); mgraphics.line_to(ax + 10, ay + 10.5); mgraphics.line_to(ax + 13.5, ay + 7);
   mgraphics.move_to(ax + 5.5, ay + 13); mgraphics.line_to(ax + 14.5, ay + 13);
   mgraphics.stroke();
-  text(fit(m.upd || "Update", LW - ax - 30, 11, false), ax + 26, 81, C.muted, 11, false);
+  text(fit(m.upd || "Update", LW - ax - 30, 11, false), ax + 26, 76, C.muted, 11, false);
 }
 // Nur im Fenster: Regler selbst zeichnen
 function paintControls(m) {
@@ -556,8 +571,8 @@ function onclick(x, y, but, cmdk, shift) {
   drag = null;
   if (inside(GEAR, x, y)) { view = view === "set" ? "main" : "set"; mgraphics.redraw(); return; }
   if (!WIN && inside(POP, x, y)) { openwin(); return; }
-  // Takte / Ziel: nach oben/unten ziehen (Shift = fein)
-  if (inside(R_BARS, x, y)) { drag = { k: "wbars", y: y, v: m.bars, step: shift ? 0.05 : 0.15 }; return; }
+  // Takte: Segment anklicken. Ziel: nach oben/unten ziehen (Shift = fein)
+  if (inside(R_BSEG, x, y)) { cmd("wbars", BAR_OPTS[Math.max(0, Math.min(BAR_OPTS.length - 1, Math.floor((x - R_BSEG.x) / (R_BSEG.w / BAR_OPTS.length))))]); return; }
   if (inside(R_ZIEL, x, y)) { drag = { k: "wtarget", y: y, v: m.to, step: shift ? 0.08 : 0.3 }; return; }
   if (WIN) {
     if (inside(R_DIAL, x, y)) { drag = { k: "wdial", y: y, v: m.dial, step: shift ? 0.02 : 0.2 }; return; }
