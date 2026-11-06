@@ -24,6 +24,7 @@ Ablauf
    Beim Ziehen: leerer Block = orange Rahmen, zwischen belegten Bloecken oeffnet sich eine Luecke zum Einfuegen.
    Vorhoeren im Raster nur ueber Play. Clip-Fenster: Klick in die Waveform setzt den Cursor und spielt ab dort,
    Leertaste = Play/Stopp, Play startet immer wieder am Cursor. Loop-Klammer in der Mitte ziehen = ganzen Loop verschieben.
+   Play vor „Clips 1“, „Clips 2“, „Full“ = ganze Zeile zusammen abspielen (wie eine Szene in Live).
    Geoeffnetes Set: Clips im Set haben Waveform, Vorhoeren und Clip-Fenster. Fehlt die Datei, steht "fehlt" am Clip.
    Clip verschieben = ziehen (auf belegten Platz = tauschen), Alt = kopieren. x am Clip oder nach links ziehen = raus.
 4. Bloecke: am Namen ziehen = verschieben, Doppelklick auf den Namen = umbenennen, x = Block raus, unten "+ Leerer Block".

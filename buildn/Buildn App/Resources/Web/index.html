@@ -77,6 +77,10 @@ main::-webkit-scrollbar-corner{background:transparent}
 .grid{display:block;padding:0 0 24px}
 .row{display:flex;height:var(--rh)}
 .row>div{flex:1 1 0;min-width:56px;border-right:1px solid var(--bg);border-bottom:1px solid var(--bg);position:relative;overflow:hidden}
+.rpl{width:18px;height:18px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:4px;color:var(--muted);cursor:pointer}
+.rpl svg{width:9px;height:9px;fill:currentColor;stroke:none}
+.rpl:hover{color:var(--text);background:var(--hi)}
+.rpl.on{color:#111;background:var(--accent)}
 .row .lab{flex:none;width:var(--lab);padding:0 8px 0 12px;display:flex;align-items:center;gap:6px;color:var(--muted);font-size:13px;background:var(--surface);position:sticky;left:0;z-index:2}
 .hrow{position:sticky;top:0;z-index:3;height:30px}
 .hrow>div{display:block;line-height:30px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 8px;font-weight:700;font-size:14px;color:#141414;letter-spacing:.02em;filter:saturate(.72) brightness(.92)}
@@ -786,7 +790,25 @@ function shiftLower(L, from, to, delta){
 
 // ---------- Vorhören (macht die App, kann WAV und AIFF) ----------
 let playing = null, playCell = null;   // playCell: welche Zelle im Raster läuft (gleiche Datei in zwei Blöcken = zwei eigene Clips)
-const isOn = (ref, cell) => playing === ref && (playCell || null) === (cell || null);
+const isOn = (ref, cell) => (playing === ref && (playCell || null) === (cell || null))
+  || (!!playing && playing.startsWith('row:') && !!cell && cell.startsWith(playing.slice(4) + '|'));
+// Ganze Zeile eines Blocks abspielen (wie eine Szene in Live): jeder Clip ab seinem Startmarker, alle zusammen
+async function playRow(i, r){
+  const key = 'row:' + i + '|' + r;
+  if (playing === key){ stopPlay(); return; }
+  const b = blocks[i]; if (!b || !b.rows[r]) return;
+  const auto = r === fullRow(b) ? autoRow(b, i) : {}, items = [];
+  for (const c of cols){
+    const k = cellKey(c, i), v = b.rows[r][k] || (activeCol(c, i) ? auto[k] : null);
+    const cl = clipOf(refOf(v)); if (!cl) continue;
+    const secs = durs[cl.clip.path] || 0, L = loopOf(v, cl, secs);
+    items.push({ path: cl.clip.path, at: L.bars ? L.s / L.bars : 0 });
+  }
+  if (!items.length){ status('In dieser Zeile liegt noch nichts.'); return; }
+  try { await native('playRow', { items }); playing = key; playCell = null; tick(); }
+  catch (e) { playing = playCell = null; status('Abspielen geht nicht: ' + (e.message || e), null, true); }
+  draw();
+}
 async function togglePlay(ref, at, cell){
   if (isOn(ref, cell) && at == null){ playing = playCell = null; draw(); native('stop').catch(() => {}); return; }
   const c = clipOf(ref); if (!c) return;
@@ -802,7 +824,7 @@ async function tick(){
   while (playing){
     let p = -1; try { p = await native('pos'); } catch (e) {}
     if (!playing) break;
-    if (p >= 0) setHead(p);
+    if (p >= 0 && !playing.startsWith('row:')) setHead(p);
     await new Promise(r => setTimeout(r, 80));
   }
   ticking = false;
@@ -837,7 +859,7 @@ function chip(val, o){
   const gone = durs[c.clip.path] === 0 && waves[c.clip.path] && !waves[c.clip.path].length;   // Datei nicht lesbar
   const pre = c.stem.stem.replace(/_.*$/, ''), num = (c.clip.name.match(/Clip \d+$/) || ['Full'])[0];
   const label = c.old ? c.clip.name : o.list ? num : narrow ? num.replace('Clip ', '#') : pre + ' ' + num;
-  const on = isOn(ref, o.cell ? o.id : null);
+  const on = isOn(ref, o.id || null);
   if (gone) return `<div class="chip lost" draggable="${o.cell ? 'true' : 'false'}" title="Datei fehlt: ${esc(c.clip.path)}"><span class="t">${esc(label)} · fehlt</span>${o.cell ? rmBtn() : ''}</div>`;
   return `<div class="chip ${on ? 'on' : ''} ${o.over ? 'over' : ''} ${o.cell && o.id === cvCell ? 'sel' : ''}" draggable="${o.auto ? 'false' : 'true'}" data-ref="${esc(ref)}" style="background:${bg}${o.over ? ';animation-delay:-' + (Date.now() - overAt) + 'ms' : ''}" title="${esc(c.song.name + ' · ' + c.clip.name)}\nPlay = vorhören, dann Klick in die Waveform = spulen">`
     + `<span class="wv" data-seek="${esc(ref)}">${wavePath(c.clip.path)}${o.list ? '' : loopShade(val, c)}<i style="left:${on ? headPos * 100 : 0}%"></i></span>`
@@ -883,11 +905,13 @@ function drawGrid(){
     const auto = autoRow(b, i), fr = fullRow(b), side = i % 2 ? 'B' : 'A';
     b.rows.forEach((row, r) => {
       const isFull = r === fr && (s || b.rows.length > 1);
-      h += `<div class="row" data-row="${i}|${r}">${lab(isFull ? (s ? 'Full · ' + side : 'Full') : 'Clips ' + (r + 1))}`;
+      const ron = playing === 'row:' + i + '|' + r;
+      const rp = `<span class="rpl ${ron ? 'on' : ''}" data-rowplay="${i}|${r}" title="${ron ? 'Stopp' : 'Ganze Zeile abspielen'}"><svg><use href="#i-${ron ? 'stop' : 'play'}"/></svg></span>`;
+      h += `<div class="row" data-row="${i}|${r}">${lab(rp + (isFull ? (s ? 'Full · ' + side : 'Full') : 'Clips ' + (r + 1)))}`;
       h += cols.map(c => {
         const k = cellKey(c, i), act = activeCol(c, i), id = i + '|' + r + '|' + k;
         const v = row[k], a = act && isFull && !v ? auto[k] : null;
-        const inner = v ? (v.old && !clipOf(refOf(v)) ? oldChip(v.old, c.color) : chip(v, { cell: true, id })) : a ? chip(a, { auto: true }) : '';
+        const inner = v ? (v.old && !clipOf(refOf(v)) ? oldChip(v.old, c.color) : chip(v, { cell: true, id })) : a ? chip(a, { auto: true, id }) : '';
         return `<div class="cell ${a ? 'auto' : ''} ${act ? '' : 'off'}" data-cell="${esc(id)}"${act ? '' : ` title="Song ${i + 1} liegt nach der Regel auf ${side}. Clips hier bleiben auf der anderen Seite und wechseln beim Verschieben mit."`}>${inner}</div>`;
       }).join('') + '</div>';
     });
@@ -1050,6 +1074,7 @@ document.addEventListener('click', e => {
     if (gc.closest('.cell.auto')) change(() => setCell(id, gc.dataset.ref));
     if (id !== cvCell) openClip(id);
   }
+  const rw = e.target.closest('[data-rowplay]'); if (rw){ const [bi, ri] = rw.dataset.rowplay.split('|').map(Number); playRow(bi, ri); return; }
   const cellOf = el => { const c = el.closest('[data-cell]'); return c ? c.dataset.cell : null; };
   const pl = e.target.closest('[data-play]'); if (pl){ e.stopPropagation(); togglePlay(pl.dataset.play, undefined, cellOf(pl)); return; }
   const rm = e.target.closest('[data-rm]');

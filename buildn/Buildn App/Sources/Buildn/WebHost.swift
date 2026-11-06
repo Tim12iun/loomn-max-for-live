@@ -10,7 +10,8 @@ import WebKit
 final class WebHost: NSObject, ObservableObject, WKScriptMessageHandlerWithReply, WKNavigationDelegate, AVAudioPlayerDelegate {
     let webView: WKWebView
     weak var updater: ToolUpdater?
-    private var player: AVAudioPlayer?
+    /// Vorhören: ein Clip oder eine ganze Zeile (mehrere Spieler, gemeinsam gestartet)
+    private var players: [AVAudioPlayer] = []
 
     override init() {
         let c = WKWebViewConfiguration()
@@ -118,16 +119,30 @@ final class WebHost: NSObject, ObservableObject, WKScriptMessageHandlerWithReply
             let f = try AVAudioFile(forReading: URL(fileURLWithPath: str("path")))
             return ["frames": f.length, "rate": f.fileFormat.sampleRate]
         case "play":
-            player?.stop()
+            players.forEach { $0.stop() }
             let p = try AVAudioPlayer(contentsOf: URL(fileURLWithPath: str("path")))
             p.delegate = self
             if let at = b["at"] as? Double, at > 0 { p.currentTime = min(at, 0.999) * p.duration }
             p.play()
-            player = p
+            players = [p]
             return true
-        case "stop": player?.stop(); player = nil; return true
+        case "playRow":
+            // ganze Zeile wie eine Szene in Live: alle Clips sample-genau zusammen starten
+            players.forEach { $0.stop() }
+            var ps: [AVAudioPlayer] = []
+            for it in b["items"] as? [[String: Any]] ?? [] {
+                guard let path = it["path"] as? String, let p = try? AVAudioPlayer(contentsOf: URL(fileURLWithPath: path)) else { continue }
+                p.delegate = self
+                if let at = it["at"] as? Double, at > 0 { p.currentTime = min(at, 0.999) * p.duration }
+                p.prepareToPlay()
+                ps.append(p)
+            }
+            if let t = ps.first.map({ $0.deviceCurrentTime + 0.08 }) { ps.forEach { $0.play(atTime: t) } }
+            players = ps
+            return ps.count
+        case "stop": players.forEach { $0.stop() }; players = []; return true
         case "pos":
-            guard let p = player, p.isPlaying, p.duration > 0 else { return -1 }
+            guard let p = players.first, p.isPlaying, p.duration > 0 else { return -1 }
             return p.currentTime / p.duration
         case "pickSave":
             let p = NSSavePanel()
@@ -195,7 +210,7 @@ final class WebHost: NSObject, ObservableObject, WKScriptMessageHandlerWithReply
     }
 
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-        DispatchQueue.main.async { MainActor.assumeIsolated { self.send("ended") } }
+        DispatchQueue.main.async { MainActor.assumeIsolated { if !self.players.contains(where: { $0.isPlaying }) { self.send("ended") } } }
     }
 }
 
