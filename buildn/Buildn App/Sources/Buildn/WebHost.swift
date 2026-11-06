@@ -38,7 +38,9 @@ final class WebHost: NSObject, ObservableObject, WKScriptMessageHandlerWithReply
 
     /// Ereignis mit Daten an die Seite (z. B. „folders“ = Ordner ins Fenster gezogen)
     func sendJSON(_ kind: String, _ value: Any) {
-        guard let d = try? JSONSerialization.data(withJSONObject: value), let j = String(data: d, encoding: .utf8) else { return }
+        // Zahl oder Text allein ist kein JSON-Objekt: ohne fragmentsAllowed wirft JSONSerialization eine ObjC-Ausnahme (Absturz)
+        guard JSONSerialization.isValidJSONObject([value]),
+              let d = try? JSONSerialization.data(withJSONObject: value, options: [.fragmentsAllowed]), let j = String(data: d, encoding: .utf8) else { return }
         webView.evaluateJavaScript("window.onNative && window.onNative('\(kind)', \(j))", completionHandler: nil)
     }
 
