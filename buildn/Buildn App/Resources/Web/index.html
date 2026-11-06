@@ -58,8 +58,12 @@ aside.drop{box-shadow:inset 0 0 0 2px var(--accent)}
 .chip .pl,.chip .rm{position:relative;z-index:1}
 .wv{position:absolute;left:24px;right:4px;top:2px;bottom:2px;cursor:pointer}
 .wv svg{width:100%;height:100%;display:block;fill:rgba(0,0,0,.2);stroke:none}
-.wv i{position:absolute;top:-2px;bottom:-2px;width:2px;margin-left:-1px;background:#141414;display:none}
-.chip.on .wv i{display:block}
+.chip .fill{position:absolute;left:0;top:0;bottom:0;width:0;background:rgba(0,0,0,.30);box-shadow:1.5px 0 0 rgba(255,255,255,.85);pointer-events:none;display:none}
+.chip.on .fill{display:block}
+.chip.on{animation:pulse 1.1s ease-in-out infinite alternate}
+@keyframes pulse{from{filter:saturate(.72) brightness(.92)}to{filter:saturate(.95) brightness(1.12)}}
+.cell .chip{padding-left:6px}
+.cell .chip .wv{left:4px}
 .pl{flex:none;width:18px;height:18px;border-radius:4px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.2);cursor:pointer}
 .pl:hover{background:rgba(0,0,0,.4)}
 .pl svg{width:10px;height:10px;fill:currentColor;stroke:none}
@@ -174,7 +178,8 @@ input.rename{flex:1;min-width:0;height:20px;background:var(--bg);color:var(--tex
 .smk{position:relative;height:14px;flex:none}
 .smk em{top:0;bottom:auto;height:14px;margin-left:-6px;width:12px}
 .smk em::after{content:"";position:absolute;left:0;top:2px;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:10px solid var(--text)}
-.chip.sel{box-shadow:0 0 0 2px var(--text)}
+.chip.sel{box-shadow:inset 0 0 0 2px rgba(255,255,255,.6)}
+.chip.cur{box-shadow:inset 0 0 0 2px #fff}
 /* kleines oder schmales Fenster: alles bleibt nutzbar, nur kompakter */
 @media (max-width:900px){
   :root{--lab:136px}
@@ -278,6 +283,7 @@ function bytesToB64(u){ let s = ''; for (let i = 0; i < u.length; i += 32768) s 
 let songs = [];        // {key(=Ordnerpfad), name, tempo, dir, folder, stems:[{stem, kind, full:{name,file,path}, clips:[{name,file,path}]}]}
 // Das Line-up sind Song-Blöcke wie im Live-Set: Trenner-Zeile + Zeilen. Zelle = ref (neuer Clip) oder {old:id} (Clip, der schon im Set steht)
 let blocks = [];       // {name, key|null, side:{bass:'A'|'B'...}, rows:[{spalte: zelle}]}   ref = "<key>|<stem>|<clip|F>"
+let mixes = {};        // Pfad -> {name, tempo, kind, color}: zusammengeführte Spuren (WAV im Datenordner)
 let olds = {};         // id -> Clip-Name, für Clips aus dem geöffneten Set (id = "<zeile>|<spalte>" in der Datei)
 let roots = [];        // geladene Ordner (Pfade)
 let hidden = [];       // Song-Ordner, die links ausgeblendet sind
@@ -314,6 +320,10 @@ function clipOf(ref){
     const o = olds[ref.slice(4)]; if (!o || !o.path) return null;
     const nm = o.name;
     return { song: { name: base ? base.name.replace(/\.als$/i, '') : '', tempo: o.tempo, key: null }, stem: { stem: nm, kind: kindOf(nm) }, clip: { name: nm, path: o.path, file: o.path.split('/').pop() }, full: false, old: o };
+  }
+  if (ref.startsWith('mix:')){
+    const path = ref.slice(4), m = mixes[path]; if (!m) return null;
+    return { song: { name: m.name, tempo: m.tempo, key: null }, stem: { stem: m.name, kind: m.kind }, clip: { name: m.name, path, file: path.split('/').pop() }, full: false, mix: m };
   }
   const [k, si, ci] = parseRef(ref), s = song(k);
   const st = s && s.stems[+si]; if (!st) return null;
@@ -410,13 +420,13 @@ let saveTimer = null;
 function save(){
   if (!inApp) return;
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => native('saveState', { json: JSON.stringify({ v: 2, roots, hidden, tpl, base, cols, opts, blocks, dirty }) }).catch(() => {}), 150);
+  saveTimer = setTimeout(() => native('saveState', { json: JSON.stringify({ v: 2, roots, hidden, tpl, base, cols, opts, blocks, dirty, mixes }) }).catch(() => {}), 150);
 }
 function change(fn){
   undo.push(JSON.stringify(blocks)); if (undo.length > 100) undo.shift(); redo = [];
-  const pc = playCell;
+  const was = pl ? pl.items.filter(x => x.cell).map(x => [x.cell, x.ref]) : [];
   fn(); dirty = true;
-  if (pc && playing && refOf(cellVal(pc)) !== playing) stopPlay();   // Clip, der gerade läuft, aus dem Raster genommen = Stopp
+  if (was.some(([c, r]) => refOf(cellVal(c)) !== r)) stopPlay();   // Clip, der gerade läuft, aus dem Raster genommen = Stopp
   save(); draw();
 }
 
@@ -804,9 +814,20 @@ function shiftLower(L, from, to, delta){
 }
 
 // ---------- Vorhören (macht die App, kann WAV und AIFF) ----------
-let playing = null, playCell = null;   // playCell: welche Zelle im Raster läuft (gleiche Datei in zwei Blöcken = zwei eigene Clips)
-const isOn = (ref, cell) => (playing === ref && (playCell || null) === (cell || null))
-  || (!!playing && playing.startsWith('row:') && !!cell && cell.startsWith(playing.slice(4) + '|'));
+let playing = null;   // Schlüssel der laufenden Wiedergabe (Clip, Zeile oder Auswahl)
+// pl.items: was gerade läuft, je {cell (Zelle im Raster oder null), ref, path, start (Sekunden)}; alles loopt wie in Live
+let pl = null;
+const isOn = (ref, cell) => !!pl && pl.items.some(x => (x.cell || null) === (cell || null) && (cell ? true : x.ref === ref));
+async function startPlay(key, items){
+  if (!items.length) return;
+  try {
+    await native('playRow', { items: items.map(x => ({ path: x.path, at: x.at || 0 })) });
+    pl = { key, t0: performance.now(), items: items.map(x => Object.assign({}, x, { start: (x.at || 0) * (durs[x.path] || 0) })) };
+    playing = key; tick();
+  } catch (e) { pl = null; playing = null; status('Abspielen geht nicht: ' + (e.message || e), null, true); }
+  draw();
+}
+const cellItem = (id, at) => { const v = cellVal(id), c = clipOf(refOf(v)); return c ? { cell: id, ref: refOf(v), path: c.clip.path, at: at || 0 } : null; };
 // Ganze Zeile eines Blocks abspielen (wie eine Szene in Live): jeder Clip ab seinem Startmarker, alle zusammen
 async function playRow(i, r){
   const key = 'row:' + i + '|' + r;
@@ -814,35 +835,36 @@ async function playRow(i, r){
   const b = blocks[i]; if (!b || !b.rows[r]) return;
   const auto = r === fullRow(b) ? autoRow(b, i) : {}, items = [];
   for (const c of cols){
-    const k = cellKey(c, i), v = b.rows[r][k] || (activeCol(c, i) ? auto[k] : null);
+    const k = cellKey(c, i), own = b.rows[r][k], v = own || (activeCol(c, i) ? auto[k] : null);
     const cl = clipOf(refOf(v)); if (!cl) continue;
     const secs = durs[cl.clip.path] || 0, L = loopOf(v, cl, secs);
-    items.push({ path: cl.clip.path, at: L.bars ? L.s / L.bars : 0 });
+    items.push({ cell: i + '|' + r + '|' + k, ref: refOf(v), path: cl.clip.path, at: L.bars ? L.s / L.bars : 0 });
   }
   if (!items.length){ status('In dieser Zeile liegt noch nichts.'); return; }
-  try { await native('playRow', { items }); playing = key; playCell = null; tick(); }
-  catch (e) { playing = playCell = null; status('Abspielen geht nicht: ' + (e.message || e), null, true); }
-  draw();
+  startPlay(key, items);
 }
 async function togglePlay(ref, at, cell){
-  if (isOn(ref, cell) && at == null){ playing = playCell = null; draw(); native('stop').catch(() => {}); return; }
+  if (isOn(ref, cell) && at == null){ stopPlay(); return; }
   const c = clipOf(ref); if (!c) return;
-  try { await native('play', { path: c.clip.path, at: at || 0 }); playing = ref; playCell = cell || null; setHead(at || 0); tick(); }
-  catch (e) { playing = playCell = null; status('Abspielen geht nicht: ' + (e.message || e), null, true); }
-  draw();
+  startPlay(ref, [{ cell: cell || null, ref, path: c.clip.path, at: at || 0 }]);
 }
-// Abspiel-Strich in der Waveform: nur die Striche verschieben, nichts neu zeichnen
-let headPos = 0, ticking = false;
-function setHead(p){ headPos = p; document.querySelectorAll('.chip.on .wv i, .cwave.on i').forEach(i => i.style.left = (p * 100) + '%'); }
-async function tick(){
+// Laufende Clips: leichtes Pulsieren (CSS) und eine dunkle Fläche, die von links vollläuft; beim Loop wieder hell
+let ticking = false;
+function fracOf(x, now){ const d = durs[x.path] || 0; if (!d) return 0; const t = (now - pl.t0) / 1000 + x.start; return (t % d) / d; }
+function tick(){
   if (ticking) return; ticking = true;
-  while (playing){
-    let p = -1; try { p = await native('pos'); } catch (e) {}
-    if (!playing) break;
-    if (p >= 0 && !playing.startsWith('row:')) setHead(p);
-    await new Promise(r => setTimeout(r, 80));
-  }
-  ticking = false;
+  const step = () => {
+    if (!pl){ ticking = false; return; }
+    const now = performance.now();
+    for (const x of pl.items){
+      const f = fracOf(x, now) * 100 + '%';
+      const el = x.cell ? document.querySelector(`[data-cell="${CSS.escape(x.cell)}"] .chip .fill`) : document.querySelector(`aside .chip[data-ref="${CSS.escape(x.ref)}"] .fill`);
+      if (el) el.style.width = f;
+      if (x.cell && x.cell === cvCell){ const h = document.querySelector('#cv .cwave i'); if (h) h.style.left = f; }
+    }
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
 }
 // Kleine Waveforms: liest die App im Hintergrund, einmal pro Datei
 const waves = {}, durs = {}; let waveAsk = new Set(), waveTimer = null;
@@ -860,9 +882,9 @@ async function loadWaves(){
   catch (e) { paths.forEach(p => waves[p] = []); }
   draw();
 }
-function stopPlay(){ if (!playing) return; playing = playCell = null; native('stop').catch(() => {}); draw(); }
+function stopPlay(){ if (!pl && !playing) return; pl = null; playing = null; native('stop').catch(() => {}); draw(); }
 window.onNative = (kind, data) => {
-  if (kind === 'ended'){ playing = playCell = null; draw(); }
+  if (kind === 'ended'){ pl = null; playing = null; draw(); }
   if (kind === 'data') start();
   if (kind === 'folders') addFolders(data).catch(fail);
 };
@@ -870,15 +892,15 @@ window.onNative = (kind, data) => {
 // ---------- Zeichnen ----------
 function chip(val, o){
   const ref = refOf(val), c = clipOf(ref); if (!c) return o.cell ? `<div class="chip lost" draggable="true" title="Datei nicht gefunden"><span class="t">fehlt</span>${rmBtn()}</div>` : '';
-  const col = colFor(c.stem.kind, 'A'), bg = c.old ? hex(c.old.color) : col ? hex(col.color) : '#9a9a9a';
+  const col = colFor(c.stem.kind, 'A'), bg = c.old ? hex(c.old.color) : c.mix && c.mix.color != null ? hex(c.mix.color) : col ? hex(col.color) : '#9a9a9a';
   const gone = durs[c.clip.path] === 0 && waves[c.clip.path] && !waves[c.clip.path].length;   // Datei nicht lesbar
   const pre = c.stem.stem.replace(/_.*$/, ''), num = (c.clip.name.match(/Clip \d+$/) || ['Full'])[0];
-  const label = c.old ? c.clip.name : o.list ? num : narrow ? num.replace('Clip ', '#') : pre + ' ' + num;
+  const label = c.old || c.mix ? c.clip.name : o.list ? num : narrow ? num.replace('Clip ', '#') : pre + ' ' + num;
   const on = isOn(ref, o.id || null);
   if (gone) return `<div class="chip lost" draggable="${o.cell ? 'true' : 'false'}" title="Datei fehlt: ${esc(c.clip.path)}"><span class="t">${esc(label)} · fehlt</span>${o.cell ? rmBtn() : ''}</div>`;
-  return `<div class="chip ${on ? 'on' : ''} ${o.over ? 'over' : ''} ${o.cell && o.id === cvCell ? 'sel' : ''}" draggable="${o.auto ? 'false' : 'true'}" data-ref="${esc(ref)}" style="background:${bg}${o.over ? ';animation-delay:-' + (Date.now() - overAt) + 'ms' : ''}" title="${esc(c.song.name + ' · ' + c.clip.name)}\nPlay = vorhören, dann Klick in die Waveform = spulen">`
-    + `<span class="wv" data-seek="${esc(ref)}">${wavePath(c.clip.path)}${o.list ? '' : loopShade(val, c)}<i style="left:${on ? headPos * 100 : 0}%"></i></span>`
-    + `<span class="pl ${on ? 'on' : ''}" data-play="${esc(ref)}" title="${on ? 'Stopp' : 'Vorhören'}"><svg><use href="#i-${on ? 'stop' : 'play'}"/></svg></span><span class="t">${esc(label)}</span>`
+  return `<div class="chip ${on ? 'on' : ''} ${o.over ? 'over' : ''} ${o.id && sel.has(o.id) ? 'sel' : ''} ${o.id && o.id === cvCell ? 'cur' : ''}" draggable="${o.auto ? 'false' : 'true'}" data-ref="${esc(ref)}" style="background:${bg}${o.over ? ';animation-delay:-' + (Date.now() - overAt) + 'ms' : ''}" title="${esc(c.song.name + ' · ' + c.clip.name)}${o.list ? '\nPlay = vorhören' : '\nKlick = im Clip-Fenster zeigen · ⌘- oder ⇧-Klick = mehrere markieren'}">`
+    + `<span class="wv">${wavePath(c.clip.path)}${o.list ? '' : loopShade(val, c)}</span><b class="fill"></b>`
+    + (o.list ? `<span class="pl ${on ? 'on' : ''}" data-play="${esc(ref)}" title="${on ? 'Stopp' : 'Vorhören'}"><svg><use href="#i-${on ? 'stop' : 'play'}"/></svg></span>` : '') + `<span class="t">${esc(label)}</span>`
     + (o.cell ? rmBtn() : '') + '</div>';
 }
 // Vorlauf grau, hinter dem Loop-Ende grau: so sieht man in der Waveform, was loopt
@@ -1083,32 +1105,37 @@ let noClick = false;
 document.addEventListener('click', e => {
   if (noClick){ noClick = false; return; }
   // Ein Klick auf einen Clip im Raster (auch auf Play) zeigt ihn im Clip-Fenster; abgespielt wird nur über Play
+  // ⌘- oder ⇧-Klick = mehrere markieren (Rahmen); das Clip-Fenster zeigt immer den zuletzt geklickten
   const gc = !e.target.closest('[data-rm]') && e.target.closest('[data-cell] .chip[data-ref]');
   if (gc){
     const id = gc.closest('[data-cell]').dataset.cell;
     if (gc.closest('.cell.auto')) change(() => setCell(id, gc.dataset.ref));
-    if (id !== cvCell) openClip(id);
+    if (e.metaKey || e.shiftKey){
+      if (sel.has(id) && id !== cvCell) sel.delete(id); else sel.add(id);
+      if (cvCell && !sel.has(cvCell)) sel.add(cvCell);
+    } else sel = new Set([id]);
+    if (id !== cvCell || !sel.has(cvCell)) openClip(id); else { drawClip(); drawGrid(); }
+    return;
   }
   const rw = e.target.closest('[data-rowplay]'); if (rw){ const [bi, ri] = rw.dataset.rowplay.split('|').map(Number); playRow(bi, ri); return; }
   const cellOf = el => { const c = el.closest('[data-cell]'); return c ? c.dataset.cell : null; };
   const pl = e.target.closest('[data-play]'); if (pl){ e.stopPropagation(); togglePlay(pl.dataset.play, undefined, cellOf(pl)); return; }
   const rm = e.target.closest('[data-rm]');
   if (rm){ const cell = rm.closest('[data-cell]'); if (cell) change(() => setCell(cell.dataset.cell, null)); return; }
-  const sk = e.target.closest('[data-seek]');
-  if (sk){ if (!isOn(sk.dataset.seek, cellOf(sk))) return; const r = sk.getBoundingClientRect(); togglePlay(sk.dataset.seek, Math.min(0.999, Math.max(0, (e.clientX - r.left) / r.width)), cellOf(sk)); return; }
   const un = e.target.closest('[data-unsong]'); if (un){ e.stopPropagation(); removeSong(un.dataset.unsong); return; }
   const op = e.target.closest('[data-open]');
   if (op){ const k = op.dataset.open; open[k] = !open[k]; if (!open[k] && playing && playing.startsWith(k + '|')) stopPlay(); draw(); return; }
-  const del = e.target.closest('[data-del]'); if (del){ change(() => blocks.splice(+del.dataset.del, 1)); status('Block aus dem Line-up genommen. ⌘Z holt ihn zurück.'); return; }
+  const del = e.target.closest('[data-del]'); if (del){ sel = new Set(); change(() => blocks.splice(+del.dataset.del, 1)); status('Block aus dem Line-up genommen. ⌘Z holt ihn zurück.'); return; }
   const add = e.target.closest('[data-addblk]'); if (add){ change(() => blocks.push(emptyBlock())); return; }
   const cv = e.target.closest('[data-cv]'); if (cv){ cvAction(cv.dataset.cv); return; }
 });
 // ---------- Clip-Fenster (Doppelklick auf einen Clip im Raster) ----------
 // Startmarker und Loop-Klammer einstellen, auf dem Takt-Raster des Songs. Alt beim Ziehen = in Vierteln.
+let sel = new Set();   // markierte Zellen im Raster
 let cvCell = null, cvRef = null, cvDrag = null, cvCursor = 0;   // cvCursor: Abspielstart im Clip-Fenster (0…1), wie in Ableton
 const bigWaves = {};
 function openClip(id){ const v = cellVal(id); if (!refOf(v)) return; if (id !== cvCell) cvCursor = 0; cvCell = id; cvRef = refOf(v); $('#cv').classList.remove('hidden'); drawClip(); drawGrid(); }
-function closeClip(){ if (!cvCell) return; stopPlay(); cvCell = cvRef = null; $('#cv').classList.add('hidden'); drawGrid(); }
+function closeClip(){ if (!cvCell) return; stopPlay(); cvCell = cvRef = null; sel = new Set(); $('#cv').classList.add('hidden'); drawGrid(); }
 async function bigWave(path){
   if (bigWaves[path] !== undefined) return;
   bigWaves[path] = null;
@@ -1133,26 +1160,63 @@ function drawClip(){
   const on = isOn(cvRef, cvCell);
   $('#cv').innerHTML = `<div class="cvh"><b>${c.old ? esc(c.clip.name) + ' · im Set' : esc(c.stem.stem) + ' · ' + esc((c.clip.name.match(/Clip \d+$/) || ['Full'])[0])}</b><span>${fmtBars(bars)} Takte · ${Math.round(c.song.tempo)} BPM · Start ${L.s - L.v >= 0 ? fmtBars(L.s - L.v + 1) : '−' + fmtBars(L.v - L.s)} · Loop ${fmtBars(L.l)} Takte${L.fromSet ? ' (wie im Set)' : L.auto ? ' (automatisch)' : ''}</span><span class="sp"></span>`
     + (L.auto ? '' : `<button data-cv="auto" title="${c.old ? 'Startmarker und Loop wie im Set' : 'Startmarker und Loop wie von buildn erkannt'}">${c.old ? 'Wie im Set' : 'Automatisch'}</button>`)
-    + `<button class="icon" data-cv="play" title="${on ? 'Stopp' : 'Ab Cursor abspielen'} (Leertaste)"><svg><use href="#i-${on ? 'stop' : 'play'}"/></svg></button>`
+    + (selCells().length > 1 ? `<span class="nsel">${selCells().length} markiert</span><button data-cv="merge" title="Markierte Spuren zu einer WAV zusammenführen (32-Bit-Float, verlustfrei)">Zusammenführen</button>` : '')
+    + `<button class="icon" data-cv="play" title=""${on ? 'Stopp' : 'Ab Cursor abspielen'} (Leertaste)"><svg><use href="#i-${on ? 'stop' : 'play'}"/></svg></button>`
     + `<button class="icon" data-cv="close" title="Clip-Fenster schließen (Esc)"><svg><use href="#i-x"/></svg></button></div>`
     + `<div class="cvb"><div class="ruler">${ruler}</div>`
     + `<div class="lbar" title="Loop-Klammer: Enden ziehen = Länge, Mitte ziehen = ganzen Loop verschieben"><i class="brace" data-h="lm" style="left:${pc(L.v)};width:${pc(L.l)}"><em data-h="ls"></em><em data-h="le"></em></i></div>`
     + `<div class="cwave ${on ? 'on' : ''}" data-cvseek="1" title="Klick = Cursor setzen und ab hier abspielen · Leertaste = Play/Stopp (startet am Cursor)">${grid}<svg viewBox="0 0 ${Math.max(1, w.length)} 100" preserveAspectRatio="none"><path d="${d}"/></svg>`
     + (L.v > 0 ? `<b class="pre" style="left:0;width:${pc(L.v)}"></b>` : '') + (L.v + L.l < bars - 0.01 ? `<b class="pre" style="left:${pc(L.v + L.l)};right:0"></b>` : '')
-    + `<u class="cur" style="left:${cvCursor * 100}%"></u><i style="left:${on ? headPos * 100 : 0}%"></i></div>`
+    + `<u class="cur" style="left:${cvCursor * 100}%"></u><i></i></div>`
     + `<div class="smk" title="Startmarker: hier beginnt der Clip beim Starten"><em data-h="s" style="left:${pc(L.s)}"></em></div></div>`;
 }
 // Play/Stopp im Clip-Fenster: Play startet immer am Cursor, nicht da, wo gestoppt wurde
-function cvPlay(){ if (isOn(cvRef, cvCell)){ stopPlay(); drawClip(); } else togglePlay(cvRef, cvCursor, cvCell).then(drawClip); }
+function cvPlay(){ if (isOn(cvRef, cvCell)){ stopPlay(); drawClip(); } else cvPlayAt(cvCursor); }
+// Markierte Clips laufen zusammen, alle an derselben Stelle (Sekunden ab Anfang) wie der Cursor im Clip-Fenster:
+// so springt man z. B. mit allen Full-Stems gleichzeitig durch den ganzen Song
+const selCells = () => [cvCell, ...[...sel].filter(id => id !== cvCell)].filter(id => id && refOf(cellVal(id)));
+function cvPlayAt(at){
+  const ids = selCells(), c0 = clipOf(cvRef); if (!c0) return;
+  if (ids.length < 2){ togglePlay(cvRef, at, cvCell).then(drawClip); return; }
+  const t = at * (durs[c0.clip.path] || 0), items = [];
+  for (const id of ids){
+    const it = cellItem(id, 0); if (!it) continue;
+    const d = durs[it.path] || 0; it.at = id === cvCell ? at : d ? Math.min(0.999, (t % d) / d) : 0; items.push(it);
+  }
+  startPlay('grp', items).then(drawClip);
+}
+// Markierte Spuren zu einer zusammenführen: Summe in 32-Bit-Float, als 32-Bit-Float-WAV, ohne Normalisieren und Dither = verlustfrei
+async function mergeSel(){
+  const ids = selCells(), seen = new Set(), paths = [];
+  const cs = ids.map(id => clipOf(refOf(cellVal(id)))).filter(Boolean);
+  for (const c of cs) if (!seen.has(c.clip.path)){ seen.add(c.clip.path); paths.push(c.clip.path); }
+  if (paths.length < 2){ status('Zum Zusammenführen mindestens zwei verschiedene Clips markieren (⌘- oder ⇧-Klick).'); return; }
+  const c0 = cs[0], nm = cs.map(c => c.old || c.mix ? c.clip.name : c.stem.stem.replace(/^\d+\s+/, '').replace(/_.*$/, '')).filter((x, i, a) => a.indexOf(x) === i).join(' + ').slice(0, 80);
+  const stamp = new Date().toISOString().slice(0, 19).replace('T', ' ').replace(/:/g, '-');
+  const out = info.data + '/Zusammengefuehrt/' + nm.replace(/[\/:]/g, '-') + ' ' + stamp + '.wav';
+  stopPlay(); busy(true, 'Spuren zusammenführen …', nm);
+  try {
+    const r = await native('mergeAudio', { paths, out });
+    busy(false);
+    const col = colOfKey(cvCell.split('|').slice(2).join('|'), +cvCell.split('|')[0]);
+    mixes[r.path] = { name: nm, tempo: c0.song.tempo, kind: c0.stem.kind, color: col ? col.color : null };
+    durs[r.path] = r.frames / r.rate;
+    const keep = cvCell;
+    change(() => { for (const id of ids) setCell(id, id === keep ? 'mix:' + r.path : null); });
+    sel = new Set([keep]); cvRef = 'mix:' + r.path; cvCursor = 0; drawClip(); drawGrid();
+    status(paths.length + ' Spuren zu „' + nm + '“ zusammengeführt (32-Bit-Float-WAV, verlustfrei). Die Originale bleiben unverändert. ⌘Z nimmt es zurück.');
+  } catch (e) { busy(false); status('Zusammenführen geht nicht: ' + (e.message || e), null, true); }
+}
 function cvAction(k){
   if (k === 'play'){ cvPlay(); return; }
   if (k === 'close'){ closeClip(); return; }
+  if (k === 'merge'){ mergeSel(); return; }
   if (k === 'auto'){ const v = cellVal(cvCell); change(() => setCell(cvCell, withLp(v, null))); drawClip(); }
 }
 document.addEventListener('pointerdown', e => {
   const h = e.target.closest('#cv [data-h]');
   const wv = !h && e.target.closest('#cv [data-cvseek]');
-  if (wv){ const r = wv.getBoundingClientRect(); cvCursor = Math.min(0.999, Math.max(0, (e.clientX - r.left) / r.width)); togglePlay(cvRef, cvCursor, cvCell).then(drawClip); return; }
+  if (wv){ const r = wv.getBoundingClientRect(); cvCursor = Math.min(0.999, Math.max(0, (e.clientX - r.left) / r.width)); cvPlayAt(cvCursor); return; }
   if (!h) return;
   e.preventDefault();
   const v = cellVal(cvCell), c = clipOf(refOf(v)); if (!c) return;
@@ -1229,6 +1293,7 @@ function bdEnd(){
   noClick = true;
   drag = null; document.body.classList.remove('bdrag');
   b0.els.forEach(el => { el.style.transform = ''; el.classList.remove('lift'); });
+  if (b0.to !== b0.i) sel = new Set();
   if (b0.to !== b0.i) change(() => { const [b] = blocks.splice(b0.i, 1); blocks.splice(b0.to, 0, b); });
   else if (pendingDraw) draw();
 }
@@ -1288,7 +1353,7 @@ async function start(){
     info = await native('info');
     const raw = await native('loadState');
     const st = raw ? JSON.parse(raw) : {};
-    roots = st.roots || []; hidden = st.hidden || []; tpl = st.tpl || null; opts = Object.assign({ tempo: false, names: true }, st.opts || {});
+    roots = st.roots || []; hidden = st.hidden || []; mixes = st.mixes || {}; tpl = st.tpl || null; opts = Object.assign({ tempo: false, names: true }, st.opts || {});
     if (st.cols && st.cols.length) cols = st.cols;
     // älterer Stand (nur Line-up mit Songs) wird zu Blöcken
     let saved = st.blocks || (st.lineup || []).map(b => ({ name: '', key: b.key, rows: [(b.cells || [])[0] || {}, (b.cells || [])[1] || {}, {}] }));

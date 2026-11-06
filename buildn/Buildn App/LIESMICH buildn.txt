@@ -22,13 +22,18 @@ Ablauf
    A/B: Song 1 liegt auf A, Song 2 auf B, Song 3 auf A ... und passt sich beim Verschieben selbst an.
    Full-Clip im Raster in eine andere Zeile ziehen = alle Full-Stems des Songs wandern mit.
    Beim Ziehen: leerer Block = orange Rahmen, zwischen belegten Bloecken oeffnet sich eine Luecke zum Einfuegen.
-   Vorhoeren im Raster nur ueber Play. Clip-Fenster: Klick in die Waveform setzt den Cursor und spielt ab dort,
+   Laufende Clips pulsieren leicht und laufen von links dunkel voll (zeigt die Position), beim Loop wieder hell.
+   Klick auf einen Clip = im Clip-Fenster zeigen. Cmd- oder Shift-Klick = mehrere markieren (heller Rahmen).
+   Klick in die Waveform spielt alle markierten Clips zusammen an derselben Stelle ab, z. B. alle Full-Stems
+   gleichzeitig durch den Song spulen. "Zusammenfuehren" (ab 2 markierten) mischt sie zu einer WAV in
+   Datenordner/Zusammengefuehrt: 32-Bit-Float, ohne Normalisieren, verlustfrei, Originale bleiben. Cmd+Z = zurueck.
+   Clip-Fenster: Klick in die Waveform setzt den Cursor und spielt ab dort,
    Leertaste = Play/Stopp, Play startet immer wieder am Cursor. Loop-Klammer in der Mitte ziehen = ganzen Loop verschieben.
    Play vor „Clips 1“, „Clips 2“, „Full“ = ganze Zeile zusammen abspielen (wie eine Szene in Live).
    Geoeffnetes Set: Clips im Set haben Waveform, Vorhoeren und Clip-Fenster. Fehlt die Datei, steht "fehlt" am Clip.
    Clip verschieben = ziehen (auf belegten Platz = tauschen), Alt = kopieren. x am Clip oder nach links ziehen = raus.
 4. Bloecke: am Namen ziehen = verschieben, Doppelklick auf den Namen = umbenennen, x = Block raus, unten "+ Leerer Block".
-5. Doppelklick auf einen Clip im Raster oeffnet unten das Clip-Fenster: Waveform mit Takt-Raster, Loop-Klammer und
+5. Klick auf einen Clip im Raster oeffnet unten das Clip-Fenster: Waveform mit Takt-Raster, Loop-Klammer und
    Startmarker zum Ziehen (Alt = in Vierteln). Clips mit 5, 9, 13 ... Takten bekommen automatisch 1 Takt Vorlauf.
 6. "Set erstellen" schreibt ein neues .als, danach ist es offen. "Set aktualisieren" schreibt Aenderungen in das
    offene Set (der alte Stand kommt vorher nach Datenordner/Backups). Der rechte Block (Serum, Vocal Chain, MIDI ...)
