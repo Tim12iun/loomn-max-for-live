@@ -2,7 +2,7 @@
 // Farben -> Spalten. "Rendern" nimmt pro Spalte einen Full-Stem unten im Projekt auf (Echtzeit).
 // "Paket" schreibt einen Song-Ordner: Full-Stems, markierte Passagen als Clips, Serum-MIDI (JSON).
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.9.4";
+var VERSION = "0.9.5";
 var PLUGIN_ID = "setmaker-prep";
 inlets = 1;
 outlets = 2; // 0 -> jweb (über s ---toweb), 1 -> prepn_pkg.js (node.script)
@@ -815,7 +815,7 @@ function refresh(){
   var stems = []; for (var k in s.stems) stems.push(k);
   var lanes = []; for (var q = 0; q < LANES.length; q++) lanes.push([LANES[q].id, LANES[q].label, LANES[q].short, LANES[q].extra ? 1 : 0]);
   var enc = encodeURIComponent(JSON.stringify({ version: VERSION, lanes: lanes, cfg: cfg, counts: counts, names: names, stems: stems,
-                 packed: isPacked(s.stems), range: settings.range === "loop" ? "loop" : "all", pkgRoot: settings.pkgRoot || "", pkgDefault: pkgFolder(g(song, "file_path"), defaultSong(g(song, "name"))),
+                 packed: isPacked(s.stems), range: settings.range === "loop" ? "loop" : "all", fxTops: fxInTops() ? 1 : 0, pkgRoot: settings.pkgRoot || "", pkgDefault: pkgFolder(g(song, "file_path"), defaultSong(g(song, "name"))),
                  tempo: n(song, "tempo"), setName: g(song, "name"), recording: !!job }));
   if (enc === lastStateJson) return;               // nichts geändert -> UI nicht neu zeichnen
   lastStateJson = enc;
@@ -1094,6 +1094,10 @@ function startRecording(plan, songName, endTime, startTime, attempt, mainBefore,
   }
   job = { stems: [], buses: [], rerouted: [], endTime: range.to, from: range.from, range: range, startTime: startTime, started: false, checked: false,
           plan: plan, songName: songName, attempt: attempt, mainBefore: mainBefore };
+  // FX im Tops-Stem (Einstellung, Standard an): FX-Spuren laufen über ihren Bus zusätzlich in den Tops-Bus.
+  // Der FX-Stem wird trotzdem einzeln aufgenommen (er hört den FX-Bus selbst ab).
+  var fxIn = fxInTops() && laneInPlan(plan, "top") && laneInPlan(plan, "riser");
+  var busOf = {};
   for (var p = 0; p < plan.length; p++){
     var lane = plan[p].lane, src = plan[p].src;
     var stemName = lane.short + "_" + songName + " " + tempo;
@@ -1101,7 +1105,8 @@ function startRecording(plan, songName, endTime, startTime, attempt, mainBefore,
     var st = newAudioTrack(song, stemName, col);
     job.stems.push({ id: st.id, name: stemName });
     var feedName, feedId;
-    if (src.length === 1){
+    var viaBus = src.length > 1 || (fxIn && (lane.id === "top" || lane.id === "riser"));
+    if (!viaBus){
       feedName = src[0].name; feedId = src[0].api.id;
     } else {
       feedName = "SETMAKER BUS " + lane.short;
@@ -1113,6 +1118,11 @@ function startRecording(plan, songName, endTime, startTime, attempt, mainBefore,
         if (before) job.rerouted.push({ id: sa.id, identifier: before.identifier });
         if (!setRoutingToTrack(sa, "output_routing_type", "available_output_routing_types", bus.id, feedName))
           fails.push(src[q].name + " → Bus");
+      }
+      busOf[lane.id] = { id: bus.id, api: bus, name: feedName };
+      if (fxIn && lane.id === "riser" && busOf.top){
+        if (!setRoutingToTrack(bus, "output_routing_type", "available_output_routing_types", busOf.top.id, busOf.top.name))
+          fails.push("FX → Tops");
       }
     }
     if (!setInputFromTrack(st, feedId, feedName)) fails.push(stemName + ": Eingang „" + feedName + "“ nicht wählbar");
@@ -1281,6 +1291,10 @@ function setroot(p){
   settings.pkgRoot = p; saveCfg(); lastStateJson = ""; refresh();
   status("Paket-Ordner: " + p);
 }
+function fxInTops(){ return settings.fxInTops !== false; }
+function laneInPlan(plan, id){ for (var i = 0; i < plan.length; i++) if (plan[i].lane.id === id) return true; return false; }
+function setfxtops(v){ settings.fxInTops = Number(v) ? true : false; saveCfg(); lastStateJson = ""; refresh();
+  status(fxInTops() ? "FX laufen beim Aufnehmen zusätzlich in den Tops-Stem." : "Tops-Stem ohne FX."); }
 function setrange(v){ settings.range = v === "loop" ? "loop" : "all"; saveCfg(); lastStateJson = ""; refresh();
   status(settings.range === "loop" ? "Aufnahme nur innerhalb der Loop-Klammer." : "Aufnahme: ganzer Song."); }
 function resetroot(){ delete settings.pkgRoot; saveCfg(); lastStateJson = ""; refresh(); status("Paket landet im Projektordner unter „Live-Set“."); }
