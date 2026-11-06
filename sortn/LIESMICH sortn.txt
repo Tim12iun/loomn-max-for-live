@@ -42,6 +42,8 @@ Woran erkannt wird
 - Gruppen heissen "<Kategorie> Group" (z. B. Vocals Group, bei mehreren Drums Group 2 ...).
   Gruppen, deren Spuren alle zum selben Stem gehoeren (z. B. Tops + Hi-Hat), bekommen die Farbe dieser Kategorie.
   Nur Gruppen mit Spuren aus verschiedenen Stems (z. B. Kick + Bass) bleiben grau (Rest-Farbe).
+- Gruppenname zaehlt mehr als der Spurname: In "Melody Group" wird "FX 1" zu Melody, wenn mindestens die Haelfte
+  der Spuren darin Melody ist. Ausnahme Drums-Gruppen: Kick, Clap, Hi-Hat ... bleiben wie erkannt.
 - Stem-Spuren von prepn (z. B. TOPS_SONG 132) werden nie angefasst.
 
 Bei Problemen: Rechtsklick aufs Device -> Max-Fenster oeffnen und Screenshot schicken.

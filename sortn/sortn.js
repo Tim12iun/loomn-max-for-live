@@ -2,7 +2,7 @@
 // Erkennt die Rolle jeder Spur (Kick, Hi-Hat, Bass …), benennt einheitlich um und färbt nach Kategorie.
 // Einstellungen in sortn_settings.json im eigenen Ordner (unabhängig von prepn).
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.2.14";
+var VERSION = "0.2.15";
 var PLUGIN_ID = "setmaker-sort";
 inlets = 1;
 outlets = 2; // 0 -> jweb (über s ---toweb), 1 -> Neustart nach Update (deferlow -> compile + bang)
@@ -268,6 +268,42 @@ var SM = (function () {
     }
     for (var d = 0; d < rows.length; d++) { var p = rows[d], dep = 0; while (p.group && byId[p.group] && dep < 20) { p = byId[p.group]; dep++; } rows[d].depth = dep; }
 
+    // Gruppenname zählt mehr als der Spurname: Liegt eine Spur in einer Gruppe, deren Name eine Kategorie ist
+    // (z. B. "Melody Group" mit "FX 1" darin), gehört sie zur Kategorie der Gruppe. Es zählt die nächste solche Gruppe.
+    // Ausnahme Drums (Spalten Kick/Tops): dort bleiben Kick, Clap, Hi-Hat … wie erkannt.
+    // Liegt die Spur schon in derselben Spalte (z. B. Vocal Chop in "Vocals Group"), bleibt ihre Kategorie.
+    // Nur wenn mindestens die Hälfte der erkannten Spuren in der Gruppe wirklich zu dieser Spalte gehört.
+    // Sonst ist es eine gemischte Sammelgruppe (z. B. Melodie + Bass + Vocals) und jede Spur behält ihren Stem.
+    var ownLane = {};
+    for (var ol = 0; ol < rows.length; ol++) ownLane[rows[ol].id] = rows[ol].cat && byCat[rows[ol].cat] ? (byCat[rows[ol].cat].lane || "") : null;
+    function mostlyLane(grp, lane) {
+      var known = 0, hit = 0;
+      for (var mi = 0; mi < rows.length; mi++) {
+        var mr = rows[mi]; if (mr.isGroup || mr.source === "stem" || ownLane[mr.id] === null) continue;
+        var ma = mr.group ? byId[mr.group] : null, md = 0, isIn = false;
+        while (ma && md++ < 30) { if (ma === grp) { isIn = true; break; } ma = ma.group ? byId[ma.group] : null; }
+        if (!isIn) continue;
+        known++; if (ownLane[mr.id] === lane) hit++;
+      }
+      return known > 0 && hit * 2 >= known;
+    }
+    for (var gn = 0; gn < rows.length; gn++) {
+      var rn = rows[gn];
+      if (rn.isGroup || rn.source === "stem" || rn.source === "keep") continue;
+      var ng = rn.group ? byId[rn.group] : null, gcat = null, dn = 0;
+      while (ng && dn++ < 30) {
+        var ovg = overrides[ng.id];
+        gcat = (ovg && byCat[ovg]) ? ovg : (ng.source === "auto" && ng.cat ? ng.cat : null);
+        if (gcat || ovg === "_rest" || ovg === "_skip") break;
+        ng = ng.group ? byId[ng.group] : null;
+      }
+      if (!gcat) continue;
+      var gl = byCat[gcat].lane || "";
+      if (gl === "top" || gl === "kick") continue;
+      if (rn.cat && byCat[rn.cat] && (byCat[rn.cat].lane || "") === gl) continue;
+      if (!mostlyLane(ng, gl)) continue;
+      rn.cat = gcat; rn.source = "group"; rn.conf = "sicher"; rn.why = ["Gruppe: " + ng.name];
+    }
     // Unbekannte Spur in einer erkannten Gruppe (z. B. Gruppe "Vocals") -> erbt die Kategorie
     for (var u = 0; u < rows.length; u++) {
       var ru = rows[u];
