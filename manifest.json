@@ -1,7 +1,7 @@
 {
  "plugins": {
   "setmaker-prep": {
-   "version": "0.9.4",
+   "version": "0.9.5",
    "dir": "prepn",
    "files": [
     "prepn.html",

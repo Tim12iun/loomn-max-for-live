@@ -123,6 +123,9 @@ h4{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;le
   </div>
   <main>
     <div><h4>Farbe je Stem</h4><div class="grid" id="colors"></div></div>
+    <div><h4>Tops-Stem</h4>
+      <div class="tog" id="fxt" title="FX haben keine eigene Full-Spalte. An: FX laufen beim Aufnehmen mit in den Tops-Stem (der FX-Stem bleibt trotzdem einzeln)."><span data-f="0">Nur Tops</span><i class="pill"><b data-f="0"></b><b data-f="1"></b></i><span data-f="1">Tops + FX</span></div>
+    </div>
     <div><h4>Paket speichern in</h4>
       <div class="dest">
         <div class="tog" id="dest"><span id="dProj" title="Im Projektordner wird der Ordner <Song>-Live-Set angelegt">Projektordner</span><i class="pill"><b id="dProjDot"></b><b id="dOwnDot"></b></i><span id="dOwn" title="Fester Ordner für alle Projekte, darin je Song ein Ordner <Song>-Live-Set">Eigener Ordner</span></div>
@@ -167,6 +170,7 @@ function draw(){
   if(!$('#song').value && S.setName) $('#song').value = S.setName.replace(/\.als$/i,'').split('_')[0];
   const folder = (S.pkgRoot ? S.pkgRoot + '/' : (S.pkgDefault || '').replace(/[^\/]*$/, '')) + ($('#song').value.trim() || 'Song') + '-Live-Set';
   $('#render').disabled = !!S.recording;
+  document.querySelectorAll('#fxt [data-f]').forEach(b => b.classList.toggle('on', Number(b.dataset.f) === (S.fxTops === 0 ? 0 : 1)));
   document.querySelectorAll('#range [data-r]').forEach(b => b.classList.toggle('on', b.dataset.r === (S.range || 'all')));
   // Schritt für Schritt: der nächste fällige Schritt leuchtet, Clear pulsiert zum Schluss
   const hasStems = S.stems.length > 0, next = !hasStems ? 'render' : !S.packed ? 'pkg' : 'clr';
@@ -211,6 +215,7 @@ $('#auto').onclick = e => toMax(e.altKey ? 'autoundo' : 'auto');
 $('#render').onclick = () => toMax('render', songName());
 $('#pkg').onclick = () => toMax('pkg', songName());
 $('#range').onclick = e => { const r = e.target.closest('span[data-r]'); toMax('setrange', r ? r.dataset.r : (S && S.range === 'loop' ? 'all' : 'loop')); };
+$('#fxt').onclick = e => { const f = e.target.closest('span[data-f]'); toMax('setfxtops', f ? Number(f.dataset.f) : (S && S.fxTops === 0 ? 1 : 0)); };
 $('#clr').onclick = e => toMax('tidyup', e.altKey ? 1 : 0);
 $('#song').oninput = () => draw();
 $('#gear').onclick = () => { page = 'back'; draw(); };
