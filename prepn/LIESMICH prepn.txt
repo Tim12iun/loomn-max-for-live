@@ -29,6 +29,8 @@ Ablauf
    kommt die ganze Gruppe in den Melody-Stem (auch "FX 1" darin). Ausnahme Drums: Kick, Clap, Hi-Hat bleiben getrennt.
    Tops + FX (Zahnrad, Standard an): FX laufen beim Aufnehmen zusaetzlich in den Tops-Stem,
    weil es keine eigene FX-Full-Spalte gibt. Der FX-Stem wird trotzdem einzeln aufgenommen.
+   Serum: Serum-Spuren bleiben orange (MIDI fuers Paket). Ihr Ton kommt zusaetzlich in den Bass-Stem,
+   ausser Name/Geraet/Clips klingen klar nach Melodie (Lead, Pad, Keys ...), dann in den Melody-Stem.
 2. Song-Name pruefen, "Rendern" klicken. Das Device legt unten pro Farbe eine Stem-Spur an
    (z. B. TOPS_IMSOLOST 132) und nimmt den Song einmal in Echtzeit auf. Waehrenddessen nichts anfassen.
    Danach sind die Stem-Spuren stumm geschaltet, damit nichts doppelt klingt.

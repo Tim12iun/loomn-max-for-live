@@ -2,7 +2,7 @@
 // Farben -> Spalten. "Rendern" nimmt pro Spalte einen Full-Stem unten im Projekt auf (Echtzeit).
 // "Paket" schreibt einen Song-Ordner: Full-Stems, markierte Passagen als Clips, Serum-MIDI (JSON).
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.9.5";
+var VERSION = "0.9.6";
 var PLUGIN_ID = "setmaker-prep";
 inlets = 1;
 outlets = 2; // 0 -> jweb (über s ---toweb), 1 -> prepn_pkg.js (node.script)
@@ -766,7 +766,33 @@ function scan(){
     if (covered) continue;
     (res.lanes[tm.lane] = res.lanes[tm.lane] || []).push(tm);
   }
+  // Serum-Spuren (nur MIDI fürs Paket) klingen trotzdem: ihr Ton kommt zusätzlich in einen Audio-Stem.
+  // Meist ist Serum der Bass. Nur wenn Name, Gerät oder Clips klar nach Melodie klingen (und nicht nach Bass) -> Melody.
+  var sl = res.lanes.serum || [];
+  for (var q = 0; q < sl.length; q++){
+    var ts = sl[q], pa = ts.group ? byIdMap[ts.group] : null, viaGroup = false, dq = 0;
+    while (pa && dq++ < 30){ if ((pa.lane && !(laneById(pa.lane) || {}).midi) || pa.absorb){ viaGroup = true; break; } pa = pa.group ? byIdMap[pa.group] : null; }
+    if (viaGroup) continue; // Ton läuft schon über eine Gruppe in deren Stem
+    var al = serumAudioLane(ts);
+    if (al) (res.lanes[al] = res.lanes[al] || []).push(ts);
+  }
   return res;
+}
+function serumAudioLane(t){
+  var texts = [t.name];
+  try {
+    var dv = ids(t.api, "devices");
+    for (var i = 0; i < dv.length; i++) texts.push(g(byId(dv[i]), "name"));
+    var cl = ids(t.api, "arrangement_clips");
+    for (var c = 0; c < cl.length && c < 8; c++) texts.push(g(byId(cl[c]), "name"));
+  } catch (e) {}
+  var bass = false, melo = false;
+  for (var k = 0; k < texts.length; k++){
+    if (nameFitsLane(texts[k], "bass") || /(^|[^a-z])low([^a-z]|$)/i.test(texts[k])) bass = true;
+    else if (nameFitsLane(texts[k], "melo")) melo = true;
+  }
+  var lane = (melo && !bass) ? "melo" : "bass";
+  return laneById(lane) ? lane : null;
 }
 // Passt der Name (z. B. "Tops Group") zu einer Spalte? Spaltenname oder ein Keyword einer Kategorie dieser Spalte als Wort.
 function nameFitsLane(name, laneId){
