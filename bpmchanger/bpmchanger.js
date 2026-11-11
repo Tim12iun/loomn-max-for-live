@@ -9,14 +9,15 @@
 //    gespeichert werden sie in unsichtbaren Live-Zahlenfeldern (bleiben im Set).
 //  - im Schwebe-Fenster (Argument "win"): zeichnet alles inkl. Regler und schickt Bedienung an das Device.
 autowatch = 0; // nicht automatisch neu laden (Updates überschreiben diese Datei)
-var VERSION = "0.3.2";
+var VERSION = "0.3.3";
 var PLUGIN_ID = "bpmchanger";
 var WIN = jsarguments.length > 1 && jsarguments[1] === "win";
 try { if (!WIN && box && box.rect && box.rect[2] - box.rect[0] > 260) WIN = true; } catch (e) {} // Fenster ist breiter als die Device-Spalte
 inlets = 1;
-// Device: 0 Tempo-Knopf, 1 Start, 2 Neustart, 3 Takte, 4 Ziel, 5 Zustand ans Fenster, 6 Fenster öffnen
+// Device: 0 Tempo-Knopf, 1 Start, 2 Neustart, 3 Takte, 4 Ziel, 5 Zustand ans Fenster, 6 Fenster öffnen,
+//         7 Aufräumer (node.script bpmchanger_clean.js)
 // Fenster: 0 Bedienung ans Device
-outlets = 7;
+outlets = 8;
 
 mgraphics.init();
 mgraphics.relative_coords = 0;
@@ -162,6 +163,24 @@ var playTask = new Task(playChanged, this);
 // ---------- Dateien / Einstellungen ----------
 // Ordner des Devices = .../LOOMN-MAX4LIVE/bpmchanger/. Update und Einstellungen landen nur dort.
 function fileExists(path) { var f = new File(path, "read"); var ok = f.isopen; if (ok) f.close(); return ok; }
+// Dateien, die früher eine Ebene zu hoch gelandet sind (LOOMN-MAX4LIVE/ statt LOOMN-MAX4LIVE/bpmchanger/).
+// Sie stören, weil Max dann zwei bpmchanger.js findet. Node räumt sie weg (Max kann nicht löschen).
+var STRAYS = ["BPM Changer.amxd", "bpmchanger.js", "bpmchanger_clean.js", "LIESMICH BPM Changer.txt", "bpmchanger_settings.json"];
+var cleanTries = 0;
+function parentDir() { return /\/bpmchanger\/$/.test(DIR) ? DIR.substring(0, DIR.length - "bpmchanger/".length) : ""; }
+function checkStrays() {
+  var p = parentDir(); if (!p) return;
+  var found = false;
+  for (var i = 0; i < STRAYS.length; i++) if (fileExists(p + STRAYS[i])) found = true;
+  if (!found) return;
+  post("BPM Changer: alte Dateien in " + p + " werden aufgeräumt\n");
+  cleanTries = 0;
+  outlet(7, "script", "start");
+  var t = new Task(function () { outlet(7, "clean", parentDir()); });
+  t.schedule(1500);
+  var t2 = new Task(function () { if (cleanTries === 0) outlet(7, "clean", parentDir()); });
+  t2.schedule(5000);
+}
 function deviceDir() {
   var fp = this.patcher ? String(this.patcher.filepath || "") : "";
   if (!fp) return "";
@@ -203,6 +222,7 @@ function saveSettings() {
 function bang() { if (!WIN) init.call(this); }
 function init() {
   DIR = deviceDir.call(this);
+  checkStrays();
   loadSettings();
   stopAll();
   song = new LiveAPI("live_set");
@@ -385,6 +405,8 @@ function handle(n, a) {
   else if (n === "wdelay") setDelay(Number(a[0]));
   else if (n === "wupdate") update();
   else if (n === "wopen") sendState(true);
+  else if (n === "cleaned") { cleanTries++; if (Number(a[0]) > 0) { post("BPM Changer: " + a[0] + " alte Dateien entfernt\n"); loadSettings(); } }
+  else if (n === "cleanerr") post("BPM Changer: konnte " + a.join(" ") + " nicht entfernen\n");
 }
 function toggleSnap() {
   settings.snap = !settings.snap; saveSettings();

@@ -84,8 +84,9 @@
      "id": "ui",
      "maxclass": "jsui",
      "numinlets": 1,
-     "numoutlets": 7,
+     "numoutlets": 8,
      "outlettype": [
+      "",
       "",
       "",
       "",
@@ -857,8 +858,9 @@
          ],
          "parameter_enable": 0,
          "numinlets": 1,
-         "numoutlets": 7,
+         "numoutlets": 8,
          "outlettype": [
+          "",
           "",
           "",
           "",
@@ -1089,6 +1091,25 @@
        }
       ]
      }
+    }
+   },
+   {
+    "box": {
+     "id": "node",
+     "maxclass": "newobj",
+     "numinlets": 1,
+     "numoutlets": 2,
+     "outlettype": [
+      "",
+      ""
+     ],
+     "patching_rect": [
+      40,
+      620,
+      300,
+      22
+     ],
+     "text": "node.script bpmchanger_clean.js @autostart 0 @watch 0"
     }
    }
   ],
@@ -1449,6 +1470,30 @@
      ],
      "destination": [
       "win",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "source": [
+      "ui",
+      7
+     ],
+     "destination": [
+      "node",
+      0
+     ]
+    }
+   },
+   {
+    "patchline": {
+     "source": [
+      "node",
+      0
+     ],
+     "destination": [
+      "ui",
       0
      ]
     }
