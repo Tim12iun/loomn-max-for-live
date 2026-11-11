@@ -1,0 +1,42 @@
+chopn v0.1.0 (Test-Version) – Sampler zum Choppen mit der Maus
+Sample reinziehen, in die Welle klicken und hoeren, Punkte auf Tasten legen, wie ein Instrument spielen.
+chopn arbeitet komplett eigenstaendig, unabhaengig von allen anderen LOOMN-Plugins.
+
+Installation
+- Den Ordner "chopn" hierhin legen (Finder: Shift+Cmd+G, Pfad einfuegen):
+  ~/Music/Ableton/User Library/Presets/Audio Effects/Max Audio Effect/MAX for LIVE 3rd Party/LOOMN-MAX4LIVE/
+  Ergebnis: .../LOOMN-MAX4LIVE/chopn/
+- Alle Dateien im Ordner zusammen lassen: chopn.amxd, chopn.js.
+- chopn ist ein Instrument: "chopn.amxd" auf eine MIDI-Spur ziehen.
+- Einstellungen: chopn_settings.json im Ordner chopn. Legt das Device selbst an, bleibt bei Updates erhalten.
+- Update: Zahnrad oben rechts -> Download-Pfeil neben der Versionsnummer. Laedt die neue Version direkt in diesen
+  Ordner (gleiche Dateinamen, wird ueberschrieben) und startet das Device neu. Hat sich das Aussehen geaendert,
+  das Device danach einmal loeschen und neu reinziehen.
+
+So geht's
+1. Sample aus dem Live-Browser oder dem Finder rechts oben ins Feld "Sample" ziehen (oder direkt auf die Welle).
+2. In die Welle klicken = ab dort hoeren. Jeder Klick startet neu, so kannst du Stutters und Chops ausprobieren.
+   Der orange Strich zeigt den zuletzt geklickten Punkt.
+3. Eine freie Taste druecken = die Taste merkt sich diesen Punkt. Ueber dem Punkt steht dann die Note (z. B. C3).
+   Naechsten Punkt klicken, naechste Taste druecken, und so weiter.
+4. Die Tasten spielen jetzt die Punkte. MIDI ganz normal aufnehmen, der Clip spielt chopn wie ein Instrument.
+
+Tasten am Mac als Klaviatur
+- In Live die Taste M druecken (Computer-MIDI-Tastatur an). Dann spielen A S D F G H J K die weissen Tasten ab C3,
+  W E T Z U die schwarzen. Y und X schalten die Oktave um.
+- Die Spur mit chopn muss ausgewaehlt oder scharf geschaltet sein.
+
+Bedienung
+- Lernen (Punkt orange = an): freie Tasten merken sich beim Druecken den orangen Punkt. Aus = Tasten spielen nur,
+  es wird nichts Neues gemerkt.
+- Punkt verschieben: das Faehnchen mit der Note nach links/rechts ziehen. Faehnchen anklicken = Punkt hoeren und waehlen.
+- Loeschen: entfernt den gewaehlten Punkt (orange umrandet). Danach kann die Taste einen neuen Punkt lernen.
+- Leeren: entfernt alle Punkte (fragt nach: nochmal klicken).
+- "+" und "−": Welle vergroessern/verkleinern, fuer genaue Punkte. Vergroessert: unten am Balken den Ausschnitt verschieben.
+- Pegel: Lautstaerke. Ton: Tonhoehe in Halbtoenen (hoeher = schneller). Stopp: Ton aus. Alle drei per MIDI mappbar.
+- Zahnrad -> Halten: an = der Ton stoppt, wenn du die Taste loslaesst (Notenlaenge im Clip zaehlt).
+  Aus = der Ton laeuft weiter bis zur naechsten Taste oder bis Stopp.
+- chopn spielt immer nur einen Ton: jede neue Taste schneidet den alten ab (wie beim Klicken mit der Maus).
+- Sample und Punkte werden im Live-Set gespeichert. Ein neues Sample loescht die Punkte.
+
+Bei Problemen: Rechtsklick aufs Device -> Max-Fenster oeffnen und Screenshot schicken.

@@ -59,6 +59,19 @@
    ],
    "amxdType": "aaaa",
    "obsolete": []
+  },
+  "chopn": {
+   "version": "0.1.0",
+   "dir": "chopn",
+   "files": [
+    "LIESMICH chopn.txt",
+    "chopn.js"
+   ],
+   "amxd": [
+    "chopn.amxd"
+   ],
+   "amxdType": "iiii",
+   "obsolete": []
   }
  }
 }

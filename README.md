@@ -8,6 +8,7 @@ Die Plugins haben einen Update-Knopf (⟳), der hier nach neuen Versionen schaut
 | sortn | `sortn/` | Spuren erkennen, umbenennen, einfärben |
 | prepn | `prepn/` | Stems pro Live-Set-Spalte rendern, Song-Paket schreiben |
 | BPM Changer | `bpmchanger/` | Tempo weich ändern: Knopf (MIDI-mappbar, rundet auf ganze BPM), Rampe über Takte. Gehört auf die Main-Spur |
+| chopn | `chopn/` | Sampler (Instrument): Sample reinziehen, mit der Maus Startpunkte suchen (Klick = ab dort hören), Punkte auf MIDI-Tasten legen und spielen |
 | buildn | `buildn/Buildn App/` | Eigene Mac-App (kein M4L): aus prepn-Paketen und einer Vorlage ein neues Live-Set (.als) bauen. Releases in `Tim12iun/loomn-tools` (`buildn-latest`), Bau mit `scripts/release-local.sh` |
 
 Installation: den Ordner des Plugins (z. B. `prepn`) nach
@@ -26,11 +27,12 @@ Neues Plugin = neuer Ordner auf oberster Ebene + Eintrag in `manifest.json`.
   die noch im Ordner liegen, nennt das Device nach dem Update zum Löschen im Finder.
 - `src/shared/`: gemeinsame Blöcke (`loomn_update.js` für alle, `setmaker_shared.js` nur für sortn),
   per `python3 src/shared/sync_shared.py` in die Device-Scripts kopiert. `src/<plugin>/`: `.maxpat`-Quellen.
-  BPM Changer: Patch wird mit `python3 src/bpmchanger/build_patch.py` erzeugt (schreibt `.maxpat`, `.amxd` und `.amxd.json`).
+  BPM Changer und chopn: Patch wird mit `python3 src/<plugin>/build_patch.py` erzeugt (schreibt `.maxpat`, `.amxd` und `.amxd.json`).
 - Update-URL in den Devices: `https://raw.githubusercontent.com/Tim12iun/loomn-max-for-live/main/`
 
 ## Performance-Regeln (für alle Devices)
 - Audio: `plugin~` direkt an `plugout~`, keine weiteren MSP-Objekte. Die Devices bearbeiten keinen Ton.
+  Ausnahme chopn (Instrument): Noten starten den Ton im Patch (`notein` → `coll` → `groove~`), nicht über das Script.
 - Im Leerlauf läuft nichts: kein `setInterval`, kein `Task.repeat`, kein `metro` zum Abfragen. Änderungen in Live über Observer (`LiveAPI`-Callback + `property`) mitbekommen.
 - Observer-Meldungen nie direkt verarbeiten, sondern per `Task.schedule` bündeln (ca. 250 ms, spätestens 1 s). Viele Änderungen = ein Neu-Einlesen.
 - Keine Live-API-Arbeit (`set`, `call`) direkt im Observer-Callback, immer verschoben.
