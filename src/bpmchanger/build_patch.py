@@ -30,7 +30,7 @@ def obj(id, text, rect, nin=1, nout=1, otype=None, **kw):
 # Dunkler Hintergrund für das ganze Device (Hintergrund-Ebene, liegt immer hinter allem)
 box("bgp", "panel", [700, 600, 100, 40], None, 1, 0, [], background=1, bgcolor=BG, bordercolor=BG, border=0,
     ignoreclick=1, presentation=1, presentation_rect=[0, 0, 300, 169])
-box("ui", "jsui", [400, 300, 214, 169], None, 1, 7, [""] * 7, varname="bpmui",
+box("ui", "jsui", [400, 300, 214, 169], None, 1, 8, [""] * 8, varname="bpmui",
     filename="bpmchanger.js", parameter_enable=0, presentation=1, presentation_rect=[0, 0, 214, 169])
 
 obj("in", "plugin~", [20, 20, 60, 22], 2, 2, ["signal", "signal"])
@@ -124,7 +124,7 @@ win_boxes = [
     {"box": {"id": "w1", "maxclass": "inlet", "numinlets": 0, "numoutlets": 1, "outlettype": [""], "patching_rect": [10, 10, 30, 30]}},
     {"box": {"id": "w2", "maxclass": "newobj", "text": "r ---bpmstate", "numinlets": 0, "numoutlets": 1, "outlettype": [""], "patching_rect": [10, 60, 90, 22]}},
     {"box": {"id": "w3", "maxclass": "jsui", "filename": "bpmchanger.js", "jsarguments": ["win"], "parameter_enable": 0,
-             "numinlets": 1, "numoutlets": 7, "outlettype": [""] * 7, "patching_rect": [10, 100, SW, SH],
+             "numinlets": 1, "numoutlets": 8, "outlettype": [""] * 8, "patching_rect": [10, 100, SW, SH],
              "presentation": 1, "presentation_rect": [0, 0, SW, SH]}},
     {"box": {"id": "w4", "maxclass": "newobj", "text": "s ---bpmcmd", "numinlets": 1, "numoutlets": 0, "outlettype": [], "patching_rect": [10, 400, 90, 22]}},
     {"box": {"id": "w5", "maxclass": "newobj", "text": "loadbang", "numinlets": 1, "numoutlets": 1, "outlettype": ["bang"], "patching_rect": [500, 10, 60, 22]}},
@@ -144,6 +144,10 @@ boxes.append({"box": {"id": "win", "maxclass": "newobj", "text": "p window", "va
                 "default_fontsize": 12.0, "default_fontface": 0, "default_fontname": "Arial", "gridonopen": 1,
                 "gridsize": [15.0, 15.0], "gridsnaponopen": 1, "toolbarvisible": 0, "boxes": win_boxes, "lines": win_lines}}})
 line("pc", 0, "win", 0)
+
+# Aufräumer: löscht BPM-Changer-Dateien, die eine Ebene zu hoch liegen (startet nur bei Bedarf)
+obj("node", "node.script bpmchanger_clean.js @autostart 0 @watch 0", [40, 620, 300, 22], 1, 2, ["", ""])
+line("ui", 7, "node", 0); line("node", 0, "ui", 0)
 
 for b in boxes:
     bb = b["box"]

@@ -1,4 +1,4 @@
-BPM Changer v0.3.2 (Test-Version) – Tempo weich aendern
+BPM Changer v0.3.3 (Test-Version) – Tempo weich aendern
 Fuer Songwechsel im Set: Tempo per Knopf (auch per MIDI-Controller) oder als Rampe ueber eine Anzahl Takte.
 BPM Changer arbeitet komplett eigenstaendig, unabhaengig von prepn und sortn.
 
@@ -6,7 +6,8 @@ Installation
 - Den Ordner "bpmchanger" hierhin legen (Finder: Shift+Cmd+G, Pfad einfuegen):
   ~/Music/Ableton/User Library/Presets/Audio Effects/Max Audio Effect/MAX for LIVE 3rd Party/LOOMN-MAX4LIVE/
   Ergebnis: .../LOOMN-MAX4LIVE/bpmchanger/
-- Alle Dateien im Ordner zusammen lassen: BPM Changer.amxd, bpmchanger.js.
+- Alle Dateien im Ordner zusammen lassen: BPM Changer.amxd, bpmchanger.js, bpmchanger_clean.js.
+- Liegen BPM-Changer-Dateien direkt in LOOMN-MAX4LIVE/ (eine Ebene zu hoch), raeumt das Device sie beim Laden selbst weg.
 - "BPM Changer.amxd" auf die Main-Spur ziehen.
 - Einstellungen: bpmchanger_settings.json im Ordner bpmchanger. Legt das Device selbst an, bleibt bei Updates erhalten.
 - Update: Zahnrad oben rechts -> Download-Pfeil neben der Versionsnummer. Laedt die neue Version direkt in diesen
